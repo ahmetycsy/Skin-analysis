@@ -1,0 +1,3 @@
+[theme]
+# Tarayıcı koyu temada olsa bile uygulama açık temada açılsın (özel renkler açık temaya göre ayarlı).
+base = "light"

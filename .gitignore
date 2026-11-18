@@ -1,0 +1,25 @@
+# --- Veri ve model dosyaları GitHub'a GİTMEZ (MILK10k lisansı CC-BY-NC, repo herkese açık) ---
+data/
+*.zip
+*.csv
+*.npy
+*.pt
+*.pth
+*.ckpt
+*.joblib
+*.pkl
+sonuclar/
+results/
+models/*
+!models/.gitkeep
+
+# --- Kişisel / yerel dosyalar ---
+CLAUDE.md
+.claude/
+.streamlit/secrets.toml
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
