@@ -17,7 +17,8 @@ Bu klasör Ahmet'in paketidir. Şu an SAHTE modelle çalışır; gerçek model g
 ## 2. İnternette yayınla (ücretsiz)
 1. Kod GitHub'da **public** bir repoda durur (GitHub Desktop ile gönderilir). Veri ve model dosyaları
    `.gitignore` sayesinde GitHub'a gitmez (MILK10k lisansı CC-BY-NC).
-2. share.streamlit.io'ya GitHub hesabınla gir → "Create app" → repoyu seç, Branch `main`, Main file `app.py` → Deploy.
+2. share.streamlit.io'ya GitHub hesabınla gir → "Create app" → repoyu seç, Branch `main`, Main file `app.py`, **Advanced settings → Python 3.12** → Deploy.
+   (Python 3.14 seçilirse altair kütüphanesi hata verir.)
 3. Birkaç dakika sonra herkese açık bir link çıkar. Bu linki rapora ve sunuma koy.
 4. Kodda değişiklik olunca GitHub Desktop'ta "Commit" + "Push" yeterli; site kendini günceller.
 
