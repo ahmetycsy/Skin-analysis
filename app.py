@@ -12,9 +12,11 @@ from PIL import Image, ImageDraw, ImageFilter, ImageStat
 import i18n
 from about import ADVISOR, AGE_RANGE, APP_VERSION, LOW_DATA_SKIN_TONES, SKIN_TONE_COUNTS, TEAM, render_about, render_guide
 from i18n import t
+from stats_page import render_stats
 from predictor import (
     AGE_BANDS,
     BENIGN,
+    CLASSES,
     GROUP_ORDER,
     GROUPS,
     MALIGN,
@@ -146,6 +148,7 @@ div.stDownloadButton > button:hover {{ background:#0B5F58; color:#fff; }}
 .cand-desc {{ grid-column:1 / -1; color:{MUTED}; font-size:.86rem; line-height:1.5; }}
 .cand-meta {{ grid-column:1 / -1; color:#7A8D94; font-size:.76rem; }}
 .empty {{ color:{MUTED}; font-size:.94rem; line-height:1.6; padding:1rem .2rem; }}
+.fb-done {{ font-size:.86rem; color:#25685F; background:#EDF6F4; border:1px solid #CFE5E1; border-radius:8px; padding:.5rem .75rem; margin-bottom:.5rem; }}
 .cam-empty {{ color:{MUTED}; font-size:.86rem; line-height:1.55; background:{BG}; border:1px dashed #C9D8D6; border-radius:8px; padding:.7rem .85rem; }}
 
 /* model kartı ve kılavuz */
@@ -173,6 +176,7 @@ ss.setdefault("swap", False)   # iki görüntünün yeri değiştirildi mi
 ss.setdefault("result", None)  # son analiz sonucu
 ss.setdefault("history", [])   # bu oturumdaki analizler (yalnızca bellekte, kaydedilmez)
 ss.setdefault("lang", "tr")
+ss.setdefault("feedback", {})  # vaka no -> hekim değerlendirmesi (yalnızca bellekte)
 
 
 INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm")
@@ -338,6 +342,28 @@ def assess(probs: dict) -> dict:
     return {"totals": totals, "ranked": ranked, "uncertain": uncertain, "level": level, "title": title, "text": text}
 
 
+AGREE = {"yes": "fb_yes", "partial": "fb_partial", "no": "fb_no"}
+ACTIONS = {"follow": "act_follow", "biopsy": "act_biopsy", "excision": "act_excision", "treat": "act_treat", "none": "act_none"}
+
+
+def dx_label(k: str) -> str:
+    return t("fb_dx_unknown") if k == "unknown" else f"{i18n.plain(k)} ({k})"
+
+
+def fb_summary(fb: dict) -> str:
+    return t("fb_summary", dx=dx_label(fb["dx"]), agree=t(AGREE[fb["agree"]]), action=t(ACTIONS[fb["action"]]))
+
+
+def physician_lines(fb):
+    """PDF için hekim bölümü satırları. Değerlendirme yoksa None (PDF'te boş, elle doldurulacak alan çıkar)."""
+    if not fb:
+        return None
+    rows = [(t("fb_dx"), dx_label(fb["dx"])), (t("fb_agree"), t(AGREE[fb["agree"]])), (t("fb_action"), t(ACTIONS[fb["action"]]))]
+    if fb["note"]:
+        rows.append((t("fb_note"), fb["note"]))
+    return rows
+
+
 def meta_lines(m: dict):
     return [
         (t("age_label"), t("age_fmt", b=age_band_label(m["age"]))),
@@ -388,7 +414,7 @@ with st.container(key="appbar"):
             key="lang_picker", label_visibility="collapsed", on_change=_set_lang,
         )
 
-tab_analyze, tab_about, tab_guide = st.tabs([t("tab_analyze"), t("tab_about"), t("tab_guide")])
+tab_analyze, tab_stats, tab_about, tab_guide = st.tabs([t("tab_analyze"), t("tab_stats"), t("tab_about"), t("tab_guide")])
 with tab_about:
     render_about()
 with tab_guide:
@@ -492,15 +518,28 @@ with tab_analyze:
             st.caption(t("missing", items=", ".join(missing)))
 
         if run and ready:
-            t0 = time.perf_counter()
-            meta = Meta(age=age, sex=sex, skin_tone=skin_tone, site=site)
-            probs = predictor.predict(clin_img, derm_img, meta)
-            cam = None
-            if hasattr(predictor, "explain"):
-                cam = predictor.explain(clin_img, derm_img, meta)  # (ısı haritası görüntüsü, sınıf kodu) ya da None
+            # Adım adım ilerleme kutusu. Kısa beklemeler yalnızca adımların okunabilmesi içindir;
+            # "hesaplama süresi" yalnızca modelin gerçek çalışma süresini ölçer.
+            with st.status(t("prog_title"), expanded=True) as status:
+                st.write("① " + t("prog_1"))
+                time.sleep(0.3)
+                st.write("② " + t("prog_2"))
+                t0 = time.perf_counter()
+                meta = Meta(age=age, sex=sex, skin_tone=skin_tone, site=site)
+                probs = predictor.predict(clin_img, derm_img, meta)
+                cam = None
+                if hasattr(predictor, "explain"):
+                    cam = predictor.explain(clin_img, derm_img, meta)  # (ısı haritası görüntüsü, sınıf kodu) ya da None
+                elapsed = time.perf_counter() - t0
+                time.sleep(0.3)
+                st.write("③ " + t("prog_3"))
+                time.sleep(0.3)
+                st.write("④ " + t("prog_4"))
+                time.sleep(0.2)
+                status.update(label=t("prog_done"), state="complete", expanded=False)
             ss.result = {
                 "probs": probs,
-                "elapsed": time.perf_counter() - t0,
+                "elapsed": elapsed,
                 "sig": current_sig,
                 "case": case_id(current_sig),
                 "created": datetime.now().strftime("%d.%m.%Y %H:%M"),
@@ -515,7 +554,8 @@ with tab_analyze:
             a0 = assess(probs)
             ss.history = [h for h in ss.history if h["case"] != ss.result["case"]]
             ss.history.insert(0, {"case": ss.result["case"], "time": datetime.now().strftime("%H:%M"),
-                                  "meta": ss.result["meta"], "top": a0["ranked"][0], "level": a0["level"]})
+                                  "meta": ss.result["meta"], "top": a0["ranked"][0], "level": a0["level"],
+                                  "elapsed": elapsed})
 
     # 3. sonuç
     with right:
@@ -589,11 +629,40 @@ with tab_analyze:
                     st.altair_chart(chart, use_container_width=True)
                     st.dataframe(df.assign(**{pc: df[pc].map(i18n.pct)}), hide_index=True, width="stretch")
 
+                # Hekim değerlendirmesi
+                st.markdown(f'<div class="sec-label">{t("fb_title")}</div>', unsafe_allow_html=True)
+                fb = ss.feedback.get(res["case"])
+                if fb:
+                    st.markdown(f'<div class="fb-done">✓ {html.escape(fb_summary(fb))}</div>', unsafe_allow_html=True)
+                with st.expander(t("fb_edit") if fb else t("fb_open")):
+                    st.caption(t("fb_intro"))
+                    with st.form(key=f"fb_form_{res['case']}_{ss.lang}", border=False):
+                        dx_opts = ["unknown"] + CLASSES
+                        dx = st.selectbox(t("fb_dx"), dx_opts,
+                                          index=dx_opts.index(fb["dx"]) if fb else None,
+                                          format_func=dx_label, placeholder="—")
+                        agree = st.radio(t("fb_agree"), list(AGREE), horizontal=True,
+                                         index=list(AGREE).index(fb["agree"]) if fb else None, format_func=lambda k: t(AGREE[k]))
+                        action = st.selectbox(t("fb_action"), list(ACTIONS), format_func=lambda k: t(ACTIONS[k]),
+                                              index=list(ACTIONS).index(fb["action"]) if fb else None, placeholder="—")
+                        note = st.text_area(t("fb_note"), value=fb["note"] if fb else "", max_chars=300,
+                                            placeholder=t("fb_note_ph"), height=80)
+                        if st.form_submit_button(t("fb_save"), type="primary"):
+                            if dx is None or agree is None or action is None:
+                                st.warning(t("missing", items=", ".join(
+                                    lab for lab, v in [(t("fb_dx"), dx), (t("fb_agree"), agree), (t("fb_action"), action)] if v is None)))
+                            else:
+                                ss.feedback[res["case"]] = {"dx": dx, "agree": agree, "action": action, "note": note.strip(),
+                                                            "time": datetime.now().strftime("%d.%m.%Y %H:%M")}
+                                st.rerun()
+                    st.caption(t("fb_session_note"))
+
                 if build_pdf is not None:
                     try:
                         pdf_bytes = build_pdf(
                             res, a, predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS, groups_of=GROUPS,
                             group_order=GROUP_ORDER, meta_lines=meta_lines(res["meta"]),
+                            physician=physician_lines(fb),
                         )
                         st.download_button(t("dl_pdf"), data=pdf_bytes, file_name=f"{res['case']}.pdf", mime="application/pdf",
                                            icon=":material/download:", width="stretch", help=t("dl_pdf_help"))
@@ -615,9 +684,13 @@ with tab_analyze:
                                     f"{t('tone_short')} {h['meta']['skin_tone']}",
                     t("h_top"): f"{i18n.plain(h['top'][0])} ({i18n.pct(h['top'][1])})",
                     t("h_level"): lvl[h["level"]],
+                    t("h_physician"): t(AGREE[ss.feedback[h["case"]]["agree"]]) if h["case"] in ss.feedback else "–",
                 } for h in ss.history]
                 st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
                 st.caption(t("history_note"))
+
+with tab_stats:
+    render_stats(ss.history, ss.feedback, predictor.is_mock, GROUP_COLORS)
 
 st.markdown(
     f'<div class="foot-grid"><div>{t("foot_left")}</div>'

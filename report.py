@@ -36,7 +36,7 @@ def _hex(c: str):
 
 
 def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: dict, groups_of: dict,
-              group_order: list, meta_lines: list[tuple[str, str]]) -> bytes:
+              group_order: list, meta_lines: list[tuple[str, str]], physician: list | None = None) -> bytes:
     pdf = _PDF(format="A4")
     pdf.add_font("DejaVu", "", os.path.join(FONT_DIR, "DejaVuSans.ttf"))
     pdf.add_font("DejaVu", "B", os.path.join(FONT_DIR, "DejaVuSans-Bold.ttf"))
@@ -67,15 +67,15 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
         pdf.set_draw_color(*border)
         pdf.set_text_color(*INK)
         pdf.set_font("DejaVu", "", 8.5)
-        pdf.multi_cell(W, 4.6, text, border=1, fill=True, padding=2.2, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.ln(1.8)
+        pdf.multi_cell(W, 4.4, text, border=1, fill=True, padding=1.8, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(1.2)
 
     notice(t("pdf_nodx"), (255, 248, 230), (240, 220, 164))
     if is_mock:
         notice(t("pdf_demo"), (255, 244, 221), (229, 196, 128))
 
     def heading(text):
-        pdf.ln(1.5)
+        pdf.ln(1)
         pdf.set_font("DejaVu", "B", 10.5)
         pdf.set_text_color(*INK)
         pdf.cell(W, 6, text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
@@ -98,7 +98,7 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
     imgs = [res.get("clin_jpg"), res.get("derm_jpg")] + ([res["cam_jpg"]] if res.get("cam_jpg") else [])
     imgs = [i for i in imgs if i]
     if imgs:
-        size = 34 if len(imgs) <= 2 else 26
+        size = 30 if len(imgs) <= 2 else 24
         x = 15 + W - len(imgs) * (size + 3) + 3
         pdf.set_xy(x, top + 1.5)
         pdf.set_font("DejaVu", "B", 10.5)
@@ -175,19 +175,53 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
     for i, (c, p) in enumerate(a["ranked"]):
         if i % 2 == 0:
             pdf.set_fill_color(*SOFT)
-            pdf.rect(15, pdf.get_y(), W, 5.6, style="F")
+            pdf.rect(15, pdf.get_y(), W, 5.2, style="F")
         pdf.set_font("DejaVu", "B" if i < 3 else "", 8.5)
         pdf.set_text_color(*INK)
-        pdf.cell(56, 5.6, fit(i18n.plain(c), 56), new_x=XPos.RIGHT)
+        pdf.cell(56, 5.2, fit(i18n.plain(c), 56), new_x=XPos.RIGHT)
         pdf.set_font("DejaVu", "", 7.5)
         pdf.set_text_color(*MUTED)
-        pdf.cell(77, 5.6, fit(f"{i18n.cname(c)} ({c})", 77))
+        pdf.cell(77, 5.2, fit(f"{i18n.cname(c)} ({c})", 77))
         pdf.set_font("DejaVu", "", 8)
         pdf.set_text_color(*_hex(group_colors[groups_of[c]]))
-        pdf.cell(33, 5.6, fit(i18n.group(groups_of[c]), 33))
+        pdf.cell(33, 5.2, fit(i18n.group(groups_of[c]), 33))
         pdf.set_font("DejaVu", "B" if i < 3 else "", 8.5)
         pdf.set_text_color(*INK)
-        pdf.cell(W - 166, 5.6, i18n.pct(p), align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(W - 166, 5.2, i18n.pct(p), align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+
+    # Hekim değerlendirmesi: girildiyse yazılır, girilmediyse elle doldurulacak boş alan bırakılır
+    pdf.ln(1)
+    need = 10 + (len(physician) * 5.2 if physician else 5 + 3 * 7.2) + 9
+    if pdf.get_y() + need > pdf.h - 18:  # sığmazsa yeni sayfaya geç
+        pdf.add_page()
+    heading(t("pdf_physician"))
+    pdf.set_font("DejaVu", "", 9)
+    if physician:
+        lab_w = max(pdf.get_string_width(lab) for lab, _ in physician) + 5
+        for lab, val in physician:
+            pdf.set_text_color(*MUTED)
+            pdf.cell(lab_w, 5.2, lab)
+            pdf.set_text_color(*INK)
+            pdf.multi_cell(W - lab_w, 5.2, val, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    else:
+        pdf.set_text_color(*MUTED)
+        pdf.set_font("DejaVu", "", 8)
+        pdf.cell(W, 5, t("pdf_physician_blank"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_font("DejaVu", "", 9)
+        pdf.set_draw_color(*LINE)
+        for lab in (t("fb_dx"), t("fb_action"), t("fb_note")):
+            pdf.ln(1.2)
+            pdf.cell(62, 6, lab)
+            y = pdf.get_y() + 5.2
+            pdf.line(15 + 62, y, 15 + W, y)
+            pdf.ln(6)
+    pdf.ln(2)
+    pdf.set_text_color(*MUTED)
+    pdf.set_font("DejaVu", "", 8.5)
+    pdf.cell(W / 2, 6, f"{t('pdf_signature')}:")
+    pdf.set_draw_color(*LINE)
+    y = pdf.get_y() + 5.2
+    pdf.line(15 + 30, y, 15 + W / 2 - 5, y)
 
     pdf.alias_nb_pages()
     return bytes(pdf.output())
