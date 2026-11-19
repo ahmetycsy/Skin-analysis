@@ -23,3 +23,6 @@ __pycache__/
 .venv/
 venv/
 .ipynb_checkpoints/
+
+# Veri setinden üretilmiş örnek görseller (MILK10k görüntüsü içerir)
+gradcam_ornek*.png
