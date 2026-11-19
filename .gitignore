@@ -4,13 +4,13 @@ data/
 *.csv
 *.npy
 *.pt
-*.pth
+
 *.ckpt
 *.joblib
 *.pkl
 sonuclar/
 results/
-models/*
+
 !models/.gitkeep
 
 # --- Kişisel / yerel dosyalar ---
