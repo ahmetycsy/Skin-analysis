@@ -12,7 +12,7 @@ import streamlit as st
 
 import i18n
 from i18n import t
-from predictor import GROUPS
+from predictor import GROUPS, MALIGN
 
 LEVELS = ["urgent", "refer", "benign"]
 LEVEL_KEYS = {"urgent": "lvl_urgent", "refer": "lvl_refer", "benign": "lvl_benign"}
@@ -41,7 +41,7 @@ def _int_axis(max_n: int):
     return alt.Axis(values=list(range(0, max_n + 1, step)), format="d", grid=False)
 
 
-def render_stats(history: list, feedback: dict, is_mock: bool, group_colors: dict):
+def render_stats(history: list, feedback: dict, is_mock: bool, group_colors: dict, finals: list | None = None):
     st.markdown(f'<p class="lead">{t("st_lead")}</p>', unsafe_allow_html=True)
     if is_mock:
         st.markdown(f'<div class="notice demo">{t("st_demo")}</div>', unsafe_allow_html=True)
@@ -125,4 +125,21 @@ def render_stats(history: list, feedback: dict, is_mock: bool, group_colors: dic
             })
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
         st.caption(t("st_match_note"))
+
+    _label(t("st_final_title"))
+    finals = finals or []
+    if not finals:
+        st.caption(t("st_final_none"))
+    else:
+        top1 = sum(1 for f in finals if f["ranked"][0] == f["final"])
+        top3 = sum(1 for f in finals if f["final"] in f["ranked"][:3])
+        mal = [f for f in finals if GROUPS[f["final"]] == MALIGN]
+        caught = sum(1 for f in mal if f["level"] in ("urgent", "refer"))
+        _kpis([
+            (str(len(finals)), t("st_closed")),
+            (f"{top1}/{len(finals)}", t("st_top1")),
+            (f"{top3}/{len(finals)}", t("st_top3")),
+            (f"{caught}/{len(mal)}" if mal else "–", t("st_sens")),
+        ])
+        st.caption(t("st_final_note"))
     st.caption(t("st_scope"))

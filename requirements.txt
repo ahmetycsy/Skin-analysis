@@ -5,3 +5,4 @@ numpy>=1.26
 pandas>=2.0
 fpdf2>=2.7
 streamlit-cropper==0.2.2
+segno>=1.6

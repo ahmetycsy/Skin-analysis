@@ -36,7 +36,7 @@ def _hex(c: str):
 
 
 def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: dict, groups_of: dict,
-              group_order: list, meta_lines: list[tuple[str, str]], physician: list | None = None) -> bytes:
+              group_order: list, meta_lines: list[tuple[str, str]], physician: list | None = None, qr: bytes | None = None) -> bytes:
     pdf = _PDF(format="A4")
     pdf.add_font("DejaVu", "", os.path.join(FONT_DIR, "DejaVuSans.ttf"))
     pdf.add_font("DejaVu", "B", os.path.join(FONT_DIR, "DejaVuSans-Bold.ttf"))
@@ -54,6 +54,10 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
     pdf.cell(W, 7, t("pdf_title"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("DejaVu", "", 8.5)
     pdf.cell(W, 5, f"{t('app_name')} · {t('app_sub')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    if qr:  # vaka numarasının QR kodu (beyaz zemin, bandın sağında)
+        pdf.set_fill_color(255, 255, 255)
+        pdf.rect(pdf.w - 15 - 19, 2.5, 19, 19, style="F")
+        pdf.image(io.BytesIO(qr), x=pdf.w - 15 - 18, y=3, w=17, h=17)
 
     pdf.set_y(29)
     pdf.set_text_color(*MUTED)

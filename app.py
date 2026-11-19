@@ -35,6 +35,10 @@ try:  # kırpma eklentisi yoksa uygulama yine çalışsın
     from streamlit_cropper import st_cropper
 except Exception:  # pragma: no cover
     st_cropper = None
+try:  # PDF'teki QR kod için (yoksa QR'sız rapor üretilir)
+    import segno
+except Exception:  # pragma: no cover
+    segno = None
 try:
     from report import build_pdf
 except Exception:  # pragma: no cover
@@ -57,6 +61,9 @@ SKIN_SWATCH = {0: "#4A2C20", 1: "#6F4531", 2: "#94623F", 3: "#B98558", 4: "#D9AE
 STATUSES = {"new": ("stat_new", "#5F747C"), "reviewed": ("stat_reviewed", "#2F7F78"),
             "awaiting": ("stat_awaiting", "#B0701A"), "closed": ("stat_closed", "#1F3A44")}
 LEVEL_COLORS = {"urgent": C_MALIGN, "refer": C_PREMALIGN, "benign": C_BENIGN}
+LEVEL_RANK = {"urgent": 0, "refer": 1, "benign": 2}
+METHODS = {"histo": "m_histo", "clinical": "m_clinical", "consensus": "m_consensus"}
+APP_URL = "https://bau-skin-cds.streamlit.app"  # QR koddaki bağlantı (Streamlit Cloud adresi)
 
 st.markdown(
     f"""
@@ -164,6 +171,14 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .tl b {{ font-weight:500; color:{MUTED}; font-variant-numeric:tabular-nums; min-width:3rem; }}
 .fb-done {{ font-size:.86rem; color:#25685F; background:#EDF6F4; border:1px solid #CFE5E1; border-radius:8px; padding:.5rem .75rem; margin-bottom:.6rem; }}
 .cam-empty {{ color:{MUTED}; font-size:.85rem; line-height:1.55; background:{BG}; border:1px dashed #C9D8D6; border-radius:8px; padding:.65rem .8rem; }}
+.fu {{ display:flex; justify-content:space-between; gap:.8rem; font-size:.86rem; padding:.35rem 0; border-top:1px solid {LINE}; }}
+.fu:first-of-type {{ border-top:0; }}
+.fu b {{ font-weight:600; font-variant-numeric:tabular-nums; }}
+.fu .late {{ color:{C_MALIGN}; font-weight:600; }} .fu .soon {{ color:#8C5A12; font-weight:600; }} .fu .later {{ color:{MUTED}; }}
+.row-urgent {{ border-left:3px solid {C_MALIGN}; padding-left:.6rem; }}
+.final {{ font-size:.86rem; background:{BG}; border:1px solid {LINE}; border-radius:8px; padding:.55rem .75rem; margin-bottom:.5rem; line-height:1.5; }}
+.cmp-sum {{ background:#fff; border:1px solid {LINE}; border-radius:10px; padding:.8rem 1rem; font-size:.9rem; line-height:1.7; margin:.2rem 0 1rem; }}
+.arrow-up {{ color:{C_MALIGN}; font-weight:600; }} .arrow-down {{ color:{C_BENIGN}; font-weight:600; }} .arrow-flat {{ color:{MUTED}; font-weight:600; }}
 .empty {{ color:{MUTED}; font-size:.94rem; line-height:1.6; padding:1rem .2rem; }}
 
 /* vaka listesi */
@@ -383,14 +398,66 @@ def fb_summary(fb: dict) -> str:
     return t("fb_summary", dx=dx_label(fb["dx"]), agree=t(AGREE[fb["agree"]]), action=t(ACTIONS[fb["action"]]))
 
 
-def physician_lines(fb):
+def fmt_date(iso: str) -> str:
+    return datetime.fromisoformat(iso).strftime("%d.%m.%Y")
+
+
+def physician_lines(rec: dict):
     """PDF için hekim bölümü satırları. Değerlendirme yoksa None (PDF'te boş, elle doldurulacak alan çıkar)."""
-    if not fb:
+    fb, fin = rec.get("feedback"), rec.get("final")
+    if not fb and not fin:
         return None
-    rows = [(t("fb_dx"), dx_label(fb["dx"])), (t("fb_agree"), t(AGREE[fb["agree"]])), (t("fb_action"), t(ACTIONS[fb["action"]]))]
-    if fb["note"]:
-        rows.append((t("fb_note"), fb["note"]))
+    rows = []
+    if fb:
+        rows += [(t("fb_dx"), dx_label(fb["dx"])), (t("fb_agree"), t(AGREE[fb["agree"]])), (t("fb_action"), t(ACTIONS[fb["action"]]))]
+        if fb.get("followup"):
+            rows.append((t("fu_label"), fmt_date(fb["followup"])))
+        if fb["note"]:
+            rows.append((t("fb_note"), fb["note"]))
+    if fin:
+        rows.append((t("final_dx"), f"{dx_label(fin['dx'])} · {t(METHODS[fin['method']])}"))
     return rows
+
+
+def qr_png(cid: str):
+    if segno is None:
+        return None
+    buf = io.BytesIO()
+    segno.make(f"{APP_URL}/?case={cid}", error="m").save(buf, kind="png", scale=8, border=1)
+    return buf.getvalue()
+
+
+def priority_key(rec: dict):
+    """İş listesi sırası: açık vakalar önce; içinde gecikmiş kontrol, sonra öncelik seviyesi, sonra en yeni."""
+    a = assess(rec["probs"])
+    fu = (rec.get("feedback") or {}).get("followup")
+    overdue = bool(fu) and fu < datetime.now().date().isoformat() and rec["status"] != "closed"
+    return (rec["status"] == "closed", not overdue, LEVEL_RANK[a["level"]], -rec["ts"])
+
+
+def export_csv(cases: dict) -> bytes:
+    """Bütün vakalar tek tablo. Türkçede Excel'in beklediği noktalı virgül ve ondalık virgül kullanılır."""
+    rows = []
+    for r in cases.values():
+        a = assess(r["probs"])
+        fb, fin = r.get("feedback") or {}, r.get("final") or {}
+        row = {
+            "case_no": r["case"], "date": r["created"],
+            "age": age_band_label(r["meta"]["age"]), "sex": r["meta"]["sex"], "skin_tone": r["meta"]["skin_tone"],
+            "site": r["meta"]["site"], "assessment": a["level"], "top1": a["ranked"][0][0],
+            "top1_prob": round(a["ranked"][0][1], 4), "malignant_total": round(a["totals"][MALIGN], 4),
+        }
+        row.update({f"p_{c}": round(r["probs"][c], 4) for c in CLASSES})
+        row.update({
+            "status": r["status"], "physician_dx": fb.get("dx", ""), "agreement": fb.get("agree", ""),
+            "action": fb.get("action", ""), "followup": fb.get("followup", "") or "",
+            "final_dx": fin.get("dx", ""), "final_method": fin.get("method", ""), "model": r["model_name"],
+        })
+        rows.append(row)
+    df = pd.DataFrame(rows)
+    if ss.lang == "tr":
+        return df.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig")
+    return df.to_csv(index=False).encode("utf-8-sig")
 
 
 def meta_lines(m: dict):
@@ -418,6 +485,10 @@ def add_event(rec: dict, kind: str, **extra):
 def event_text(ev: dict) -> str:
     if ev["kind"] == "status":
         return t("ev_status", s=t(STATUSES[ev["status"]][0]))
+    if ev["kind"] == "closed":
+        return t("ev_closed", dx=dx_label(ev["dx"]))
+    if ev["kind"] == "reopened":
+        return t("ev_reopened")
     return t({"created": "ev_created", "feedback": "ev_feedback", "feedback_upd": "ev_feedback_upd"}[ev["kind"]])
 
 
@@ -439,6 +510,17 @@ def page_header(title: str, sub: str = ""):
 # ---------------------------------------------------------------- yan menü
 i18n.set_lang(ss.lang)
 predictor = get_predictor()
+
+qp_case = st.query_params.get("case")
+if qp_case:  # PDF'teki QR kod bu bağlantıyla gelir
+    qp_case = qp_case.strip().upper()
+    st.query_params.clear()
+    ss.page = "track"
+    if qp_case in ss.cases:
+        ss.open_case = qp_case
+    else:
+        ss.open_case = None
+        ss.qr_missing = qp_case
 
 with st.sidebar:
     st.markdown(
@@ -500,7 +582,7 @@ def render_case(cid: str, where: str):
                 try:
                     pdf_bytes = build_pdf(rec, a, predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS,
                                           groups_of=GROUPS, group_order=GROUP_ORDER, meta_lines=meta_lines(rec["meta"]),
-                                          physician=physician_lines(rec["feedback"]))
+                                          physician=physician_lines(rec), qr=qr_png(cid))
                     st.download_button(t("dl_pdf"), data=pdf_bytes, file_name=f"{cid}.pdf", mime="application/pdf",
                                        icon=":material/download:", width="stretch", type="primary", help=t("dl_pdf_help"),
                                        key=f"pdf_{cid}_{where}")
@@ -512,8 +594,12 @@ def render_case(cid: str, where: str):
                           key="edit_inputs")
                 b2.button(t("btn_new"), icon=":material/add:", width="stretch", on_click=new_analysis, key="new_from_result")
             else:
-                st.button(t("btn_back_list"), icon=":material/arrow_back:", width="stretch",
+                c1, c2 = st.columns(2)
+                c1.button(t("btn_back_list"), icon=":material/arrow_back:", width="stretch",
                           on_click=lambda: ss.update(open_case=None, track_q=""), key="back_list")
+                c2.button(t("cmp_from_case"), icon=":material/compare:", width="stretch", key="cmp_from_case",
+                          on_click=lambda c=cid: ss.update(open_case=None, track_q="", cmp_a=c, cmp_open=True),
+                          disabled=len(ss.cases) < 2)
         if where == "new":
             st.markdown(f'<div class="case-hint">{t("case_hint")}</div>', unsafe_allow_html=True)
         if predictor.is_mock:
@@ -596,24 +682,59 @@ def render_case(cid: str, where: str):
     # Hekim değerlendirmesi ve vaka durumu
     st.markdown(f'<div class="sec-label" style="margin-top:1.4rem">{t("fb_section")}</div>', unsafe_allow_html=True)
     with st.container(border=True):
-        fb = rec["feedback"]
+        fb, fin = rec["feedback"], rec.get("final")
         s1, s2 = st.columns([1, 2.2], gap="large")
         with s1:
-            stat_opts = list(STATUSES)
+            closed = rec["status"] == "closed"
+            if closed:
+                st.markdown(status_pill("closed"), unsafe_allow_html=True)
+            else:
+                stat_opts = ["new", "reviewed", "awaiting"]
 
-            def _status_changed(cid=cid, key=f"status_{cid}_{where}_{ss.lang}"):
-                new = ss[key]
-                if new and new != ss.cases[cid]["status"]:
-                    ss.cases[cid]["status"] = new
-                    add_event(ss.cases[cid], "status", status=new)
+                def _status_changed(cid=cid, key=f"status_{cid}_{where}_{ss.lang}"):
+                    new = ss[key]
+                    if new and new != ss.cases[cid]["status"]:
+                        ss.cases[cid]["status"] = new
+                        add_event(ss.cases[cid], "status", status=new)
 
-            st.selectbox(t("status_label"), stat_opts, index=stat_opts.index(rec["status"]),
-                         format_func=lambda k: t(STATUSES[k][0]), key=f"status_{cid}_{where}_{ss.lang}",
-                         on_change=_status_changed)
+                st.selectbox(t("status_label"), stat_opts, index=stat_opts.index(rec["status"]),
+                             format_func=lambda k: t(STATUSES[k][0]), key=f"status_{cid}_{where}_{ss.lang}",
+                             on_change=_status_changed)
+            # kesin tanı ve kapatma
+            if fin:
+                top3 = [c for c, _ in assess(rec["probs"])["ranked"][:3]]
+                verdict = ("model_right" if fin["dx"] == top3[0] else "model_top3" if fin["dx"] in top3 else "model_wrong")
+                st.markdown(f'<div class="final">{t("closed_info", dx=dx_label(fin["dx"]), m=t(METHODS[fin["method"]]))}'
+                            f'<br><span style="color:{MUTED}">{t(verdict)}</span></div>', unsafe_allow_html=True)
+
+                def _reopen(cid=cid):
+                    r = ss.cases[cid]
+                    r["final"] = None
+                    r["status"] = "reviewed" if r["feedback"] else "new"
+                    add_event(r, "reopened")
+
+                st.button(t("reopen"), key=f"reopen_{cid}_{where}", icon=":material/lock_open:", on_click=_reopen)
+            else:
+                with st.expander(t("close_title")):
+                    st.caption(t("close_intro"))
+                    with st.form(key=f"close_form_{cid}_{where}_{ss.lang}", border=False):
+                        fdx = st.selectbox(t("final_dx"), CLASSES, index=None, format_func=dx_label, placeholder="—")
+                        meth = st.radio(t("final_method"), list(METHODS), index=None, format_func=lambda k: t(METHODS[k]))
+                        if st.form_submit_button(t("close_btn"), type="primary"):
+                            if fdx is None or meth is None:
+                                st.warning(t("missing", items=", ".join(
+                                    lab for lab, v in [(t("final_dx"), fdx), (t("final_method"), meth)] if v is None)))
+                            else:
+                                r = ss.cases[cid]
+                                r["final"] = {"dx": fdx, "method": meth, "time": datetime.now().strftime("%d.%m.%Y %H:%M")}
+                                r["status"] = "closed"
+                                add_event(r, "closed", dx=fdx)
+                                st.rerun()
             st.caption(t("track_note"))
         with s2:
             if fb:
-                st.markdown(f'<div class="fb-done">✓ {html.escape(fb_summary(fb))}</div>', unsafe_allow_html=True)
+                extra = f" · {t('fu_label')}: {fmt_date(fb['followup'])}" if fb.get("followup") else ""
+                st.markdown(f'<div class="fb-done">✓ {html.escape(fb_summary(fb))}{extra}</div>', unsafe_allow_html=True)
             with st.expander(t("fb_edit") if fb else t("fb_open"), expanded=not fb and where == "track"):
                 st.caption(t("fb_intro"))
                 with st.form(key=f"fb_form_{cid}_{where}_{ss.lang}", border=False):
@@ -624,6 +745,8 @@ def render_case(cid: str, where: str):
                                      index=list(AGREE).index(fb["agree"]) if fb else None, format_func=lambda k: t(AGREE[k]))
                     action = st.selectbox(t("fb_action"), list(ACTIONS), format_func=lambda k: t(ACTIONS[k]),
                                           index=list(ACTIONS).index(fb["action"]) if fb else None, placeholder="—")
+                    fu_val = datetime.fromisoformat(fb["followup"]).date() if fb and fb.get("followup") else None
+                    fu = st.date_input(t("follow_date"), value=fu_val, format="DD.MM.YYYY", help=t("follow_help"))
                     note = st.text_area(t("fb_note"), value=fb["note"] if fb else "", max_chars=300,
                                         placeholder=t("fb_note_ph"), height=80)
                     if st.form_submit_button(t("fb_save"), type="primary"):
@@ -634,6 +757,7 @@ def render_case(cid: str, where: str):
                             r = ss.cases[cid]
                             add_event(r, "feedback_upd" if r["feedback"] else "feedback")
                             r["feedback"] = {"dx": dx, "agree": agree, "action": action, "note": note.strip(),
+                                             "followup": fu.isoformat() if fu else None,
                                              "time": datetime.now().strftime("%d.%m.%Y %H:%M")}
                             new_status = "awaiting" if dx == "unknown" or action == "biopsy" else "reviewed"
                             if r["status"] != "closed" and r["status"] != new_status:
@@ -792,6 +916,8 @@ def step_patient():
             "cam_class": cam[1] if cam else None,
             "cam_jpg": jpeg_thumb(cam[0]) if cam else None,
             "feedback": None,
+            "final": None,
+            "ts": time.time(),
             "status": "new",
             "events": [],
         }
@@ -803,39 +929,149 @@ def step_patient():
 
 
 # ---------------------------------------------------------------- sayfa: vaka takibi
+def followup_panel():
+    """Yaklaşan ve geciken kontroller (kapatılmamış vakalar)."""
+    today = datetime.now().date()
+    items = []
+    for r in ss.cases.values():
+        fu = (r.get("feedback") or {}).get("followup")
+        if fu and r["status"] != "closed":
+            items.append(((datetime.fromisoformat(fu).date() - today).days, r))
+    if not items:
+        return
+    items.sort(key=lambda x: x[0])
+    rows = ""
+    for days, r in items:
+        if days < 0:
+            cls, label, when = "late", t("fu_overdue"), t("fu_late", n=-days)
+        elif days <= 14:
+            cls, label, when = "soon", t("fu_upcoming"), t("fu_today") if days == 0 else t("fu_left", n=days)
+        else:
+            cls, label, when = "later", t("fu_later"), t("fu_left", n=days)
+        rows += (f'<div class="fu"><span><b>{r["case"]}</b> · {fmt_date(r["feedback"]["followup"])}</span>'
+                 f'<span class="{cls}">{label} · {when}</span></div>')
+    with st.container(border=True):
+        st.markdown(f'<div class="card-title">{t("fu_title")}</div>{rows}', unsafe_allow_html=True)
+
+
+def case_column(rec: dict):
+    a = assess(rec["probs"])
+    st.markdown(f'<div class="row-no">{rec["case"]}</div><div class="row-sub">{rec["created"]} · {patient_short(rec["meta"])}</div>',
+                unsafe_allow_html=True)
+    i1, i2 = st.columns(2)
+    i1.image(rec["clin_jpg"], width="stretch")
+    i2.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), width="stretch")
+    st.markdown(f'<div class="rec {a["level"]}" style="padding:.6rem .8rem"><div class="rec-title" style="font-size:.95rem">'
+                f'{a["title"]}</div></div>', unsafe_allow_html=True)
+    bar = "".join(f'<div style="width:{a["totals"][g] * 100:.2f}%;background:{GROUP_COLORS[g]}"></div>' for g in GROUP_ORDER)
+    legend = "".join(f'<span><span class="dot" style="background:{GROUP_COLORS[g]}"></span>{i18n.group(g)} '
+                     f'<b>{i18n.pct(a["totals"][g])}</b></span>' for g in GROUP_ORDER)
+    st.markdown(f'<div class="stack">{bar}</div><div class="legend">{legend}</div>', unsafe_allow_html=True)
+    rows = "".join(f'<div class="cand"><div class="cand-name">{i18n.plain(c)}</div>'
+                   f'<div class="cand-pct" style="color:{GROUP_COLORS[GROUPS[c]]}">{i18n.pct(p)}</div></div>'
+                   for c, p in a["ranked"][:3])
+    st.markdown(f'<div style="margin-top:.6rem">{rows}</div>', unsafe_allow_html=True)
+
+
+def render_compare(a_id: str, b_id: str):
+    ra, rb = ss.cases[a_id], ss.cases[b_id]
+    aa, ab = assess(ra["probs"]), assess(rb["probs"])
+    d = ab["totals"][MALIGN] - aa["totals"][MALIGN]
+    if abs(d) < 0.05:
+        arrow = f'<span class="arrow-flat">→ {t("cmp_flat")}</span>'
+    elif d > 0:
+        arrow = f'<span class="arrow-up">↑ {t("cmp_up")} (+{abs(d) * 100:.1f})</span>'
+    else:
+        arrow = f'<span class="arrow-down">↓ {t("cmp_down")} (−{abs(d) * 100:.1f})</span>'
+    ta, tb = aa["ranked"][0][0], ab["ranked"][0][0]
+    top_line = (t("cmp_top_same", a=i18n.plain(ta)) if ta == tb
+                else t("cmp_top_changed", a=i18n.plain(ta), b=i18n.plain(tb)))
+    lvl_line = ("" if aa["level"] == ab["level"] else
+                "<br>" + t("cmp_level_changed", a=t(LEVEL_KEYS[aa["level"]]), b=t(LEVEL_KEYS[ab["level"]])))
+    st.markdown(f'<div class="cmp-sum"><b>{t("cmp_change")}</b><br>{t("cmp_malign")}: '
+                f'{i18n.pct(aa["totals"][MALIGN])} → {i18n.pct(ab["totals"][MALIGN])} {arrow}<br>{top_line}{lvl_line}'
+                f'<div class="row-sub" style="margin-top:.3rem">{t("cmp_note")}</div></div>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2, gap="large")
+    with c1, st.container(border=True):
+        st.markdown(f'<div class="case-label">{t("cmp_a")}</div>', unsafe_allow_html=True)
+        case_column(ra)
+    with c2, st.container(border=True):
+        st.markdown(f'<div class="case-label">{t("cmp_b")}</div>', unsafe_allow_html=True)
+        case_column(rb)
+
+
 def page_track():
     if ss.open_case in ss.cases:
         render_case(ss.open_case, "track")
         return
     page_header(t("track_title"), t("track_lead"))
+    missing_case = ss.pop("qr_missing", None)
+    if missing_case:
+        st.markdown(f'<div class="banner">{t("case_not_here", c=html.escape(missing_case))}</div>', unsafe_allow_html=True)
     if not ss.cases:
         st.markdown(f'<div class="empty">{t("track_empty")}</div>', unsafe_allow_html=True)
         st.caption(t("track_note"))
         return
 
-    c1, c2 = st.columns([2, 1.2])
+    followup_panel()
+
+    # karşılaştırma
+    ids = list(ss.cases)
+    with st.expander(t("cmp_title"), expanded=bool(ss.get("cmp_open")), icon=":material/compare:"):
+        if len(ids) < 2:
+            st.caption(t("cmp_need2"))
+        else:
+            st.caption(t("cmp_intro"))
+            older_first = sorted(ids, key=lambda c: ss.cases[c]["ts"])
+            label = lambda c: f'{c} · {ss.cases[c]["created"]}'
+            pre_a = ss.get("cmp_a")
+            ia = older_first.index(pre_a) if pre_a in older_first else 0
+            ib = len(older_first) - 1 if ia != len(older_first) - 1 else 0
+            x1, x2 = st.columns(2)
+            ca = x1.selectbox(t("cmp_a"), older_first, index=ia, format_func=label, key=f"cmp_sel_a_{pre_a}")
+            cb = x2.selectbox(t("cmp_b"), older_first, index=ib, format_func=label, key=f"cmp_sel_b_{pre_a}")
+            if ca == cb:
+                st.info(t("cmp_same"))
+            else:
+                render_compare(ca, cb)
+                st.button(t("cmp_close"), key="cmp_close", on_click=lambda: ss.update(cmp_open=False, cmp_a=None))
+
+    c1, c2, c3 = st.columns([2, 1.1, 1.1])
     query = c1.text_input(t("track_search"), placeholder=t("track_ph"), key="track_q").strip().upper()
     stat_opts = ["all"] + list(STATUSES)
     flt = c2.selectbox(t("track_filter"), stat_opts, format_func=lambda k: t("track_all") if k == "all" else t(STATUSES[k][0]),
                        key=f"track_f_{ss.lang}")
+    sort = c3.selectbox(t("sort_label"), ["priority", "date"], format_func=lambda k: t(f"sort_{k}"), key=f"track_s_{ss.lang}")
     if query in ss.cases:  # tam numara yazıldıysa vakayı doğrudan aç
         ss.open_case = query
         st.rerun()
 
-    rows = [r for cid, r in ss.cases.items()
-            if (not query or query in cid) and (flt == "all" or r["status"] == flt)]
-    st.caption(t("track_count", n=len(rows)))
+    rows = [r for cid, r in ss.cases.items() if (not query or query in cid) and (flt == "all" or r["status"] == flt)]
+    rows.sort(key=priority_key if sort == "priority" else (lambda r: -r["ts"]))
+    h1, h2 = st.columns([3, 1.2], vertical_alignment="center")
+    h1.caption(t("track_count", n=len(rows)))
+    h2.download_button(t("export_btn"), data=export_csv(ss.cases), file_name=f"vakalar_{datetime.now():%Y%m%d_%H%M}.csv",
+                       mime="text/csv", icon=":material/table_view:", width="stretch", help=t("export_help"))
     if not rows:
         st.info(t("track_none"))
+    today = datetime.now().date().isoformat()
     for r in rows:
         a = assess(r["probs"])
         top_c, top_p = a["ranked"][0]
+        fu = (r.get("feedback") or {}).get("followup")
+        fu_txt = ""
+        if fu and r["status"] != "closed":
+            late = fu < today
+            fu_txt = (f' · <span style="color:{C_MALIGN if late else MUTED};font-weight:{600 if late else 400}">'
+                      f'{t("fu_label")}: {fmt_date(fu)}</span>')
+        urgent = a["level"] == "urgent" and r["status"] != "closed"
         with st.container(border=True):
-            k1, k2, k3, k4 = st.columns([1.5, 2.2, 1.3, .7], vertical_alignment="center")
-            k1.markdown(f'<div class="row-no">{r["case"]}</div><div class="row-sub">{r["created"]}</div>', unsafe_allow_html=True)
-            k2.markdown(f'<div><span class="dot" style="background:{LEVEL_COLORS[a["level"]]}"></span>{t(LEVEL_KEYS[a["level"]])} · '
-                        f'{i18n.plain(top_c)} ({i18n.pct(top_p)})</div><div class="row-sub">{patient_short(r["meta"])}</div>',
-                        unsafe_allow_html=True)
+            k1, k2, k3, k4 = st.columns([1.5, 2.3, 1.2, .7], vertical_alignment="center")
+            k1.markdown(f'<div class="{"row-urgent" if urgent else ""}"><div class="row-no">{r["case"]}</div>'
+                        f'<div class="row-sub">{r["created"]}</div></div>', unsafe_allow_html=True)
+            k2.markdown(f'<div><span class="dot" style="background:{LEVEL_COLORS[a["level"]]}"></span><b style="font-weight:'
+                        f'{600 if urgent else 400}">{t(LEVEL_KEYS[a["level"]])}</b> · {i18n.plain(top_c)} ({i18n.pct(top_p)})</div>'
+                        f'<div class="row-sub">{patient_short(r["meta"])}{fu_txt}</div>', unsafe_allow_html=True)
             k3.markdown(status_pill(r["status"]), unsafe_allow_html=True)
             k4.button(t("btn_open"), key=f"open_{r['case']}", on_click=lambda c=r["case"]: ss.update(open_case=c), width="stretch")
     st.caption(t("track_note"))
@@ -851,7 +1087,9 @@ elif ss.page == "stats":
     history = [{"case": r["case"], "time": r["time"], "meta": r["meta"], "top": assess(r["probs"])["ranked"][0],
                 "level": assess(r["probs"])["level"], "elapsed": r["elapsed"]} for r in ss.cases.values()]
     feedback = {cid: r["feedback"] for cid, r in ss.cases.items() if r["feedback"]}
-    render_stats(history, feedback, predictor.is_mock, GROUP_COLORS)
+    finals = [{"case": cid, "final": r["final"]["dx"], "ranked": [c for c, _ in assess(r["probs"])["ranked"]],
+               "level": assess(r["probs"])["level"]} for cid, r in ss.cases.items() if r.get("final")]
+    render_stats(history, feedback, predictor.is_mock, GROUP_COLORS, finals)
 elif ss.page == "about":
     page_header(t("tab_about"))
     render_about()
