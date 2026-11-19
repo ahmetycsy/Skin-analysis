@@ -139,6 +139,10 @@ class RealPredictor:
       - `models/` klasöründe model dosyası/dosyaları
       - girdi: klinik görsel, dermoskopik görsel, Meta
       - çıktı: CLASSES sırasında 11 olasılık (toplamı 1)
+
+    İsteğe bağlı: `explain(clinical, dermoscopic, meta)` metodu eklenirse arayüz Grad-CAM ısı haritasını gösterir.
+    Dönüş: (ısı haritası bindirilmiş PIL görüntü, sınıf kodu) ya da None. Hazır kod: gradcam.py
+    (load_image_model, preprocess, gradcam, overlay). MockPredictor'da bu metot yoktur; demo modunda harita gösterilmez.
     """
 
     name = "Gerçek model"

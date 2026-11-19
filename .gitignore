@@ -26,3 +26,6 @@ venv/
 
 # Veri setinden üretilmiş örnek görseller (MILK10k görüntüsü içerir)
 gradcam_ornek*.png
+
+# Örnek rapor (test görüntüsü içerir)
+ornek_rapor*.pdf
