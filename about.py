@@ -11,7 +11,7 @@ import streamlit as st
 import i18n
 from predictor import CLASSES, GROUPS
 
-APP_VERSION = "0.8"
+APP_VERSION = "0.9"
 
 # MILK10k eğitim kümesi (5.240 lezyon) — MILK10k_Training_GroundTruth.csv ve _Metadata.csv'den sayıldı
 CLASS_COUNTS = {"AKIEC": 303, "BCC": 2522, "BEN_OTH": 44, "BKL": 544, "DF": 52, "INF": 50,

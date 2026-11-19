@@ -1,10 +1,12 @@
 import hashlib
+import hmac
 import html
 import io
 import time
 from datetime import datetime
 
 import altair as alt
+import numpy as np
 import pandas as pd
 import streamlit as st
 from PIL import Image, ImageDraw, ImageFilter, ImageStat
@@ -214,6 +216,10 @@ ss.setdefault("boxes", {"clin": None, "derm": None})  # kırpma kutuları
 ss.setdefault("cases", {})        # vaka no -> kayıt (yalnızca bellekte; veritabanı sonra)
 ss.setdefault("current", None)    # yeni analizde gösterilen vaka
 ss.setdefault("open_case", None)  # vaka takibinde açık vaka
+ss.setdefault("consent", False)   # kullanım koşulları onaylandı mı
+ss.setdefault("doctor", None)     # hekim modu: baş harfler (None = giriş yok)
+ss.setdefault("pin_fails", 0)
+ss.setdefault("audit", [])        # denetim kaydı: yalnızca eklenir, değiştirilmez
 INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm")
 
 
@@ -321,14 +327,32 @@ def quality_checks(img: Image.Image):
     ]
 
 
+def skin_like(img: Image.Image) -> bool:
+    """Görüntü cilt fotoğrafına benziyor mu? (modelden bağımsız kaba kontrol)
+    YCbCr renk uzayında cilt tonu aralığındaki piksel oranı ve tek renge yığılma ölçülür. MILK10k'ten 300 görüntü ile
+    ekran görüntüsü / gökyüzü / bitki / metin görüntüleri üzerinde ayarlandı: eşik 0,25 gerçek görüntülerin ~%1-2'sini
+    yanlışlıkla işaretler, cilt olmayanların %98'inden fazlasını yakalar. Düz renk ağırlıklı görüntüler (ekran görüntüsü,
+    belge) ayrıca yakalanır (gerçek görüntülerde en baskın rengin payı en çok ~%4)."""
+    im = img.convert("RGB")
+    im.thumbnail((256, 256))
+    ycc = np.asarray(im.convert("YCbCr")).astype(int)
+    y, cb, cr = ycc[..., 0], ycc[..., 1], ycc[..., 2]
+    skin = ((cr >= 133) & (cr <= 180) & (cb >= 70) & (cb <= 135) & (y >= 40)).mean()
+    q = np.asarray(im.quantize(64))
+    flat = np.bincount(q.ravel()).max() / q.size
+    return skin >= 0.25 and flat <= 0.30
+
+
 def show_quality(img: Image.Image, warn: bool = True):
     checks = quality_checks(img)
+    ok_skin = skin_like(img)
+    checks = [(t("q_skin"), ok_skin, t("q_skin_ok") if ok_skin else t("q_skin_bad"))] + checks
     chips = "".join(
         f'<span class="q {"ok" if ok else "bad"}" title="{html.escape(why)}">{"✓" if ok else "!"} {name}</span>'
         for name, ok, why in checks
     )
     st.markdown(f'<div class="qrow">{chips}</div>', unsafe_allow_html=True)
-    bad = [f"**{name}:** {why}" for name, ok, why in checks if not ok]
+    bad = [f"**{name}:** {why}" for name, ok, why in checks[1:] if not ok]  # cilt uyarısı ayrıca gösterilir
     if bad and warn:
         st.warning(t("q_warn") + " " + " · ".join(bad))
 
@@ -478,18 +502,50 @@ def status_pill(status: str) -> str:
     return f'<span class="spill" style="background:{color}">{t(key)}</span>'
 
 
+def log(kind: str, case=None, **extra) -> dict:
+    """Denetim kaydına bir satır ekler (kim, ne zaman, ne yaptı). Kayıtlar yalnızca eklenir."""
+    now = datetime.now()
+    ev = {"ts": now.strftime("%d.%m.%Y %H:%M:%S"), "time": now.strftime("%d.%m %H:%M"), "kind": kind, "case": case,
+          "actor": ss.get("doctor"), **extra}
+    ss.audit.append(ev)
+    return ev
+
+
 def add_event(rec: dict, kind: str, **extra):
-    rec["events"].append({"time": datetime.now().strftime("%d.%m %H:%M"), "kind": kind, **extra})
+    rec["events"].append(log(kind, rec["case"], **extra))
+
+
+def actor_label(ev: dict) -> str:
+    return t("actor_doc", who=ev["actor"]) if ev.get("actor") else t("actor_user")
 
 
 def event_text(ev: dict) -> str:
     if ev["kind"] == "status":
+        if ev.get("old"):
+            return t("ev_status_from", a=t(STATUSES[ev["old"]][0]), b=t(STATUSES[ev["status"]][0]))
         return t("ev_status", s=t(STATUSES[ev["status"]][0]))
+    simple = {"pdf": "ev_pdf", "login": "ev_login", "logout": "ev_logout", "login_fail": "ev_login_fail",
+              "consent": "ev_consent", "skin_override": "ev_skin_override"}
+    if ev["kind"] in simple:
+        return t(simple[ev["kind"]])
     if ev["kind"] == "closed":
         return t("ev_closed", dx=dx_label(ev["dx"]))
     if ev["kind"] == "reopened":
         return t("ev_reopened")
     return t({"created": "ev_created", "feedback": "ev_feedback", "feedback_upd": "ev_feedback_upd"}[ev["kind"]])
+
+
+def doctor_pin() -> str:
+    """Hekim PIN'i Streamlit Secrets'tan (DOCTOR_PIN) okunur; tanımlı değilse demo PIN kullanılır."""
+    try:
+        return str(st.secrets["DOCTOR_PIN"])
+    except Exception:
+        return "2026"
+
+
+def doctor_logout():
+    log("logout")
+    ss.doctor = None
 
 
 def step_header(step: int):
@@ -522,6 +578,28 @@ if qp_case:  # PDF'teki QR kod bu bağlantıyla gelir
         ss.open_case = None
         ss.qr_missing = qp_case
 
+if not ss.consent:
+    @st.dialog(t("consent_title"), dismissible=False, width="medium")
+    def consent_dialog():
+        def _dlg_lang():
+            if ss.get("lang_dlg") and ss.lang_dlg != ss.lang:
+                ss.lang = ss.lang_dlg
+                ss.lang_picker = ss.lang_dlg
+                ss._dlg_lang_changed = True
+
+        if ss.pop("_dlg_lang_changed", False):  # pencere ayrı bir parça olarak çizilir; dil değişince tüm sayfa yenilensin
+            st.rerun()
+        st.segmented_control("Language", options=list(i18n.LANGS), format_func=i18n.LANGS.get, default=ss.lang,
+                             key="lang_dlg", label_visibility="collapsed", on_change=_dlg_lang)
+        st.markdown(t("consent_body"))
+        ok = st.checkbox(t("consent_check"), key=f"consent_chk_{ss.lang}")
+        if st.button(t("consent_btn"), type="primary", disabled=not ok, width="stretch"):
+            ss.consent = True
+            log("consent")
+            st.rerun()
+
+    consent_dialog()
+
 with st.sidebar:
     st.markdown(
         '<div class="brand"><div class="brand-mark">'
@@ -543,6 +621,33 @@ with st.sidebar:
         st.button(label, key=f"nav_{key}", icon=icon, width="stretch",
                   type="primary" if ss.page == key else "secondary", on_click=go, args=(key,))
 
+    st.markdown('<div class="side-sep"></div>', unsafe_allow_html=True)
+
+    if ss.doctor:
+        st.markdown(f'<span class="chip live">● {t("doc_on", who=html.escape(ss.doctor))}</span>', unsafe_allow_html=True)
+        st.button(t("doc_logout"), icon=":material/logout:", on_click=doctor_logout, key="doc_logout")
+    else:
+        with st.expander(t("doc_login"), icon=":material/stethoscope:"):
+            if ss.pin_fails >= 5:
+                st.error(t("doc_locked"))
+            else:
+                with st.form(f"doc_form_{ss.lang}", border=False, clear_on_submit=True):
+                    pin = st.text_input(t("doc_pin"), type="password")
+                    ini = st.text_input(t("doc_initials"), max_chars=10)
+                    sub = st.form_submit_button(t("doc_login_btn"), type="primary", width="stretch")
+                if sub:
+                    if not ini.strip():
+                        st.warning(t("doc_need_initials"))
+                    elif hmac.compare_digest(pin.encode(), doctor_pin().encode()):
+                        ss.doctor = ini.strip().upper()[:10]
+                        ss.pin_fails = 0
+                        log("login")
+                        st.rerun()
+                    else:
+                        ss.pin_fails += 1
+                        log("login_fail")
+                        st.warning(t("doc_wrong", n=5 - ss.pin_fails))
+            st.caption(t("doc_note"))
     st.markdown('<div class="side-sep"></div>', unsafe_allow_html=True)
 
     def _set_lang():
@@ -585,7 +690,8 @@ def render_case(cid: str, where: str):
                                           physician=physician_lines(rec), qr=qr_png(cid))
                     st.download_button(t("dl_pdf"), data=pdf_bytes, file_name=f"{cid}.pdf", mime="application/pdf",
                                        icon=":material/download:", width="stretch", type="primary", help=t("dl_pdf_help"),
-                                       key=f"pdf_{cid}_{where}")
+                                       key=f"pdf_{cid}_{where}",
+                                       on_click=lambda c=cid: add_event(ss.cases[c], "pdf"))
                 except Exception as exc:  # rapor üretilemezse sonuç ekranı yine çalışsın
                     st.caption(f"PDF: {exc}")
             if where == "new":
@@ -615,7 +721,8 @@ def render_case(cid: str, where: str):
         kv = "".join(f"<span>{k}</span><div>{v}</div>" for k, v in meta_lines(rec["meta"]))
         st.markdown(f'<div class="kv">{kv}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="sec-label">{t("timeline")}</div>', unsafe_allow_html=True)
-        tl = "".join(f'<div><b>{ev["time"]}</b>{event_text(ev)}</div>' for ev in rec["events"])
+        tl = "".join(f'<div><b>{ev["time"]}</b><span>{event_text(ev)} <span style="color:{MUTED}">· {actor_label(ev)}</span></span></div>'
+                     for ev in rec["events"])
         st.markdown(f'<div class="tl">{tl}</div>', unsafe_allow_html=True)
 
     with right:
@@ -681,6 +788,21 @@ def render_case(cid: str, where: str):
 
     # Hekim değerlendirmesi ve vaka durumu
     st.markdown(f'<div class="sec-label" style="margin-top:1.4rem">{t("fb_section")}</div>', unsafe_allow_html=True)
+    if not ss.doctor:
+        with st.container(border=True):
+            fb, fin = rec["feedback"], rec.get("final")
+            st.markdown(status_pill(rec["status"]), unsafe_allow_html=True)
+            if fb:
+                extra = f" · {t('fu_label')}: {fmt_date(fb['followup'])}" if fb.get("followup") else ""
+                st.markdown(f'<div class="fb-done" style="margin-top:.6rem">✓ {html.escape(fb_summary(fb))}{extra}</div>',
+                            unsafe_allow_html=True)
+            if fin:
+                st.markdown(f'<div class="final">{t("closed_info", dx=dx_label(fin["dx"]), m=t(METHODS[fin["method"]]))}</div>',
+                            unsafe_allow_html=True)
+            st.markdown(f'<div class="banner" style="margin:.6rem 0 0;border-left-color:{TEAL}">{t("doc_needed")}</div>',
+                        unsafe_allow_html=True)
+        return
+
     with st.container(border=True):
         fb, fin = rec["feedback"], rec.get("final")
         s1, s2 = st.columns([1, 2.2], gap="large")
@@ -693,9 +815,10 @@ def render_case(cid: str, where: str):
 
                 def _status_changed(cid=cid, key=f"status_{cid}_{where}_{ss.lang}"):
                     new = ss[key]
-                    if new and new != ss.cases[cid]["status"]:
+                    old = ss.cases[cid]["status"]
+                    if new and new != old:
                         ss.cases[cid]["status"] = new
-                        add_event(ss.cases[cid], "status", status=new)
+                        add_event(ss.cases[cid], "status", status=new, old=old)
 
                 st.selectbox(t("status_label"), stat_opts, index=stat_opts.index(rec["status"]),
                              format_func=lambda k: t(STATUSES[k][0]), key=f"status_{cid}_{where}_{ss.lang}",
@@ -761,8 +884,9 @@ def render_case(cid: str, where: str):
                                              "time": datetime.now().strftime("%d.%m.%Y %H:%M")}
                             new_status = "awaiting" if dx == "unknown" or action == "biopsy" else "reviewed"
                             if r["status"] != "closed" and r["status"] != new_status:
+                                old = r["status"]
                                 r["status"] = new_status
-                                add_event(r, "status", status=new_status)
+                                add_event(r, "status", status=new_status, old=old)
                             st.rerun()
 
 
@@ -807,6 +931,11 @@ def step_images():
                     st.image(img if which == "clin" else lens_preview(img), width=300,
                              caption=None if which == "clin" else t("lens_caption"))
                 show_quality(get_image(which))
+                if not skin_like(get_image(which)):
+                    st.warning(t("skin_warn"))
+                    ck = st.checkbox(t("skin_confirm"), value=ss.get(f"v_skinok_{rec['id']}", False),
+                                     key=f"skinok_{rec['id']}_{ss.lang}")
+                    ss[f"v_skinok_{rec['id']}"] = ck
                 st.caption(html.escape(rec["name"]))
 
                 def _clear(w=which):
@@ -817,6 +946,7 @@ def step_images():
                 st.button(t("btn_change"), key=f"chg_{which}", icon=":material/refresh:", on_click=_clear)
 
     both = ss.imgs["clin"] is not None and ss.imgs["derm"] is not None
+    blocked = both and any(not skin_like(get_image(w)) and not ss.get(f"v_skinok_{ss.imgs[w]['id']}") for w in ("clin", "derm"))
     if both:
         if looks_dermoscopic(open_bytes(ss.imgs["clin"]["bytes"])) and not looks_dermoscopic(open_bytes(ss.imgs["derm"]["bytes"])):
             st.warning(t("reversed_warn"))
@@ -835,10 +965,12 @@ def step_images():
     st.write("")
     _, nb = st.columns([2, 1])
     with nb:
-        st.button(t("btn_next"), type="primary", width="stretch", disabled=not both, icon=":material/arrow_forward:",
+        st.button(t("btn_next"), type="primary", width="stretch", disabled=not both or blocked, icon=":material/arrow_forward:",
                   on_click=lambda: ss.update(step=2), key="to_step2")
         if not both:
             st.caption(t("need_both"))
+        elif blocked:
+            st.caption(t("skin_block"))
 
 
 def step_patient():
@@ -922,6 +1054,8 @@ def step_patient():
             "events": [],
         }
         add_event(rec, "created")
+        if any(not skin_like(get_image(w)) for w in ("clin", "derm")):
+            add_event(rec, "skin_override")
         ss.cases = {cid: rec, **ss.cases}  # en yeni vaka en üstte
         ss.current = cid
         ss.step = 3
@@ -1000,6 +1134,22 @@ def render_compare(a_id: str, b_id: str):
         case_column(rb)
 
 
+def audit_panel():
+    """Denetim kaydı: oturumdaki bütün işlemler (en yeni üstte) ve CSV indirme."""
+    with st.expander(t("audit_title"), icon=":material/history:"):
+        st.caption(t("audit_intro"))
+        if not ss.audit:
+            st.caption(t("audit_empty"))
+            return
+        df = pd.DataFrame([{t("audit_time"): ev["ts"], t("audit_case"): ev.get("case") or "–",
+                            t("audit_actor"): actor_label(ev), t("audit_action"): event_text(ev)} for ev in reversed(ss.audit)])
+        st.dataframe(df, hide_index=True, width="stretch")
+        sep, enc = (";", "utf-8-sig")
+        st.download_button(t("audit_export"), data=df.to_csv(index=False, sep=sep).encode(enc),
+                           file_name=f"denetim_kaydi_{datetime.now():%Y%m%d_%H%M}.csv", mime="text/csv",
+                           icon=":material/download:", key="audit_dl")
+
+
 def page_track():
     if ss.open_case in ss.cases:
         render_case(ss.open_case, "track")
@@ -1011,6 +1161,7 @@ def page_track():
     if not ss.cases:
         st.markdown(f'<div class="empty">{t("track_empty")}</div>', unsafe_allow_html=True)
         st.caption(t("track_note"))
+        audit_panel()
         return
 
     followup_panel()
@@ -1075,6 +1226,7 @@ def page_track():
             k3.markdown(status_pill(r["status"]), unsafe_allow_html=True)
             k4.button(t("btn_open"), key=f"open_{r['case']}", on_click=lambda c=r["case"]: ss.update(open_case=c), width="stretch")
     st.caption(t("track_note"))
+    audit_panel()
 
 
 # ---------------------------------------------------------------- yönlendirme

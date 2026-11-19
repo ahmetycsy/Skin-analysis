@@ -22,6 +22,13 @@ Bu klasör Ahmet'in paketidir. Şu an SAHTE modelle çalışır; gerçek model g
 3. Birkaç dakika sonra herkese açık bir link çıkar. Bu linki rapora ve sunuma koy.
 4. Kodda değişiklik olunca GitHub Desktop'ta "Commit" + "Push" yeterli; site kendini günceller.
 
+### Hekim PIN'i
+Hekim modu için Streamlit Cloud'da **Manage app → Settings → Secrets** bölümüne şunu ekleyin (kendi PIN'inizi yazın):
+```
+DOCTOR_PIN = "1234"
+```
+Tanımlanmazsa koddaki demo PIN kullanılır; kod herkese açık olduğu için yayında mutlaka değiştirin.
+
 ## 3. Eğitim notebook'u
 `kaggle/milk10k_train.ipynb` Kaggle'da çalışır (`MODE = derm | clin | meta`). Kaynağı `kaggle/milk10k_train.py`.
 

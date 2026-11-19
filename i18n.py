@@ -473,6 +473,73 @@ Do not use filtered, cropped or colour-corrected images.
                       "Only cases with a final diagnosis are counted. “Malignant cases referred”: for cases whose final "
                       "diagnosis is malignant, the system suggested “priority” or “review” (no missed cancer)."),
 
+    # kullanım onayı
+    "consent_title": ("Başlamadan önce", "Before you start"),
+    "consent_body": (
+        "Bu sistem, **BAU Endüstri Mühendisliği bitirme projesi** kapsamında geliştirilmiş bir **araştırma prototipidir**.\n\n"
+        "- **Tanı koymaz.** Sonuçlar yalnızca karar desteğidir; hekim değerlendirmesinin yerine geçmez.\n"
+        "- **Tıbbi cihaz değildir** ve klinik kullanım için onaylanmamıştır.\n"
+        "- Yüklenen görüntüler **kaydedilmez**; ad, kimlik numarası gibi kişisel bilgi istenmez ve girilmemelidir.\n"
+        "- Model emin olmadığında bunu açıkça belirtir. Şüpheli bir lezyon için mutlaka bir hekime başvurun.",
+        "This system is a **research prototype** developed as part of a **BAU Industrial Engineering capstone project**.\n\n"
+        "- **It does not make a diagnosis.** Results are decision support only and do not replace a physician's assessment.\n"
+        "- **It is not a medical device** and is not approved for clinical use.\n"
+        "- Uploaded images are **not stored**; no personal information such as name or ID number is requested, and none should be entered.\n"
+        "- When the model is not confident, it says so. Always consult a physician about a suspicious lesion.",
+    ),
+    "consent_check": ("Okudum ve anladım", "I have read and understood this"),
+    "consent_btn": ("Devam et", "Continue"),
+
+    # görüntü uygunluk kontrolü
+    "q_skin": ("Cilt görüntüsü", "Skin image"),
+    "q_skin_ok": ("cilt fotoğrafına benziyor", "looks like a skin photo"),
+    "q_skin_bad": ("cilt fotoğrafına benzemiyor", "does not look like a skin photo"),
+    "skin_warn": ("**Bu görüntü bir cilt fotoğrafına benzemiyor.** Ekran görüntüsü, belge veya başka bir nesne yüklenmiş "
+                  "olabilir; böyle bir görüntünün sonucu anlamsız olur. Doğru dosyayı yüklediğinizden emin olun.",
+                  "**This image does not look like a skin photo.** A screenshot, document or another object may have been "
+                  "uploaded; the result for such an image would be meaningless. Make sure you uploaded the right file."),
+    "skin_confirm": ("Görüntünün doğru olduğundan eminim, yine de devam et", "I am sure the image is correct, continue anyway"),
+    "skin_block": ("Devam etmek için şüpheli görüntüyü değiştirin ya da doğru olduğunu onaylayın.",
+                   "To continue, replace the suspicious image or confirm that it is correct."),
+
+    # hekim modu
+    "doc_login": ("Hekim girişi", "Physician login"),
+    "doc_pin": ("PIN", "PIN"),
+    "doc_initials": ("Baş harfleriniz (ör. Z.Ö.Y.)", "Your initials (e.g. Z.Ö.Y.)"),
+    "doc_login_btn": ("Giriş yap", "Log in"),
+    "doc_wrong": ("PIN hatalı. Kalan deneme: {n}", "Wrong PIN. Attempts left: {n}"),
+    "doc_locked": ("Çok fazla hatalı deneme. Sayfayı yenileyip tekrar deneyin.", "Too many wrong attempts. Reload the page and try again."),
+    "doc_need_initials": ("Baş harflerinizi girin.", "Enter your initials."),
+    "doc_on": ("Hekim modu açık · {who}", "Physician mode on · {who}"),
+    "doc_logout": ("Çıkış yap", "Log out"),
+    "doc_needed": ("Hekim değerlendirmesi, vaka durumu ve vakayı kapatma yalnızca <b>hekim girişi</b> ile yapılabilir. "
+                   "Sol menüden giriş yapın.",
+                   "Physician assessment, case status and closing a case require <b>physician login</b>. "
+                   "Log in from the left menu."),
+    "doc_note": ("Rol ayrımını göstermek içindir; gerçek bir kimlik doğrulama sistemi değildir.",
+                 "Demonstrates role separation; this is not a real authentication system."),
+
+    # denetim kaydı
+    "actor_user": ("Kullanıcı", "User"),
+    "actor_doc": ("Hekim {who}", "Physician {who}"),
+    "ev_pdf": ("PDF rapor indirildi", "PDF report downloaded"),
+    "ev_status_from": ("Durum değişti: {a} → {b}", "Status changed: {a} → {b}"),
+    "ev_login": ("Hekim girişi yapıldı", "Physician logged in"),
+    "ev_logout": ("Hekim çıkışı yapıldı", "Physician logged out"),
+    "ev_login_fail": ("Hatalı PIN denemesi", "Failed PIN attempt"),
+    "audit_title": ("Denetim kaydı (tüm işlemler)", "Audit log (all actions)"),
+    "audit_intro": ("Bu oturumda kimin, ne zaman, hangi işlemi yaptığını gösterir. Kayıtlar değiştirilemez ve silinemez; "
+                    "yalnızca yenileri eklenir.",
+                    "Shows who did what and when in this session. Entries cannot be edited or deleted; new ones are only appended."),
+    "audit_time": ("Zaman", "Time"),
+    "audit_case": ("Vaka", "Case"),
+    "audit_actor": ("Kim", "Who"),
+    "audit_action": ("İşlem", "Action"),
+    "audit_export": ("Denetim kaydını indir (CSV)", "Download audit log (CSV)"),
+    "audit_empty": ("Henüz işlem yok.", "No actions yet."),
+    "ev_consent": ("Kullanım koşulları onaylandı", "Terms of use accepted"),
+    "ev_skin_override": ("Cilt uyarısına rağmen görüntü kullanıldı", "Image used despite the skin warning"),
+
     # analiz ilerleme göstergesi
     "prog_title": ("Analiz ediliyor…", "Analysing…"),
     "prog_1": ("Görüntüler hazırlanıyor", "Preparing the images"),
