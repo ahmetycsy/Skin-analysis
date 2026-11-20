@@ -250,7 +250,7 @@ def remembered_index(name: str, options: list):
     return options.index(v) if v in options else None
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner="Model yükleniyor, ilk açılışta 1–2 dakika sürebilir… · Loading the model, the first start may take 1–2 minutes…")
 def get_predictor():
     return load_predictor()
 
@@ -659,6 +659,8 @@ with st.sidebar:
     ss.setdefault("lang_picker", ss.lang)
     st.segmented_control("Language", options=list(i18n.LANGS), format_func=i18n.LANGS.get,
                          key="lang_picker", label_visibility="collapsed", on_change=_set_lang)
+    if getattr(predictor, "load_error", None):
+        st.error(t("model_load_error", e=predictor.load_error[:300]))
     status = (f'<span class="chip demo">● {t("chip_demo")}</span>' if predictor.is_mock
               else f'<span class="chip live">● {html.escape(predictor.name)}</span>')
     st.markdown(f'<div style="margin-top:.6rem">{status}<span class="chip">{t("chip_version", v=APP_VERSION)}</span></div>'

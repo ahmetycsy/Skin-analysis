@@ -537,6 +537,8 @@ Do not use filtered, cropped or colour-corrected images.
     "audit_action": ("İşlem", "Action"),
     "audit_export": ("Denetim kaydını indir (CSV)", "Download audit log (CSV)"),
     "audit_empty": ("Henüz işlem yok.", "No actions yet."),
+    "model_load_error": ("Gerçek model yüklenemedi, demo modunda çalışılıyor. Hata: {e}",
+                         "The real model could not be loaded; running in demo mode. Error: {e}"),
     "ev_consent": ("Kullanım koşulları onaylandı", "Terms of use accepted"),
     "ev_skin_override": ("Cilt uyarısına rağmen görüntü kullanıldı", "Image used despite the skin warning"),
 

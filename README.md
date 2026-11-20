@@ -1,3 +1,15 @@
+---
+title: Skin Lesion Decision Support
+emoji: 🩺
+colorFrom: green
+colorTo: gray
+sdk: docker
+app_port: 8501
+pinned: false
+license: cc-by-nc-4.0
+short_description: Multimodal skin lesion decision-support prototype (MILK10k)
+---
+
 # Cilt Lezyonu Karar Destek Prototipi (Streamlit arayüzü)
 
 Bu klasör Ahmet'in paketidir. Şu an SAHTE modelle çalışır; gerçek model gelince `predictor.py` içindeki

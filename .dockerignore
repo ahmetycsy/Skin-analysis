@@ -1,0 +1,10 @@
+.git
+.github
+.claude
+models/*.pt
+models/*.pth
+models/READY
+__pycache__
+*.pdf
+*.png
+!assets/**
