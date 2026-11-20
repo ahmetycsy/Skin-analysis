@@ -1,6 +1,0 @@
-# Gerçek model için ek kütüphaneler. YALNIZCA Hugging Face Spaces (Dockerfile) kurar;
-# Streamlit Cloud'daki demo site requirements.txt ile hafif kalır.
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.1+cpu
-timm>=1.0.11
-huggingface_hub>=0.25

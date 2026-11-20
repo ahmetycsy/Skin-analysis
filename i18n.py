@@ -142,12 +142,8 @@ S = {
 
     # başlık ve uyarılar
     "hero_title": ("Lezyon analizi", "Lesion analysis"),
-    "hero_sub": (
-        "Aynı lezyona ait klinik fotoğrafı, dermoskopik görüntüyü ve temel hasta bilgilerini birlikte değerlendirerek "
-        "11 lezyon türü için olasılık hesaplar. MILK10k veri setiyle geliştirilen bir araştırma çalışmasıdır.",
-        "Combines a clinical photo, a dermoscopic image and basic patient information of the same lesion to estimate "
-        "probabilities for 11 lesion types. A research project developed with the MILK10k dataset.",
-    ),
+    "hero_sub": ('Aynı lezyona ait klinik fotoğraf ve dermoskopik görüntüden 11 lezyon türü için olasılık hesaplar. MILK10k veri setiyle geliştirilen bir araştırma çalışmasıdır.',
+                'Estimates probabilities for 11 lesion types from a clinical photo and a dermoscopic image of the same lesion. A research project developed with the MILK10k dataset.'),
     "notice_nodx": (
         "<b>Bu araç tanı koymaz.</b> Araştırma ve eğitim amaçlı bir prototiptir; çıktıları bir hekimin değerlendirmesinin "
         "yerine geçmez. Şüpheli bir lezyon için mutlaka bir hekime başvurun.",
@@ -239,8 +235,8 @@ Do not use filtered, cropped or colour-corrected images.
 
     # 2. hasta bilgileri
     "s2_title": ("Hasta bilgileri", "Patient information"),
-    "s2_desc": ("Model bu dört bilgiyi görüntülerle birlikte kullanır. Hepsini hastaya göre seçin.",
-                "The model uses these four inputs together with the images. Select all of them."),
+    "s2_desc": ('Bu bilgiler rapora ve vaka kaydına girer, az veri uyarıları için kullanılır. Mevcut model sonucu yalnızca görüntülerden hesaplar (hasta bilgisini eklemek başarıyı artırmadı).',
+                'This information goes into the report and case record and is used for low-data warnings. The current model computes the result from the images only (adding patient information did not improve accuracy).'),
     "age_label": ("Yaş aralığı", "Age range"),
     "age_ph": ("Yaş aralığını seçin", "Select age range"),
     "age_help": ("Veri seti yaşı 5 yıllık aralıklarla tutar.", "The dataset records age in 5-year ranges."),
@@ -546,7 +542,8 @@ Do not use filtered, cropped or colour-corrected images.
     "prog_title": ("Analiz ediliyor…", "Analysing…"),
     "prog_1": ("Görüntüler hazırlanıyor", "Preparing the images"),
     "prog_2": ("Görüntü modelleri çalışıyor", "Running the image models"),
-    "prog_3": ("Hasta bilgileri sonuçla birleştiriliyor", "Combining with patient information"),
+    "prog_3": ('Görüntü modellerinin sonuçları birleştiriliyor',
+                "Combining the image models' results"),
     "prog_cam": ("Isı haritası çıkarılıyor", "Generating the heat map"),
     "prog_4": ("Sonuç ve rapor hazırlanıyor", "Preparing the result and report"),
     "prog_done": ("Analiz tamamlandı", "Analysis complete"),

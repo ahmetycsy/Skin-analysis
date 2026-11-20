@@ -6,3 +6,8 @@ pandas>=2.0
 fpdf2>=2.7
 streamlit-cropper==0.2.2
 segno>=1.6
+# Gerçek model (yalnızca işlemci sürümü; Streamlit Cloud'da Python 3.12 seçili olmalı)
+torch @ https://download.pytorch.org/whl/cpu/torch-2.5.1%2Bcpu-cp312-cp312-linux_x86_64.whl ; sys_platform == "linux"
+torchvision @ https://download.pytorch.org/whl/cpu/torchvision-0.20.1%2Bcpu-cp312-cp312-linux_x86_64.whl ; sys_platform == "linux"
+timm>=1.0.11
+huggingface_hub>=0.25

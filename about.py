@@ -25,17 +25,28 @@ TEAM = "Ahmet Talat Yücesoy · Tuğalp Ata · Bedirhan Sevencan"
 ADVISOR = "Zühal Özcan Yavuz"
 
 # Model durumları. status: "done" | "wip" | "planned". Yeni sonuç gelince burayı güncelleyin.
+# Sonuçlar Tuğalp'in 5 katlı çapraz doğrulamasından (5.240 lezyonun her biri bir kez kontrol setinde; ortalama ± sapma).
+# Kaynak: tugalp dalındaki cv_table.md / ahmet_claude_ozet.md. Kullanılan ağırlıklar kat 0 modelleridir.
 MODEL_STATUS = [
-    {"name": ("Dermoskopik görüntü modeli", "Dermoscopic image model"), "arch": "EfficientNet-B3",
-     "status": "done", "f1": 0.477, "note": ("12 epoch, 1.048 lezyonluk doğrulama kümesi", "12 epochs, 1,048-lesion validation set")},
-    {"name": ("Klinik görüntü modeli", "Clinical image model"), "arch": "EfficientNet-B3",
-     "status": "wip", "f1": None, "note": ("", "")},
-    {"name": ("Hasta bilgisi (metadata) modeli", "Patient-information (metadata) model"),
-     "arch": ("Lojistik regresyon", "Logistic regression"), "status": "wip", "f1": None, "note": ("", "")},
-    {"name": ("Birleşik model (füzyon)", "Combined model (fusion)"), "arch": ("Olasılık birleştirme", "Probability fusion"),
-     "status": "planned", "f1": None, "note": ("Hedef ≥ 0,45", "Target ≥ 0.45")},
+    {"name": ("Kullanılan sistem — hekim modu (4 model)", "Deployed system — physician mode (4 models)"),
+     "arch": ("B3 + V2-S, derm + klinik ortalaması", "B3 + V2-S, mean of derm + clinical"), "status": "used", "f1": 0.542,
+     "note": ("±0,024 · doğruluk %77,4 · kalibre", "±0.024 · accuracy 77.4% · calibrated")},
+    {"name": ("Yalnızca klinik fotoğraf (hasta modu)", "Clinical photo only (patient mode)"),
+     "arch": ("B3 + V2-S, klinik", "B3 + V2-S, clinical"), "status": "done", "f1": 0.463,
+     "note": ("±0,025 · doğruluk %69,9 · arayüzde henüz yok", "±0.025 · accuracy 69.9% · not in the interface yet")},
+    {"name": ("Dermoskopik model", "Dermoscopic model"), "arch": "EfficientNetV2-S", "status": "done", "f1": 0.506,
+     "note": ("±0,035", "±0.035")},
+    {"name": ("Dermoskopik model", "Dermoscopic model"), "arch": "EfficientNet-B3", "status": "done", "f1": 0.484,
+     "note": ("±0,017", "±0.017")},
+    {"name": ("Klinik model", "Clinical model"), "arch": "EfficientNet-B3", "status": "done", "f1": 0.445,
+     "note": ("±0,020", "±0.020")},
+    {"name": ("Klinik model", "Clinical model"), "arch": "EfficientNetV2-S", "status": "done", "f1": 0.436,
+     "note": ("±0,023", "±0.023")},
+    {"name": ("Görüntü + hasta bilgisi füzyonu (alternatif)", "Image + patient-info fusion (alternative)"),
+     "arch": ("Füzyon ağı", "Fusion network"), "status": "done", "f1": 0.497,
+     "note": ("yalnızca kat 0 · aynı sette hekim modu 0,547", "fold 0 only · physician mode 0.547 on the same set")},
 ]
-STATUS_LABEL = {"done": ("Tamamlandı", "Done"), "wip": ("Devam ediyor", "In progress"), "planned": ("Planlandı", "Planned")}
+STATUS_LABEL = {"used": ("Kullanılıyor", "In use"), "done": ("Tamamlandı", "Done"), "wip": ("Devam ediyor", "In progress"), "planned": ("Planlandı", "Planned")}
 
 
 def _L(pair):
@@ -66,7 +77,7 @@ TXT = {
     "k_lesions": ("lezyon (eğitim verisi)", "lesions (training data)"),
     "k_images": ("görüntü (her lezyona 2)", "images (2 per lesion)"),
     "k_classes": ("lezyon türü", "lesion types"),
-    "k_best": ("en iyi ara sonuç (Macro F1)", "best interim result (Macro F1)"),
+    "k_best": ("kullanılan sistem (Macro F1, hedef ≥ 0,45)", "deployed system (Macro F1, target ≥ 0.45)"),
     "h_purpose": ("Amaç ve kullanım", "Purpose and intended use"),
     "purpose": (
         "- **Amaç:** Hekime ikinci bir görüş sunmak; şüpheli lezyonların önceliklendirilmesine yardımcı olmak.\n"
@@ -78,23 +89,27 @@ TXT = {
     ),
     "h_how": ("Sistem nasıl çalışır", "How the system works"),
     "how": (
-        "1. **Dermoskopik görüntü** ve **klinik fotoğraf** ayrı ayrı birer görüntü modeline girer.\n"
-        "2. **Yaş, cinsiyet, ten rengi ve bölge** ayrı bir modele girer.\n"
-        "3. Üç modelin olasılıkları birleştirilir ve 11 tür için tek bir sonuç üretilir.\n"
-        "4. Sonuç; kötü huylu / kansere dönüşebilir / iyi huylu gruplarına toplanır ve yönlendirme önerisine çevrilir.",
-        "1. The **dermoscopic image** and the **clinical photo** each go into their own image model.\n"
-        "2. **Age, sex, skin tone and body site** go into a separate model.\n"
-        "3. The three models' probabilities are combined into one result for 11 types.\n"
-        "4. The result is summed into malignant / precancerous / benign groups and turned into a referral suggestion.",
+        "1. **Dermoskopik görüntü** iki ayrı görüntü modeline (EfficientNet-B3 ve EfficientNetV2-S) girer; **klinik fotoğraf** da kendi iki modeline.\n"
+        "2. Her görüntü türünün modelleri kendi içinde, sonra dermoskopik ve klinik sonuç eşit ağırlıkla ortalanır (11 tür için tek sonuç).\n"
+        "3. Olasılıklar **kalibre edilir**: model “%70” dediğinde gerçekten yaklaşık %70 isabet eder.\n"
+        "4. Sonuç kötü huylu / kansere dönüşebilir / iyi huylu gruplarına toplanır ve yönlendirme önerisine çevrilir.\n\n"
+        "Yaş, cinsiyet, ten rengi ve bölge modele **girmez**: eklendiğinde başarı artmadı. Bu bilgiler rapor, vaka kaydı ve az veri uyarıları için kullanılır.",
+        "1. The **dermoscopic image** goes into two image models (EfficientNet-B3 and EfficientNetV2-S); the **clinical photo** into its own two.\n"
+        "2. Models of each image type are averaged, then the dermoscopic and clinical results are averaged with equal weight (one result for 11 types).\n"
+        "3. Probabilities are **calibrated**: when the model says “70%”, it is right about 70% of the time.\n"
+        "4. The result is summed into malignant / precancerous / benign groups and turned into a referral suggestion.\n\n"
+        "Age, sex, skin tone and body site do **not** enter the model: adding them did not improve accuracy. They are used for the report, the case record and low-data warnings.",
     ),
     "h_status": ("Geliştirme durumu", "Development status"),
     "c_comp": ("Bileşen", "Component"), "c_arch": ("Mimari", "Architecture"), "c_status": ("Durum", "Status"),
     "c_note": ("Not", "Note"),
     "f1_note": (
-        "Macro F1: 11 türün her biri için ayrı ayrı hesaplanan başarının ortalaması. Nadir türleri de yaygın türler kadar "
-        "önemser; 1 en iyi, 0 en kötüdür. Sonuçlar eğitimde kullanılmayan %20'lik doğrulama kümesinden ölçülmüştür.",
-        "Macro F1: the average of the score computed separately for each of the 11 types. It weighs rare types as much "
-        "as common ones; 1 is best, 0 is worst. Measured on the 20% validation set that was not used for training.",
+        "Macro F1: 11 türün her biri için ayrı hesaplanan başarının ortalaması; nadir türleri de yaygın türler kadar önemser "
+        "(1 en iyi, 0 en kötü). Değerler 5 katlı çapraz doğrulamadan (her lezyon bir kez test edildi) ortalama ± sapmadır. "
+        "Füzyon modeli yalnızca tek bir bölünmede ölçüldü. Sonuçlar ~0,01–0,02 iyimser olabilir (en iyi epoch kontrol setine bakılarak seçildi).",
+        "Macro F1: the average of the score computed separately for each of the 11 types; weighs rare types as much as common "
+        "ones (1 best, 0 worst). Values are mean ± SD from 5-fold cross-validation (each lesion tested once). The fusion model "
+        "was measured on a single split only. Results may be ~0.01–0.02 optimistic (best epoch chosen on the validation set).",
     ),
     "h_data": ("Eğitim verisi: MILK10k", "Training data: MILK10k"),
     "c_type": ("Tür", "Type"), "c_med": ("Tıbbi adı", "Medical name"), "c_group": ("Grup", "Group"),
@@ -120,7 +135,9 @@ TXT = {
         "lezyonları hem eğitim hem doğrulama kümesine düşmüş olabilir.\n"
         "- **Tek veri seti:** Sonuçlar yalnızca MILK10k üzerinde ölçülmüştür; farklı kamera, dermatoskop veya hasta "
         "gruplarında performans farklı olabilir.\n"
-        "- **Yaş aralığı:** Veri setinde yaş 5–85 arasındadır; bu aralığın dışındaki hastalarda sonuç daha belirsizdir.",
+        "- **Yaş aralığı:** Veri setinde yaş 5–85 arasındadır; bu aralığın dışındaki hastalarda sonuç daha belirsizdir.\n"
+        "- **Çekim koşulları:** MILK10k klinik fotoğrafları klinikte çekilmiştir; telefonla çekilen fotoğraflarda başarı daha düşük olabilir.\n"
+        "- **En nadir tür:** “Diğer kötü huylu oluşumlar” (9 lezyon) hiçbir modelde öğrenilemedi.",
         "- **Class imbalance:** performance is low for rare types (e.g. other malignant growths, 9 lesions).\n"
         "- **Skin-tone representation:** most training data is medium or light skin; performance on dark skin must be "
         "measured separately.\n"
@@ -128,7 +145,9 @@ TXT = {
         "patient may appear in both training and validation sets.\n"
         "- **Single dataset:** results were measured only on MILK10k; performance may differ with other cameras, "
         "dermatoscopes or patient groups.\n"
-        "- **Age range:** ages in the dataset range from 5 to 85; results are less certain outside this range.",
+        "- **Age range:** ages in the dataset range from 5 to 85; results are less certain outside this range.\n"
+        "- **Capture conditions:** MILK10k clinical photos were taken in clinics; accuracy may be lower for phone photos.\n"
+        "- **Rarest type:** “other malignant growths” (9 lesions) could not be learned by any model.",
     ),
     "h_ethics": ("Etik, gizlilik ve güvenlik", "Ethics, privacy and safety"),
     "ethics": (
@@ -212,7 +231,7 @@ FAQ = [
 
 def render_about():
     st.markdown(f'<p class="lead">{_L(TXT["lead"])}</p>', unsafe_allow_html=True)
-    best = max((m["f1"] for m in MODEL_STATUS if m["f1"] is not None), default=None)
+    best = next((m["f1"] for m in MODEL_STATUS if m["status"] == "used"), None)
     kpis = [(_int(N_LESIONS), _L(TXT["k_lesions"])), (_int(N_LESIONS * 2), _L(TXT["k_images"])),
             ("11", _L(TXT["k_classes"])), (_num(best) if best else "–", _L(TXT["k_best"]))]
     for col, (val, lab) in zip(st.columns(4), kpis):

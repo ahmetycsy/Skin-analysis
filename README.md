@@ -1,15 +1,3 @@
----
-title: Skin Lesion Decision Support
-emoji: 🩺
-colorFrom: green
-colorTo: gray
-sdk: docker
-app_port: 8501
-pinned: false
-license: cc-by-nc-4.0
-short_description: Multimodal skin lesion decision-support prototype (MILK10k)
----
-
 # Cilt Lezyonu Karar Destek Prototipi (Streamlit arayüzü)
 
 Bu klasör Ahmet'in paketidir. Şu an SAHTE modelle çalışır; gerçek model gelince `predictor.py` içindeki
@@ -34,12 +22,15 @@ Bu klasör Ahmet'in paketidir. Şu an SAHTE modelle çalışır; gerçek model g
 3. Birkaç dakika sonra herkese açık bir link çıkar. Bu linki rapora ve sunuma koy.
 4. Kodda değişiklik olunca GitHub Desktop'ta "Commit" + "Push" yeterli; site kendini günceller.
 
-### Hekim PIN'i
-Hekim modu için Streamlit Cloud'da **Manage app → Settings → Secrets** bölümüne şunu ekleyin (kendi PIN'inizi yazın):
+### Gerçek model ve gizli ayarlar (Streamlit Cloud → ⋮ → Settings → Secrets)
+Model dosyaları GitHub'da değil, Hugging Face'teki **gizli** bir model reposunda durur (4 `.pt` + `model_config.json`).
+Site açılırken oradan indirir. Secrets kutusuna:
 ```
-DOCTOR_PIN = "1234"
+HF_TOKEN = "hf_..."                       # Hugging Face erişim anahtarı (kimseyle paylaşmayın)
+MODEL_REPO = "kullanici-adi/skin-cds-models"
+DOCTOR_PIN = "kendi PIN'iniz"             # tanımlanmazsa koddaki demo PIN kullanılır, yayında mutlaka değiştirin
 ```
-Tanımlanmazsa koddaki demo PIN kullanılır; kod herkese açık olduğu için yayında mutlaka değiştirin.
+MODEL_REPO tanımlı değilse uygulama demo modunda (sahte model) çalışır. Model yüklenemezse menüde kırmızı uyarı çıkar.
 
 ## 3. Eğitim notebook'u
 `kaggle/milk10k_train.ipynb` Kaggle'da çalışır (`MODE = derm | clin | meta`). Kaynağı `kaggle/milk10k_train.py`.

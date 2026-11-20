@@ -9,7 +9,7 @@ import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
-from PIL import Image, ImageDraw, ImageFilter, ImageStat
+from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageStat
 
 import i18n
 from about import ADVISOR, AGE_RANGE, APP_VERSION, LOW_DATA_SKIN_TONES, SKIN_TONE_COUNTS, TEAM, render_about, render_guide
@@ -250,17 +250,37 @@ def remembered_index(name: str, options: list):
     return options.index(v) if v in options else None
 
 
+def secrets_to_env():
+    """Streamlit Secrets'taki HF_TOKEN / MODEL_REPO'yu ortam değişkenine aktarır (predictor.py ve huggingface_hub oradan okur)."""
+    import os
+    for key in ("HF_TOKEN", "MODEL_REPO"):
+        try:
+            if key in st.secrets and not os.environ.get(key):
+                os.environ[key] = str(st.secrets[key])
+        except Exception:  # secrets dosyası yoksa sorun değil
+            pass
+
+
+secrets_to_env()
+
+
 @st.cache_resource(show_spinner="Model yükleniyor, ilk açılışta 1–2 dakika sürebilir… · Loading the model, the first start may take 1–2 minutes…")
 def get_predictor():
     return load_predictor()
 
 
 # ---------------------------------------------------------------- görüntü yardımcıları
+MAX_SIDE = 1600  # model 300–384 piksel görür; büyük telefon fotoğrafları belleği gereksiz şişirmesin
+
+
 def open_bytes(data: bytes):
+    """Yüklenen dosyayı açar: telefonun kaydettiği yöne çevirir (EXIF) ve uzun kenarı en çok MAX_SIDE piksele küçültür."""
     try:
-        return Image.open(io.BytesIO(data)).convert("RGB")
+        img = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
     except Exception:
         return None
+    img.thumbnail((MAX_SIDE, MAX_SIDE))
+    return img
 
 
 def looks_dermoscopic(img: Image.Image) -> bool:
