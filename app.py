@@ -2,8 +2,10 @@ import hashlib
 import hmac
 import html
 import io
+import os
 import time
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 
 import altair as alt
 import numpy as np
@@ -32,6 +34,7 @@ from predictor import (
     load_predictor,
 )
 from stats_page import render_stats
+from db import get_db
 
 try:  # kırpma eklentisi yoksa uygulama yine çalışsın
     from streamlit_cropper import st_cropper
@@ -45,6 +48,14 @@ try:
     from report import build_pdf
 except Exception:  # pragma: no cover
     build_pdf = None
+
+TZ = ZoneInfo("Europe/Istanbul")
+
+
+def now_tr() -> datetime:
+    """Türkiye saati (sunucu UTC'de çalışır)."""
+    return datetime.now(TZ)
+
 
 st.set_page_config(page_title="Skin Lesion Decision Support", page_icon="🩺", layout="wide",
                    initial_sidebar_state="auto")  # bilgisayarda açık, telefonda kapalı başlar
@@ -220,6 +231,9 @@ ss.setdefault("consent", False)   # kullanım koşulları onaylandı mı
 ss.setdefault("doctor", None)     # hekim modu: baş harfler (None = giriş yok)
 ss.setdefault("pin_fails", 0)
 ss.setdefault("audit", [])        # denetim kaydı: yalnızca eklenir, değiştirilmez
+ss.setdefault("dirty", [])        # veritabanına yazılacak vakalar
+ss.setdefault("pending_audit", [])  # veritabanına yazılacak denetim satırları
+ss.setdefault("db_synced", 0.0)   # vakaların veritabanından en son çekildiği an
 INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm")
 
 
@@ -253,7 +267,7 @@ def remembered_index(name: str, options: list):
 def secrets_to_env():
     """Streamlit Secrets'taki HF_TOKEN / MODEL_REPO'yu ortam değişkenine aktarır (predictor.py ve huggingface_hub oradan okur)."""
     import os
-    for key in ("HF_TOKEN", "MODEL_REPO"):
+    for key in ("HF_TOKEN", "MODEL_REPO", "SUPABASE_URL", "SUPABASE_KEY"):
         try:
             if key in st.secrets and not os.environ.get(key):
                 os.environ[key] = str(st.secrets[key])
@@ -265,7 +279,9 @@ secrets_to_env()
 
 
 @st.cache_resource(show_spinner="Model yükleniyor, ilk açılışta 1–2 dakika sürebilir… · Loading the model, the first start may take 1–2 minutes…")
-def get_predictor():
+def get_predictor(model_repo_setting):
+    """Model bir kez yüklenip hafızada tutulur. MODEL_REPO ayarı değişirse (ör. Secrets sonradan girildi) yeniden yüklenir;
+    böylece uygulamayı elle yeniden başlatmak gerekmez."""
     return load_predictor()
 
 
@@ -406,7 +422,7 @@ def new_case_id(seed: str) -> str:
     while True:
         h = int(hashlib.sha1(f"{seed}{time.time_ns()}".encode()).hexdigest(), 16)
         code = "".join(alphabet[(h >> (5 * i)) & 31] for i in range(5))
-        cid = f"LZ-{datetime.now():%y%m%d}-{code}"
+        cid = f"LZ-{now_tr():%y%m%d}-{code}"
         if cid not in ss.cases:
             return cid
 
@@ -475,7 +491,7 @@ def priority_key(rec: dict):
     """İş listesi sırası: açık vakalar önce; içinde gecikmiş kontrol, sonra öncelik seviyesi, sonra en yeni."""
     a = assess(rec["probs"])
     fu = (rec.get("feedback") or {}).get("followup")
-    overdue = bool(fu) and fu < datetime.now().date().isoformat() and rec["status"] != "closed"
+    overdue = bool(fu) and fu < now_tr().date().isoformat() and rec["status"] != "closed"
     return (rec["status"] == "closed", not overdue, LEVEL_RANK[a["level"]], -rec["ts"])
 
 
@@ -524,15 +540,98 @@ def status_pill(status: str) -> str:
 
 def log(kind: str, case=None, **extra) -> dict:
     """Denetim kaydına bir satır ekler (kim, ne zaman, ne yaptı). Kayıtlar yalnızca eklenir."""
-    now = datetime.now()
+    now = now_tr()
     ev = {"ts": now.strftime("%d.%m.%Y %H:%M:%S"), "time": now.strftime("%d.%m %H:%M"), "kind": kind, "case": case,
           "actor": ss.get("doctor"), **extra}
     ss.audit.append(ev)
+    if DB is not None:  # vaka kaydına izin verilmediyse o vakanın satırları gönderilmez (flush_db'de elenir)
+        ss.pending_audit.append({"iso": now.isoformat(), "case_no": case, "actor": ev["actor"], "kind": kind, "extra": extra})
     return ev
 
 
 def add_event(rec: dict, kind: str, **extra):
     rec["events"].append(log(kind, rec["case"], **extra))
+    if rec.get("saved") and rec["case"] not in ss.dirty:
+        ss.dirty.append(rec["case"])
+
+
+# ---------------------------------------------------------------- veritabanı (Supabase) — anonim kayıt
+def case_row(rec: dict) -> dict:
+    """Veritabanına giden satır: görüntü ve kişisel bilgi YOK."""
+    ranked = sorted(rec["probs"].items(), key=lambda kv: kv[1], reverse=True)
+    level = assess(rec["probs"])["level"]
+    return {
+        "case_no": rec["case"], "created_at": rec["created_iso"], "updated_at": now_tr().isoformat(),
+        "app_version": APP_VERSION, "model_name": rec["model_name"],
+        "age_band": rec["meta"]["age"], "sex": rec["meta"]["sex"], "skin_tone": rec["meta"]["skin_tone"],
+        "site": rec["meta"]["site"], "probs": rec["probs"], "level": level, "top1": ranked[0][0],
+        "top1_prob": round(ranked[0][1], 6), "malignant_total": round(sum(p for c, p in rec["probs"].items() if GROUPS[c] == MALIGN), 6),
+        "elapsed_s": round(rec["elapsed"], 3), "skin_override": any(ev["kind"] == "skin_override" for ev in rec["events"]),
+        "status": rec["status"], "feedback": rec["feedback"], "final": rec.get("final"),
+    }
+
+
+def rec_from_row(row: dict) -> dict:
+    """Veritabanındaki satırdan vaka kaydı (görüntüler veritabanında olmadığı için boş)."""
+    created = datetime.fromisoformat(row["created_at"].replace("Z", "+00:00")).astimezone(TZ)
+    return {
+        "case": row["case_no"], "created": created.strftime("%d.%m.%Y %H:%M"), "time": created.strftime("%H:%M"),
+        "created_iso": created.isoformat(), "ts": created.timestamp(), "model_name": row.get("model_name") or "",
+        "probs": row["probs"], "elapsed": row.get("elapsed_s") or 0.0,
+        "meta": {"age": row["age_band"], "sex": row["sex"], "skin_tone": row["skin_tone"], "site": row["site"]},
+        "clin_jpg": None, "derm_jpg": None, "cam_img": None, "cam_class": None, "cam_jpg": None,
+        "feedback": row.get("feedback"), "final": row.get("final"), "status": row.get("status") or "new",
+        "events": [], "saved": True, "from_db": True, "events_loaded": False,
+    }
+
+
+def flush_db():
+    """Bekleyen vaka güncellemelerini, sonra denetim satırlarını veritabanına yazar (vaka önce: denetim satırı vakaya bağlı)."""
+    if DB is None:
+        return
+    for cid in list(ss.dirty):
+        rec = ss.cases.get(cid)
+        if rec is None or not rec.get("saved") or DB.upsert_case(case_row(rec)):
+            ss.dirty.remove(cid)
+    keep = []
+    for row in ss.pending_audit:
+        cid = row["case_no"]
+        if cid is not None and not (ss.cases.get(cid) or {}).get("saved"):
+            continue  # kayıt izni olmayan vakanın işlemleri veritabanına gitmez
+        if cid in ss.dirty:  # vaka satırı henüz yazılamadı, sonra tekrar dene
+            keep.append(row)
+            continue
+        if not DB.add_audit({"ts": row["iso"], "case_no": cid, "actor": row["actor"], "kind": row["kind"],
+                             "extra": row["extra"] or None}):
+            keep.append(row)
+    ss.pending_audit = keep
+
+
+def sync_from_db(force: bool = False):
+    """Başka oturumlarda/cihazlarda kaydedilen vakaları çeker (en çok 30 sn'de bir)."""
+    if DB is None or (not force and time.time() - ss.db_synced < 30):
+        return
+    rows = DB.list_cases()
+    if DB.last_error is None:
+        ss.db_synced = time.time()
+    for row in rows:
+        if row["case_no"] not in ss.cases:
+            ss.cases[row["case_no"]] = rec_from_row(row)
+
+
+def load_events(rec: dict):
+    """Veritabanından gelen vakanın geçmişini (denetim satırları) bir kez yükler."""
+    if DB is None or not rec.get("from_db") or rec.get("events_loaded"):
+        return
+    old = rec["events"]
+    evs = []
+    for row in reversed(DB.list_audit(rec["case"])):
+        ts = datetime.fromisoformat(row["ts"].replace("Z", "+00:00")).astimezone(TZ)
+        evs.append({"ts": ts.strftime("%d.%m.%Y %H:%M:%S"), "time": ts.strftime("%d.%m %H:%M"), "kind": row["kind"],
+                    "case": row["case_no"], "actor": row.get("actor"), **(row.get("extra") or {})})
+    if DB.last_error is None:
+        rec["events"] = evs + [e for e in old if e not in evs]
+        rec["events_loaded"] = True
 
 
 def actor_label(ev: dict) -> str:
@@ -585,13 +684,19 @@ def page_header(title: str, sub: str = ""):
 
 # ---------------------------------------------------------------- yan menü
 i18n.set_lang(ss.lang)
-predictor = get_predictor()
+predictor = get_predictor(os.environ.get("MODEL_REPO", ""))
+DB = get_db()
+flush_db()  # önceki çalıştırmadan kalan (ör. st.rerun ile yarıda kalan) yazmalar
 
 qp_case = st.query_params.get("case")
 if qp_case:  # PDF'teki QR kod bu bağlantıyla gelir
     qp_case = qp_case.strip().upper()
     st.query_params.clear()
     ss.page = "track"
+    if qp_case not in ss.cases and DB is not None:
+        row = DB.get_case(qp_case)
+        if row:
+            ss.cases[qp_case] = rec_from_row(row)
     if qp_case in ss.cases:
         ss.open_case = qp_case
     else:
@@ -683,6 +788,9 @@ with st.sidebar:
         st.error(t("model_load_error", e=predictor.load_error[:300]))
     status = (f'<span class="chip demo">● {t("chip_demo")}</span>' if predictor.is_mock
               else f'<span class="chip live">● {html.escape(predictor.name)}</span>')
+    if DB is not None:
+        status += (f'<span class="chip live">● {t("db_on")}</span>' if DB.last_error is None
+                   else f'<span class="chip demo">● {t("db_err")}</span>')
     st.markdown(f'<div style="margin-top:.6rem">{status}<span class="chip">{t("chip_version", v=APP_VERSION)}</span></div>'
                 f'<div class="side-note" style="margin-top:.5rem">{t("side_nodx")}</div>'
                 '<div class="side-sep"></div>'
@@ -694,6 +802,7 @@ with st.sidebar:
 # ---------------------------------------------------------------- vaka görünümü (yeni analiz ve vaka takibinde ortak)
 def render_case(cid: str, where: str):
     rec = ss.cases[cid]
+    load_events(rec)
     a = assess(rec["probs"])
 
     with st.container(border=True):
@@ -737,8 +846,11 @@ def render_case(cid: str, where: str):
     with left:
         st.markdown(f'<div class="sec-label">{t("pdf_images")}</div>', unsafe_allow_html=True)
         i1, i2 = st.columns(2)
-        i1.image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
-        i2.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("derm_title"), width="stretch")
+        if rec.get("clin_jpg") and rec.get("derm_jpg"):
+            i1.image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
+            i2.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("derm_title"), width="stretch")
+        else:
+            st.markdown(f'<div class="cam-empty">{t("no_images")}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="sec-label">{t("s2_title")}</div>', unsafe_allow_html=True)
         kv = "".join(f"<span>{k}</span><div>{v}</div>" for k, v in meta_lines(rec["meta"]))
         st.markdown(f'<div class="kv">{kv}</div>', unsafe_allow_html=True)
@@ -771,7 +883,7 @@ def render_case(cid: str, where: str):
         st.markdown(f"<div>{cards}</div>", unsafe_allow_html=True)
 
         st.markdown(f'<div class="sec-label">{t("cam_title")}</div>', unsafe_allow_html=True)
-        if rec.get("cam_img") is not None:
+        if rec.get("cam_img") is not None and rec.get("derm_jpg"):
             g1, g2 = st.columns(2)
             g1.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("cam_orig"), width="stretch")
             g2.image(lens_preview(rec["cam_img"]), caption=t("cam_heat", c=i18n.plain(rec["cam_class"])), width="stretch")
@@ -871,11 +983,11 @@ def render_case(cid: str, where: str):
                                     lab for lab, v in [(t("final_dx"), fdx), (t("final_method"), meth)] if v is None)))
                             else:
                                 r = ss.cases[cid]
-                                r["final"] = {"dx": fdx, "method": meth, "time": datetime.now().strftime("%d.%m.%Y %H:%M")}
+                                r["final"] = {"dx": fdx, "method": meth, "time": now_tr().strftime("%d.%m.%Y %H:%M")}
                                 r["status"] = "closed"
                                 add_event(r, "closed", dx=fdx)
                                 st.rerun()
-            st.caption(t("track_note"))
+            st.caption(t("track_note_db" if DB is not None else "track_note"))
         with s2:
             if fb:
                 extra = f" · {t('fu_label')}: {fmt_date(fb['followup'])}" if fb.get("followup") else ""
@@ -903,7 +1015,7 @@ def render_case(cid: str, where: str):
                             add_event(r, "feedback_upd" if r["feedback"] else "feedback")
                             r["feedback"] = {"dx": dx, "agree": agree, "action": action, "note": note.strip(),
                                              "followup": fu.isoformat() if fu else None,
-                                             "time": datetime.now().strftime("%d.%m.%Y %H:%M")}
+                                             "time": now_tr().strftime("%d.%m.%Y %H:%M")}
                             new_status = "awaiting" if dx == "unknown" or action == "biopsy" else "reviewed"
                             if r["status"] != "closed" and r["status"] != new_status:
                                 old = r["status"]
@@ -1028,6 +1140,11 @@ def step_patient():
         i2.image(lens_preview(derm_img, 240), caption=t("derm_title"), width="stretch")
 
     missing = [t(k) for k, v in [("m_age", age), ("m_sex", sex), ("m_skin", skin_tone), ("m_site", site)] if v is None]
+    if DB is not None and not predictor.is_mock:  # sahte (demo) sonuçlar araştırma verisine karışmasın
+        save = st.checkbox(t("save_consent"), value=ss.get("v_save", False), key=wkey("save"), help=t("save_help"))
+        ss.v_save = save
+    elif DB is not None:
+        st.caption(t("save_demo_off"))
     st.write("")
     b1, _, b3 = st.columns([1, 1.2, 1])
     b1.button(t("btn_back"), icon=":material/arrow_back:", width="stretch", on_click=lambda: ss.update(step=1), key="back_1")
@@ -1058,8 +1175,8 @@ def step_patient():
         cid = new_case_id(ss.imgs["clin"]["id"] + ss.imgs["derm"]["id"])
         rec = {
             "case": cid,
-            "created": datetime.now().strftime("%d.%m.%Y %H:%M"),
-            "time": datetime.now().strftime("%H:%M"),
+            "created": now_tr().strftime("%d.%m.%Y %H:%M"),
+            "time": now_tr().strftime("%H:%M"),
             "model_name": predictor.name,
             "probs": probs,
             "elapsed": elapsed,
@@ -1072,6 +1189,8 @@ def step_patient():
             "feedback": None,
             "final": None,
             "ts": time.time(),
+            "created_iso": now_tr().isoformat(),
+            "saved": DB is not None and not predictor.is_mock and bool(ss.get("v_save")),  # izin + gerçek model şart
             "status": "new",
             "events": [],
         }
@@ -1087,7 +1206,7 @@ def step_patient():
 # ---------------------------------------------------------------- sayfa: vaka takibi
 def followup_panel():
     """Yaklaşan ve geciken kontroller (kapatılmamış vakalar)."""
-    today = datetime.now().date()
+    today = now_tr().date()
     items = []
     for r in ss.cases.values():
         fu = (r.get("feedback") or {}).get("followup")
@@ -1114,9 +1233,12 @@ def case_column(rec: dict):
     a = assess(rec["probs"])
     st.markdown(f'<div class="row-no">{rec["case"]}</div><div class="row-sub">{rec["created"]} · {patient_short(rec["meta"])}</div>',
                 unsafe_allow_html=True)
-    i1, i2 = st.columns(2)
-    i1.image(rec["clin_jpg"], width="stretch")
-    i2.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), width="stretch")
+    if rec.get("clin_jpg") and rec.get("derm_jpg"):
+        i1, i2 = st.columns(2)
+        i1.image(rec["clin_jpg"], width="stretch")
+        i2.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), width="stretch")
+    else:
+        st.markdown(f'<div class="cam-empty">{t("no_images")}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="rec {a["level"]}" style="padding:.6rem .8rem"><div class="rec-title" style="font-size:.95rem">'
                 f'{a["title"]}</div></div>', unsafe_allow_html=True)
     bar = "".join(f'<div style="width:{a["totals"][g] * 100:.2f}%;background:{GROUP_COLORS[g]}"></div>' for g in GROUP_ORDER)
@@ -1160,19 +1282,30 @@ def audit_panel():
     """Denetim kaydı: oturumdaki bütün işlemler (en yeni üstte) ve CSV indirme."""
     with st.expander(t("audit_title"), icon=":material/history:"):
         st.caption(t("audit_intro"))
-        if not ss.audit:
+        events = list(reversed(ss.audit))
+        if DB is not None:
+            flush_db()
+            rows = DB.list_audit(limit=500)
+            if DB.last_error is None:
+                events = []
+                for row in rows:
+                    ts = datetime.fromisoformat(row["ts"].replace("Z", "+00:00")).astimezone(TZ)
+                    events.append({"ts": ts.strftime("%d.%m.%Y %H:%M:%S"), "case": row["case_no"], "actor": row.get("actor"),
+                                   "kind": row["kind"], **(row.get("extra") or {})})
+        if not events:
             st.caption(t("audit_empty"))
             return
         df = pd.DataFrame([{t("audit_time"): ev["ts"], t("audit_case"): ev.get("case") or "–",
-                            t("audit_actor"): actor_label(ev), t("audit_action"): event_text(ev)} for ev in reversed(ss.audit)])
+                            t("audit_actor"): actor_label(ev), t("audit_action"): event_text(ev)} for ev in events])
         st.dataframe(df, hide_index=True, width="stretch")
         sep, enc = (";", "utf-8-sig")
         st.download_button(t("audit_export"), data=df.to_csv(index=False, sep=sep).encode(enc),
-                           file_name=f"denetim_kaydi_{datetime.now():%Y%m%d_%H%M}.csv", mime="text/csv",
+                           file_name=f"denetim_kaydi_{now_tr():%Y%m%d_%H%M}.csv", mime="text/csv",
                            icon=":material/download:", key="audit_dl")
 
 
 def page_track():
+    sync_from_db()
     if ss.open_case in ss.cases:
         render_case(ss.open_case, "track")
         return
@@ -1182,7 +1315,7 @@ def page_track():
         st.markdown(f'<div class="banner">{t("case_not_here", c=html.escape(missing_case))}</div>', unsafe_allow_html=True)
     if not ss.cases:
         st.markdown(f'<div class="empty">{t("track_empty")}</div>', unsafe_allow_html=True)
-        st.caption(t("track_note"))
+        st.caption(t("track_note_db" if DB is not None else "track_note"))
         audit_panel()
         return
 
@@ -1223,11 +1356,11 @@ def page_track():
     rows.sort(key=priority_key if sort == "priority" else (lambda r: -r["ts"]))
     h1, h2 = st.columns([3, 1.2], vertical_alignment="center")
     h1.caption(t("track_count", n=len(rows)))
-    h2.download_button(t("export_btn"), data=export_csv(ss.cases), file_name=f"vakalar_{datetime.now():%Y%m%d_%H%M}.csv",
+    h2.download_button(t("export_btn"), data=export_csv(ss.cases), file_name=f"vakalar_{now_tr():%Y%m%d_%H%M}.csv",
                        mime="text/csv", icon=":material/table_view:", width="stretch", help=t("export_help"))
     if not rows:
         st.info(t("track_none"))
-    today = datetime.now().date().isoformat()
+    today = now_tr().date().isoformat()
     for r in rows:
         a = assess(r["probs"])
         top_c, top_p = a["ranked"][0]
@@ -1247,7 +1380,7 @@ def page_track():
                         f'<div class="row-sub">{patient_short(r["meta"])}{fu_txt}</div>', unsafe_allow_html=True)
             k3.markdown(status_pill(r["status"]), unsafe_allow_html=True)
             k4.button(t("btn_open"), key=f"open_{r['case']}", on_click=lambda c=r["case"]: ss.update(open_case=c), width="stretch")
-    st.caption(t("track_note"))
+    st.caption(t("track_note_db" if DB is not None else "track_note"))
     audit_panel()
 
 
@@ -1257,16 +1390,19 @@ if ss.page == "new":
 elif ss.page == "track":
     page_track()
 elif ss.page == "stats":
+    sync_from_db()
     page_header(t("tab_stats"))
     history = [{"case": r["case"], "time": r["time"], "meta": r["meta"], "top": assess(r["probs"])["ranked"][0],
                 "level": assess(r["probs"])["level"], "elapsed": r["elapsed"]} for r in ss.cases.values()]
     feedback = {cid: r["feedback"] for cid, r in ss.cases.items() if r["feedback"]}
     finals = [{"case": cid, "final": r["final"]["dx"], "ranked": [c for c, _ in assess(r["probs"])["ranked"]],
                "level": assess(r["probs"])["level"]} for cid, r in ss.cases.items() if r.get("final")]
-    render_stats(history, feedback, predictor.is_mock, GROUP_COLORS, finals)
+    render_stats(history, feedback, predictor.is_mock, GROUP_COLORS, finals, db_on=DB is not None)
 elif ss.page == "about":
     page_header(t("tab_about"))
     render_about()
 else:
     page_header(t("tab_guide"))
     render_guide()
+
+flush_db()  # bu çalıştırmada biriken kayıtları veritabanına yaz

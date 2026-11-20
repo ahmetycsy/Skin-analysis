@@ -41,13 +41,13 @@ def _int_axis(max_n: int):
     return alt.Axis(values=list(range(0, max_n + 1, step)), format="d", grid=False)
 
 
-def render_stats(history: list, feedback: dict, is_mock: bool, group_colors: dict, finals: list | None = None):
+def render_stats(history: list, feedback: dict, is_mock: bool, group_colors: dict, finals: list | None = None, db_on: bool = False):
     st.markdown(f'<p class="lead">{t("st_lead")}</p>', unsafe_allow_html=True)
     if is_mock:
         st.markdown(f'<div class="notice demo">{t("st_demo")}</div>', unsafe_allow_html=True)
     if not history:
         st.markdown(f'<div class="empty">{t("st_empty")}</div>', unsafe_allow_html=True)
-        st.caption(t("st_scope"))
+        st.caption(t("st_scope_db" if db_on else "st_scope"))
         return
 
     with_fb = [h for h in history if h["case"] in feedback]
@@ -142,4 +142,4 @@ def render_stats(history: list, feedback: dict, is_mock: bool, group_colors: dic
             (f"{caught}/{len(mal)}" if mal else "–", t("st_sens")),
         ])
         st.caption(t("st_final_note"))
-    st.caption(t("st_scope"))
+    st.caption(t("st_scope_db" if db_on else "st_scope"))

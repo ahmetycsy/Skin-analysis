@@ -475,12 +475,12 @@ Do not use filtered, cropped or colour-corrected images.
         "Bu sistem, **BAU Endüstri Mühendisliği bitirme projesi** kapsamında geliştirilmiş bir **araştırma prototipidir**.\n\n"
         "- **Tanı koymaz.** Sonuçlar yalnızca karar desteğidir; hekim değerlendirmesinin yerine geçmez.\n"
         "- **Tıbbi cihaz değildir** ve klinik kullanım için onaylanmamıştır.\n"
-        "- Yüklenen görüntüler **kaydedilmez**; ad, kimlik numarası gibi kişisel bilgi istenmez ve girilmemelidir.\n"
+        "- Yüklenen görüntüler **kaydedilmez**; ad, kimlik numarası gibi kişisel bilgi istenmez ve girilmemelidir. İzin verirseniz yalnızca **anonim sonuçlar** (yaş aralığı, olasılıklar, hekim değerlendirmesi vb.) araştırma amacıyla saklanır.\n"
         "- Model emin olmadığında bunu açıkça belirtir. Şüpheli bir lezyon için mutlaka bir hekime başvurun.",
         "This system is a **research prototype** developed as part of a **BAU Industrial Engineering capstone project**.\n\n"
         "- **It does not make a diagnosis.** Results are decision support only and do not replace a physician's assessment.\n"
         "- **It is not a medical device** and is not approved for clinical use.\n"
-        "- Uploaded images are **not stored**; no personal information such as name or ID number is requested, and none should be entered.\n"
+        "- Uploaded images are **not stored**; no personal information such as name or ID number is requested, and none should be entered. With your consent, only **anonymous results** (age range, probabilities, physician assessment, etc.) are kept for research.\n"
         "- When the model is not confident, it says so. Always consult a physician about a suspicious lesion.",
     ),
     "consent_check": ("Okudum ve anladım", "I have read and understood this"),
@@ -533,6 +533,26 @@ Do not use filtered, cropped or colour-corrected images.
     "audit_action": ("İşlem", "Action"),
     "audit_export": ("Denetim kaydını indir (CSV)", "Download audit log (CSV)"),
     "audit_empty": ("Henüz işlem yok.", "No actions yet."),
+    "save_consent": ("Bu vakanın anonim sonuçlarının araştırma amacıyla kaydedilmesine izin veriyorum",
+                     "I consent to the anonymous results of this case being stored for research"),
+    "save_help": ("Kaydedilenler: vaka no, yaş aralığı, cinsiyet, ten rengi, bölge, olasılıklar, hekim değerlendirmesi ve "
+                  "vaka geçmişi. Görüntüler ve kişisel bilgiler (ad, kimlik no) KAYDEDİLMEZ. İzin verilmezse vaka yalnızca bu sayfa "
+                  "açıkken tutulur.",
+                  "Stored: case number, age range, sex, skin tone, body site, probabilities, physician assessment and case "
+                  "history. Images and personal details (name, ID number) are NOT stored. Without consent, the case is kept "
+                  "only while this page is open."),
+    "no_images": ("Görüntüler kaydedilmez; bu vaka veritabanından açıldığı için görüntü gösterilemiyor.",
+                  "Images are not stored; this case was opened from the database, so no images can be shown."),
+    "db_on": ("Veritabanı bağlı", "Database connected"),
+    "save_demo_off": ("Demo modunda sonuçlar veritabanına kaydedilmez (sahte sonuçlar araştırma verisine karışmasın diye).",
+                      "In demo mode results are not stored in the database (so that mock results do not mix with research data)."),
+    "db_err": ("Veritabanına ulaşılamadı", "Database unreachable"),
+    "track_note_db": ("Kayıt izni verilen vakalar anonim olarak veritabanında saklanır ve her cihazdan vaka numarasıyla açılabilir. "
+                      "İzin verilmeyen vakalar yalnızca bu sayfa açıkken tutulur.",
+                      "Cases with storage consent are kept anonymously in the database and can be opened by case number from "
+                      "any device. Cases without consent are kept only while this page is open."),
+    "st_scope_db": ("Veritabanındaki tüm kayıtlı vakaları ve bu oturumdaki vakaları kapsar.",
+                    "Covers all stored cases in the database and the cases in this session."),
     "model_load_error": ("Gerçek model yüklenemedi, demo modunda çalışılıyor. Hata: {e}",
                          "The real model could not be loaded; running in demo mode. Error: {e}"),
     "ev_consent": ("Kullanım koşulları onaylandı", "Terms of use accepted"),
@@ -625,12 +645,8 @@ Do not use filtered, cropped or colour-corrected images.
     ),
 
     # alt bilgi
-    "foot_left": (
-        "Veri seti: MILK10k (ISIC Archive), CC-BY-NC 4.0.<br>Bu uygulama bir tıbbi cihaz değildir ve klinik kullanım için "
-        "onaylanmamıştır.<br>Yüklenen görüntüler yalnızca analiz sırasında kullanılır ve kaydedilmez.",
-        "Dataset: MILK10k (ISIC Archive), CC-BY-NC 4.0.<br>This application is not a medical device and is not approved for "
-        "clinical use.<br>Uploaded images are used only during analysis and are not stored.",
-    ),
+    "foot_left": ('Veri seti: MILK10k (ISIC Archive), CC-BY-NC 4.0.<br>Bu uygulama bir tıbbi cihaz değildir ve klinik kullanım için onaylanmamıştır.<br>Görüntüler kaydedilmez; izin verilirse yalnızca anonim sonuçlar saklanır.',
+                'Dataset: MILK10k (ISIC Archive), CC-BY-NC 4.0.<br>This application is not a medical device and is not approved for clinical use.<br>Images are not stored; with consent, only anonymous results are kept.'),
     "foot_right": ("BAU Endüstri Mühendisliği · Bitirme Projesi · Sürüm {v}<br>{team}<br>Danışman: Dr. Öğr. Üyesi {adv}",
                    "BAU Industrial Engineering · Capstone Project · Version {v}<br>{team}<br>Advisor: Asst. Prof. Dr. {adv}"),
 

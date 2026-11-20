@@ -29,7 +29,12 @@ Site açılırken oradan indirir. Secrets kutusuna:
 HF_TOKEN = "hf_..."                       # Hugging Face erişim anahtarı (kimseyle paylaşmayın)
 MODEL_REPO = "kullanici-adi/skin-cds-models"
 DOCTOR_PIN = "kendi PIN'iniz"             # tanımlanmazsa koddaki demo PIN kullanılır, yayında mutlaka değiştirin
+SUPABASE_URL = "https://xxxx.supabase.co" # isteğe bağlı: anonim vaka kaydı (Supabase)
+SUPABASE_KEY = "sb_secret_..."           # Supabase gizli (secret / service_role) anahtarı
 ```
+Supabase'te `cases` (vaka başına bir satır) ve `audit` (yalnızca eklenen denetim kaydı) tabloları olmalı; görüntü ve kişisel bilgi
+kaydedilmez. Kayıt yalnızca kullanıcı analiz öncesi izin verirse ve gerçek model çalışıyorsa yapılır.
+
 MODEL_REPO tanımlı değilse uygulama demo modunda (sahte model) çalışır. Model yüklenemezse menüde kırmızı uyarı çıkar.
 
 ## 3. Eğitim notebook'u

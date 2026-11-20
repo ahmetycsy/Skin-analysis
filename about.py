@@ -152,12 +152,12 @@ TXT = {
     "h_ethics": ("Etik, gizlilik ve güvenlik", "Ethics, privacy and safety"),
     "ethics": (
         "- Sistem **tanı koymaz**; her sonuç hekim değerlendirmesiyle birlikte yorumlanmalıdır.\n"
-        "- Yüklenen görüntüler yalnızca analiz sırasında bellekte işlenir; **sunucuya kaydedilmez**. Ad, kimlik numarası "
+        "- Yüklenen görüntüler yalnızca analiz sırasında bellekte işlenir; **sunucuya kaydedilmez**. İzin verilen vakalarda yalnızca anonim sonuçlar (yaş aralığı, cinsiyet, ten rengi, bölge, olasılıklar, hekim değerlendirmesi) veritabanında saklanır. Ad, kimlik numarası "
         "gibi kişisel bilgi istenmez.\n"
         "- Model emin olmadığında bunu açıkça belirtir ve hekime yönlendirir.\n"
         "- Bu uygulama bir tıbbi cihaz değildir ve klinik kullanım için onaylanmamıştır.",
         "- The system **does not make a diagnosis**; every result must be interpreted together with a physician's assessment.\n"
-        "- Uploaded images are processed in memory only during analysis and are **not stored on the server**. No personal "
+        "- Uploaded images are processed in memory only during analysis and are **not stored on the server**. For cases with consent, only anonymous results (age range, sex, skin tone, body site, probabilities, physician assessment) are kept in the database. No personal "
         "information such as name or ID number is requested.\n"
         "- When the model is not confident, it says so clearly and refers to a physician.\n"
         "- This application is not a medical device and is not approved for clinical use.",
@@ -222,10 +222,12 @@ FAQ = [
       "When the lesion covers only a small part of the image, or when there are unrelated things such as rulers, text "
       "or clothing at the edges. Keep the whole lesion and a little healthy skin around it inside the box.")),
     (("Görüntülerim saklanıyor mu?", "Are my images stored?"),
-     ("Hayır. Görüntüler yalnızca analiz sırasında bellekte işlenir ve sayfa kapatıldığında silinir. Oturum geçmişi de "
-      "yalnızca sayfa açık kaldığı sürece tutulur; kimseyle paylaşılmaz.",
-      "No. Images are processed in memory only during analysis and are discarded when the page is closed. The session "
-      "history is kept only while the page is open and is not shared with anyone.")),
+     ("Hayır. Görüntüler yalnızca analiz sırasında bellekte işlenir ve sayfa kapatıldığında silinir. Analizden önce "
+      "kayıt izni verirseniz yalnızca anonim sonuçlar (yaş aralığı, cinsiyet, ten rengi, bölge, olasılıklar, hekim "
+      "değerlendirmesi) araştırma amacıyla saklanır; görüntü ve kişisel bilgi asla saklanmaz.",
+      "No. Images are processed in memory only during analysis and are discarded when the page is closed. If you give "
+      "storage consent before the analysis, only anonymous results (age range, sex, skin tone, body site, probabilities, "
+      "physician assessment) are kept for research; images and personal details are never stored.")),
 ]
 
 
