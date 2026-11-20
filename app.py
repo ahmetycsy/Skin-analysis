@@ -786,11 +786,13 @@ with st.sidebar:
                          key="lang_picker", label_visibility="collapsed", on_change=_set_lang)
     if getattr(predictor, "load_error", None):
         st.error(t("model_load_error", e=predictor.load_error[:300]))
+    if DB is not None and DB.last_error:
+        st.warning(t("db_error_detail", e=DB.last_error[:300]))
     status = (f'<span class="chip demo">● {t("chip_demo")}</span>' if predictor.is_mock
               else f'<span class="chip live">● {html.escape(predictor.name)}</span>')
     if DB is not None:
         status += (f'<span class="chip live">● {t("db_on")}</span>' if DB.last_error is None
-                   else f'<span class="chip demo">● {t("db_err")}</span>')
+                   else f'<span class="chip demo" title="{html.escape(DB.last_error)}">● {t("db_err")}</span>')
     st.markdown(f'<div style="margin-top:.6rem">{status}<span class="chip">{t("chip_version", v=APP_VERSION)}</span></div>'
                 f'<div class="side-note" style="margin-top:.5rem">{t("side_nodx")}</div>'
                 '<div class="side-sep"></div>'

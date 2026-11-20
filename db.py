@@ -18,7 +18,11 @@ TIMEOUT = 8  # saniye; veritabanı yanıt vermezse uygulama beklemeden devam ede
 
 class SupabaseDB:
     def __init__(self, url: str, key: str):
-        self.base = url.rstrip("/") + "/rest/v1"
+        url = url.strip().rstrip("/")
+        for suffix in ("/rest/v1",):  # "RESTful endpoint" adresi yapıştırılmışsa da çalışsın
+            if url.endswith(suffix):
+                url = url[: -len(suffix)]
+        self.base = url + "/rest/v1"
         self.headers = {"apikey": key, "Content-Type": "application/json"}
         if not key.startswith("sb_"):  # eski tip (JWT) service_role anahtarı Authorization başlığında da gönderilir
             self.headers["Authorization"] = f"Bearer {key}"

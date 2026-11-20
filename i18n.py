@@ -547,6 +547,8 @@ Do not use filtered, cropped or colour-corrected images.
     "save_demo_off": ("Demo modunda sonuçlar veritabanına kaydedilmez (sahte sonuçlar araştırma verisine karışmasın diye).",
                       "In demo mode results are not stored in the database (so that mock results do not mix with research data)."),
     "db_err": ("Veritabanına ulaşılamadı", "Database unreachable"),
+    "db_error_detail": ("Veritabanı hatası (kayıtlar bu oturumda tutuluyor, bağlantı gelince tekrar denenecek): {e}",
+                        "Database error (records are kept in this session and will be retried once connected): {e}"),
     "track_note_db": ("Kayıt izni verilen vakalar anonim olarak veritabanında saklanır ve her cihazdan vaka numarasıyla açılabilir. "
                       "İzin verilmeyen vakalar yalnızca bu sayfa açıkken tutulur.",
                       "Cases with storage consent are kept anonymously in the database and can be opened by case number from "
