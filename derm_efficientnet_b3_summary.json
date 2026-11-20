@@ -1,0 +1,32 @@
+{
+  "run": "derm_efficientnet_b3",
+  "n_val": 1048,
+  "macro_f1": 0.4693,
+  "macro_f1_ci95_bootstrap": [
+    0.4109,
+    0.5166
+  ],
+  "macro_f1_without_MAL_OTH": 0.5162,
+  "accuracy": 0.7137,
+  "balanced_accuracy": 0.4723,
+  "macro_auc_ovr": 0.8857,
+  "mel_predicted_as_nv": 28,
+  "mel_support": 90,
+  "by_skin_tone_group": {
+    "0-2 (darker)": {
+      "n": 132,
+      "accuracy": 0.7424,
+      "balanced_accuracy": 0.6565
+    },
+    "3": {
+      "n": 614,
+      "accuracy": 0.7248,
+      "balanced_accuracy": 0.4584
+    },
+    "4-5 (lighter)": {
+      "n": 302,
+      "accuracy": 0.6788,
+      "balanced_accuracy": 0.4305
+    }
+  }
+}

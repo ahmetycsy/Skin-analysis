@@ -1,45 +1,24 @@
-# Cilt Lezyonu Karar Destek Prototipi (Streamlit arayüzü)
+# Tuğalp: veri, tek görüntülü modeller ve değerlendirme
 
-Bu klasör Ahmet'in paketidir. Şu an SAHTE modelle çalışır; gerçek model gelince `predictor.py` içindeki
-`RealPredictor` doldurulur, `app.py` değişmez.
+Model ağırlıkları (.pt), MILK10k verisi ve lezyon bazlı dosyalar (bölünme listeleri, olasılıklar) bu klasörde **yok**: repo herkese açık ve `.gitignore` kuralları gereği (CC-BY-NC). Bunlar ekip içinde ayrıca paylaşılır.
 
-## 1. Bilgisayarında çalıştır
-1. Python 3.10+ kurulu olsun (python.org). Adım adım anlatım için "Arayüz Kurulum Rehberi" dokümanına bak.
-2. Terminal'i aç, klasöre geç ve çalıştır (Mac):
-   ```
-   cd "~/Desktop/vlaude code"
-   pip3 install -r requirements.txt
-   python3 -m streamlit run app.py
-   ```
-   (Windows'ta `python` ve `pip` yazılır.)
-3. Tarayıcıda açılan sayfada iki herhangi bir resim yükle, "Analiz et"e bas. (Sahte model olduğu uyarısı görünmeli.)
+| Klasör | İçerik |
+|---|---|
+| `kaggle/` | `milk10k_train_v2.ipynb` (EfficientNetV2 destekli eğitim), `milk10k_train_cv.ipynb` (5 katlı CV) |
+| `analysis/` | EDA, model analizi, topluluk, kalibrasyon/maliyet/conformal ve CV özet scriptleri |
+| `tablolar/` | EDA, model, CV, kalibrasyon/maliyet/conformal tabloları (yalnızca özet; lezyon bazlı veri yok) |
+| `figures/` | Rapor grafikleri (EDA, karışıklık matrisleri, öğrenme eğrileri, CV) |
+| `integration/` | Arayüz için `RealPredictor`, parametrik `gradcam.py`, `model_config.json` ve kurulum notu (`README_AHMET.md`) |
 
-## 2. İnternette yayınla (ücretsiz)
-1. Kod GitHub'da **public** bir repoda durur (GitHub Desktop ile gönderilir). Veri ve model dosyaları
-   `.gitignore` sayesinde GitHub'a gitmez (MILK10k lisansı CC-BY-NC).
-2. share.streamlit.io'ya GitHub hesabınla gir → "Create app" → repoyu seç, Branch `main`, Main file `app.py`, **Advanced settings → Python 3.12** → Deploy.
-   (Python 3.14 seçilirse altair kütüphanesi hata verir.)
-3. Birkaç dakika sonra herkese açık bir link çıkar. Bu linki rapora ve sunuma koy.
-4. Kodda değişiklik olunca GitHub Desktop'ta "Commit" + "Push" yeterli; site kendini günceller.
+## Ana sonuçlar (5 katlı CV, 5.240 lezyon, Macro F1 ortalama ± sapma)
+| Model | Macro F1 |
+|---|---|
+| A1 derm EfficientNet-B3 | 0,484 ± 0,017 |
+| A1-v2 derm EfficientNetV2-S | 0,506 ± 0,035 |
+| A2 klinik EfficientNet-B3 | 0,445 ± 0,020 |
+| A2-v2 klinik EfficientNetV2-S | 0,436 ± 0,023 |
+| Hasta modu (2 klinik model) | 0,463 ± 0,025 |
+| **Hekim modu (4 model)** | **0,542 ± 0,024** |
 
-### Hekim PIN'i
-Hekim modu için Streamlit Cloud'da **Manage app → Settings → Secrets** bölümüne şunu ekleyin (kendi PIN'inizi yazın):
-```
-DOCTOR_PIN = "1234"
-```
-Tanımlanmazsa koddaki demo PIN kullanılır; kod herkese açık olduğu için yayında mutlaka değiştirin.
-
-## 3. Eğitim notebook'u
-`kaggle/milk10k_train.ipynb` Kaggle'da çalışır (`MODE = derm | clin | meta`). Kaynağı `kaggle/milk10k_train.py`.
-
-## 4. Gerçek modeli bağlama (Bedirhan modeli teslim edince)
-1. Model dosyalarını `models/` klasörüne koy.
-2. `predictor.py` içindeki `RealPredictor` sınıfını modelin biçimine göre doldur (yapay zekaya bu dosyayı ve model dosyasını ver).
-3. `models/` içine boş bir `READY` dosyası ekle; uygulama otomatik gerçek modele geçer.
-
-Model sözleşmesi: girdi = klinik görsel + dermoskopik görsel + (yaş, cinsiyet, ten rengi 0–5, bölge);
-çıktı = `CLASSES` sırasında 11 olasılık (toplamı 1).
-
-## Notlar
-- Streamlit Community Cloud'un belleği sınırlıdır (yaklaşık 1 GB). Model dosyası büyükse Hugging Face Spaces'e geç.
-- GitHub 100 MB'tan büyük dosyayı kabul etmez; büyük model dosyasını Hugging Face'e yükle.
+Birleştirme kuralı önceden sabit: her görüntü türünün modelleri kendi içinde ortalanır, sonra dermoskopik ve klinik eşit ağırlıkla ortalanır.
+`integration/` altındaki dosyalar ana koda henüz uygulanmadı; uygulama `README_AHMET.md`'de.

@@ -1,0 +1,106 @@
+{
+  "rule": "mean within image type, then equal-weight mean of derm and clin; no weights tuned",
+  "derm_models": [
+    "derm_efficientnet_b3",
+    "derm_tf_efficientnetv2_s"
+  ],
+  "clin_models": [
+    "clin_efficientnet_b3",
+    "clin_tf_efficientnetv2_s"
+  ],
+  "metrics": {
+    "derm_efficientnet_b3": {
+      "macro_f1": 0.4693,
+      "accuracy": 0.7137,
+      "balanced_accuracy": 0.4723,
+      "macro_auc_ovr": 0.8857,
+      "mel_recall": 0.4889,
+      "mel_precision": 0.5057,
+      "mel_predicted_as_nv": 28,
+      "mel_vs_nv_auc": 0.8375,
+      "malignant_vs_rest_auc": 0.8359
+    },
+    "derm_tf_efficientnetv2_s": {
+      "macro_f1": 0.4765,
+      "accuracy": 0.7281,
+      "balanced_accuracy": 0.4584,
+      "macro_auc_ovr": 0.8633,
+      "mel_recall": 0.5222,
+      "mel_precision": 0.5595,
+      "mel_predicted_as_nv": 29,
+      "mel_vs_nv_auc": 0.8551,
+      "malignant_vs_rest_auc": 0.8654
+    },
+    "clin_efficientnet_b3": {
+      "macro_f1": 0.4715,
+      "accuracy": 0.6823,
+      "balanced_accuracy": 0.4838,
+      "macro_auc_ovr": 0.8231,
+      "mel_recall": 0.4556,
+      "mel_precision": 0.5775,
+      "mel_predicted_as_nv": 28,
+      "mel_vs_nv_auc": 0.8177,
+      "malignant_vs_rest_auc": 0.8319
+    },
+    "clin_tf_efficientnetv2_s": {
+      "macro_f1": 0.4497,
+      "accuracy": 0.666,
+      "balanced_accuracy": 0.4687,
+      "macro_auc_ovr": 0.8862,
+      "mel_recall": 0.4778,
+      "mel_precision": 0.3772,
+      "mel_predicted_as_nv": 32,
+      "mel_vs_nv_auc": 0.7818,
+      "malignant_vs_rest_auc": 0.8262
+    },
+    "derm_mean": {
+      "macro_f1": 0.4782,
+      "accuracy": 0.7462,
+      "balanced_accuracy": 0.4658,
+      "macro_auc_ovr": 0.9043,
+      "mel_recall": 0.5222,
+      "mel_precision": 0.5465,
+      "mel_predicted_as_nv": 30,
+      "mel_vs_nv_auc": 0.8651,
+      "malignant_vs_rest_auc": 0.8683
+    },
+    "clin_mean": {
+      "macro_f1": 0.4856,
+      "accuracy": 0.7042,
+      "balanced_accuracy": 0.4816,
+      "macro_auc_ovr": 0.8762,
+      "mel_recall": 0.5111,
+      "mel_precision": 0.5055,
+      "mel_predicted_as_nv": 29,
+      "mel_vs_nv_auc": 0.8164,
+      "malignant_vs_rest_auc": 0.8492
+    },
+    "ensemble_b3_v2": {
+      "macro_f1": 0.5466,
+      "accuracy": 0.7691,
+      "balanced_accuracy": 0.5186,
+      "macro_auc_ovr": 0.9081,
+      "mel_recall": 0.5333,
+      "mel_precision": 0.5926,
+      "mel_predicted_as_nv": 29,
+      "mel_vs_nv_auc": 0.8652,
+      "malignant_vs_rest_auc": 0.8863
+    }
+  },
+  "gain_vs_first_derm_model": {
+    "mean": 0.0759,
+    "ci95": [
+      -0.002,
+      0.1467
+    ],
+    "share_positive": 0.973
+  },
+  "gain_vs_first_pair_average": {
+    "mean": 0.0264,
+    "ci95": [
+      -0.0191,
+      0.0734
+    ],
+    "share_positive": 0.88
+  }
+}

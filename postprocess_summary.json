@@ -1,0 +1,191 @@
+{
+  "note": "All numbers are out-of-fold on the 1,048-lesion validation split (seed 42). A1/A2 best epochs were chosen on this split, so absolute values remain somewhat optimistic.",
+  "stacking": [
+    {
+      "variant": "Average A1+A2 (no learning)",
+      "macro_f1_mean": 0.5194,
+      "macro_f1_sd_over_repeats": 0.0,
+      "accuracy": 0.7424,
+      "macro_auc": 0.8795
+    },
+    {
+      "variant": "Average + per-class thresholds",
+      "macro_f1_mean": 0.5022,
+      "macro_f1_sd_over_repeats": 0.0079,
+      "accuracy": 0.7376,
+      "macro_auc": 0.8776
+    },
+    {
+      "variant": "Average x metadata likelihood ratio",
+      "macro_f1_mean": 0.5218,
+      "macro_f1_sd_over_repeats": 0.0029,
+      "accuracy": 0.7443,
+      "macro_auc": 0.8838
+    },
+    {
+      "variant": "LR: A1+A2 probabilities",
+      "macro_f1_mean": 0.4606,
+      "macro_f1_sd_over_repeats": 0.0265,
+      "accuracy": 0.75,
+      "macro_auc": 0.8848
+    },
+    {
+      "variant": "LR: A1+A2 probabilities + metadata",
+      "macro_f1_mean": 0.4586,
+      "macro_f1_sd_over_repeats": 0.0083,
+      "accuracy": 0.7137,
+      "macro_auc": 0.9259
+    },
+    {
+      "variant": "LR: metadata only",
+      "macro_f1_mean": 0.2935,
+      "macro_f1_sd_over_repeats": 0.0099,
+      "accuracy": 0.6298,
+      "macro_auc": 0.8144
+    }
+  ],
+  "best_combiner": "Average x metadata likelihood ratio",
+  "downstream_probabilities": "Average A1+A2, temperature-scaled out-of-fold",
+  "chosen_hyperparameters": {
+    "Average + per-class thresholds": {
+      "[-0.2, 0.0, -0.8, 0.4, 0.8, 0.0, -2.0, 0.0, -0.2, -0.6, 0.0]": 1,
+      "[0.2, 0.0, 0.2, 0.0, 0.8, 0.0, 0.8, -0.2, -0.6, 1.2, 0.0]": 1,
+      "[0.0, 0.0, 0.2, 0.4, 0.8, 0.0, 1.0, 0.0, -0.6, 1.2, -0.4]": 1,
+      "[-0.2, 0.0, -0.8, -0.2, 0.8, 0.0, 0.8, -0.2, -0.6, 0.4, -0.2]": 1,
+      "[-0.2, 0.0, -0.8, 0.4, 0.0, 0.2, 0.2, 0.0, -0.4, 0.4, -1.6]": 1
+    },
+    "Average x metadata likelihood ratio": {
+      "{'w_meta': 0}": 13,
+      "{'w_meta': 0.25}": 2
+    },
+    "LR: A1+A2 probabilities": {
+      "{'lr__C': 1.0, 'lr__class_weight': None}": 5,
+      "{'lr__C': 0.3, 'lr__class_weight': None}": 5,
+      "{'lr__C': 0.3, 'lr__class_weight': 'balanced'}": 2,
+      "{'lr__C': 0.03, 'lr__class_weight': 'balanced'}": 1,
+      "{'lr__C': 0.1, 'lr__class_weight': None}": 1
+    },
+    "LR: A1+A2 probabilities + metadata": {
+      "{'lr__C': 1.0, 'lr__class_weight': None}": 3,
+      "{'lr__C': 0.3, 'lr__class_weight': None}": 3,
+      "{'lr__C': 0.1, 'lr__class_weight': 'balanced'}": 3,
+      "{'lr__C': 0.3, 'lr__class_weight': 'balanced'}": 2,
+      "{'lr__C': 1.0, 'lr__class_weight': 'balanced'}": 2
+    },
+    "LR: metadata only": {
+      "{'lr__C': 1.0, 'lr__class_weight': None}": 11,
+      "{'lr__C': 0.3, 'lr__class_weight': None}": 3,
+      "{'lr__C': 1.0, 'lr__class_weight': 'balanced'}": 1
+    }
+  },
+  "calibration_ece": [
+    {
+      "probabilities": "A1",
+      "ece": 0.0938
+    },
+    {
+      "probabilities": "A2",
+      "ece": 0.0934
+    },
+    {
+      "probabilities": "Average A1+A2",
+      "ece": 0.1634
+    },
+    {
+      "probabilities": "Average A1+A2, temperature-scaled (OOF)",
+      "ece": 0.0494
+    },
+    {
+      "probabilities": "LR: A1+A2 probabilities (OOF)",
+      "ece": 0.0353
+    }
+  ],
+  "cost_tradeoff": [
+    {
+      "cost_ratio": 1,
+      "macro_f1": 0.5194,
+      "malignant_sensitivity": 0.9088,
+      "benign_specificity": 0.7264,
+      "mel_recall": 0.5667,
+      "malignant_called_benign": 63,
+      "benign_called_malignant": 81
+    },
+    {
+      "cost_ratio": 2,
+      "macro_f1": 0.4839,
+      "malignant_sensitivity": 0.9465,
+      "benign_specificity": 0.6419,
+      "mel_recall": 0.6556,
+      "malignant_called_benign": 37,
+      "benign_called_malignant": 106
+    },
+    {
+      "cost_ratio": 3,
+      "macro_f1": 0.4736,
+      "malignant_sensitivity": 0.958,
+      "benign_specificity": 0.5811,
+      "mel_recall": 0.6667,
+      "malignant_called_benign": 29,
+      "benign_called_malignant": 124
+    },
+    {
+      "cost_ratio": 5,
+      "macro_f1": 0.4357,
+      "malignant_sensitivity": 0.974,
+      "benign_specificity": 0.4764,
+      "mel_recall": 0.7111,
+      "malignant_called_benign": 18,
+      "benign_called_malignant": 155
+    },
+    {
+      "cost_ratio": 8,
+      "macro_f1": 0.3891,
+      "malignant_sensitivity": 0.9812,
+      "benign_specificity": 0.3818,
+      "mel_recall": 0.7333,
+      "malignant_called_benign": 13,
+      "benign_called_malignant": 183
+    },
+    {
+      "cost_ratio": 12,
+      "macro_f1": 0.384,
+      "malignant_sensitivity": 0.987,
+      "benign_specificity": 0.3378,
+      "mel_recall": 0.7444,
+      "malignant_called_benign": 9,
+      "benign_called_malignant": 196
+    },
+    {
+      "cost_ratio": 20,
+      "macro_f1": 0.3734,
+      "malignant_sensitivity": 0.9957,
+      "benign_specificity": 0.2635,
+      "mel_recall": 0.8,
+      "malignant_called_benign": 3,
+      "benign_called_malignant": 218
+    }
+  ],
+  "conformal": [
+    {
+      "method": "marginal",
+      "target_coverage": 0.9,
+      "empirical_coverage": 0.9005,
+      "mean_set_size": 1.79,
+      "share_single_diagnosis": 0.4506
+    },
+    {
+      "method": "marginal",
+      "target_coverage": 0.95,
+      "empirical_coverage": 0.9514,
+      "mean_set_size": 2.914,
+      "share_single_diagnosis": 0.1945
+    },
+    {
+      "method": "class-conditional",
+      "target_coverage": 0.9,
+      "empirical_coverage": 0.911,
+      "mean_set_size": 3.622,
+      "share_single_diagnosis": 0.0598
+    }
+  ]
+}

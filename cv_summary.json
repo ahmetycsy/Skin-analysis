@@ -1,0 +1,313 @@
+{
+  "table": [
+    {
+      "model": "A1  derm B3",
+      "fold0": 0.4693,
+      "fold1": 0.5036,
+      "fold2": 0.4901,
+      "fold3": 0.4633,
+      "fold4": 0.4934,
+      "mean": 0.4839,
+      "sd": 0.017,
+      "min": 0.4633,
+      "oof_macro_f1": 0.4815,
+      "oof_accuracy": 0.7204,
+      "oof_macro_auc": 0.8763,
+      "last_epoch_mean": 0.4775
+    },
+    {
+      "model": "A2  clin B3",
+      "fold0": 0.4715,
+      "fold1": 0.4525,
+      "fold2": 0.4407,
+      "fold3": 0.4455,
+      "fold4": 0.4154,
+      "mean": 0.4451,
+      "sd": 0.0203,
+      "min": 0.4154,
+      "oof_macro_f1": 0.4466,
+      "oof_accuracy": 0.6664,
+      "oof_macro_auc": 0.837,
+      "last_epoch_mean": 0.4278
+    },
+    {
+      "model": "A1-v2  derm V2-S",
+      "fold0": 0.4765,
+      "fold1": 0.5309,
+      "fold2": 0.5029,
+      "fold3": 0.4693,
+      "fold4": 0.5522,
+      "mean": 0.5063,
+      "sd": 0.0353,
+      "min": 0.4693,
+      "oof_macro_f1": 0.5137,
+      "oof_accuracy": 0.7452,
+      "oof_macro_auc": 0.8779,
+      "last_epoch_mean": 0.483
+    },
+    {
+      "model": "A2-v2  clin V2-S",
+      "fold0": 0.4497,
+      "fold1": 0.4501,
+      "fold2": 0.4114,
+      "fold3": 0.4569,
+      "fold4": 0.4109,
+      "mean": 0.4358,
+      "sd": 0.0227,
+      "min": 0.4109,
+      "oof_macro_f1": 0.4368,
+      "oof_accuracy": 0.6737,
+      "oof_macro_auc": 0.8653,
+      "last_epoch_mean": 0.4217
+    },
+    {
+      "model": "B3 pair (A1+A2)",
+      "fold0": 0.5194,
+      "fold1": 0.5073,
+      "fold2": 0.4862,
+      "fold3": 0.5131,
+      "fold4": 0.5227,
+      "mean": 0.5097,
+      "sd": 0.0144,
+      "min": 0.4862,
+      "oof_macro_f1": 0.5123,
+      "oof_accuracy": 0.7523,
+      "oof_macro_auc": 0.8981,
+      "last_epoch_mean": NaN
+    },
+    {
+      "model": "V2 pair (A1-v2+A2-v2)",
+      "fold0": 0.5171,
+      "fold1": 0.532,
+      "fold2": 0.4736,
+      "fold3": 0.5337,
+      "fold4": 0.5314,
+      "mean": 0.5176,
+      "sd": 0.0255,
+      "min": 0.4736,
+      "oof_macro_f1": 0.519,
+      "oof_accuracy": 0.7597,
+      "oof_macro_auc": 0.9028,
+      "last_epoch_mean": NaN
+    },
+    {
+      "model": "Derm mean (B3+V2)",
+      "fold0": 0.4782,
+      "fold1": 0.5443,
+      "fold2": 0.482,
+      "fold3": 0.4832,
+      "fold4": 0.5273,
+      "mean": 0.503,
+      "sd": 0.0306,
+      "min": 0.4782,
+      "oof_macro_f1": 0.5036,
+      "oof_accuracy": 0.7555,
+      "oof_macro_auc": 0.8982,
+      "last_epoch_mean": NaN
+    },
+    {
+      "model": "Patient mode: clin mean (B3+V2)",
+      "fold0": 0.4856,
+      "fold1": 0.481,
+      "fold2": 0.4522,
+      "fold3": 0.4708,
+      "fold4": 0.4247,
+      "mean": 0.4629,
+      "sd": 0.0249,
+      "min": 0.4247,
+      "oof_macro_f1": 0.4638,
+      "oof_accuracy": 0.699,
+      "oof_macro_auc": 0.8741,
+      "last_epoch_mean": NaN
+    },
+    {
+      "model": "Doctor mode: 4-model ensemble",
+      "fold0": 0.5466,
+      "fold1": 0.568,
+      "fold2": 0.5035,
+      "fold3": 0.5473,
+      "fold4": 0.5454,
+      "mean": 0.5422,
+      "sd": 0.0235,
+      "min": 0.5035,
+      "oof_macro_f1": 0.545,
+      "oof_accuracy": 0.7735,
+      "oof_macro_auc": 0.9162,
+      "last_epoch_mean": NaN
+    }
+  ],
+  "gains": [
+    {
+      "comparison": "A1-v2  derm V2-S  vs  A1  derm B3",
+      "fold0": 0.0072,
+      "fold1": 0.0272,
+      "fold2": 0.0128,
+      "fold3": 0.0059,
+      "fold4": 0.0588,
+      "mean": 0.0224,
+      "folds_positive": 5
+    },
+    {
+      "comparison": "A2-v2  clin V2-S  vs  A2  clin B3",
+      "fold0": -0.0217,
+      "fold1": -0.0024,
+      "fold2": -0.0293,
+      "fold3": 0.0114,
+      "fold4": -0.0045,
+      "mean": -0.0093,
+      "folds_positive": 1
+    },
+    {
+      "comparison": "B3 pair (A1+A2)  vs  A1  derm B3",
+      "fold0": 0.0501,
+      "fold1": 0.0036,
+      "fold2": -0.0038,
+      "fold3": 0.0497,
+      "fold4": 0.0294,
+      "mean": 0.0258,
+      "folds_positive": 4
+    },
+    {
+      "comparison": "Doctor mode: 4-model ensemble  vs  B3 pair (A1+A2)",
+      "fold0": 0.0272,
+      "fold1": 0.0607,
+      "fold2": 0.0173,
+      "fold3": 0.0343,
+      "fold4": 0.0226,
+      "mean": 0.0324,
+      "folds_positive": 5
+    },
+    {
+      "comparison": "Doctor mode: 4-model ensemble  vs  A1  derm B3",
+      "fold0": 0.0773,
+      "fold1": 0.0644,
+      "fold2": 0.0135,
+      "fold3": 0.084,
+      "fold4": 0.052,
+      "mean": 0.0582,
+      "folds_positive": 5
+    },
+    {
+      "comparison": "Patient mode: clin mean (B3+V2)  vs  A2  clin B3",
+      "fold0": 0.0141,
+      "fold1": 0.0285,
+      "fold2": 0.0116,
+      "fold3": 0.0252,
+      "fold4": 0.0093,
+      "mean": 0.0177,
+      "folds_positive": 5
+    }
+  ],
+  "conformal_crossfit": [
+    {
+      "mode": "hekim",
+      "target": 0.9,
+      "coverage": 0.9004,
+      "mean_set_size": 1.57,
+      "share_single": 0.5628,
+      "mel_coverage": 0.8489
+    },
+    {
+      "mode": "hekim",
+      "target": 0.95,
+      "coverage": 0.9502,
+      "mean_set_size": 2.285,
+      "share_single": 0.3202,
+      "mel_coverage": 0.9267
+    },
+    {
+      "mode": "hasta",
+      "target": 0.9,
+      "coverage": 0.9006,
+      "mean_set_size": 2.287,
+      "share_single": 0.2912,
+      "mel_coverage": 0.8844
+    },
+    {
+      "mode": "hasta",
+      "target": 0.95,
+      "coverage": 0.9504,
+      "mean_set_size": 3.762,
+      "share_single": 0.0979,
+      "mel_coverage": 0.9489
+    }
+  ],
+  "decision_crossfit": {
+    "hekim": [
+      {
+        "cost_ratio": 1,
+        "macro_f1": 0.545,
+        "malignant_sensitivity": 0.9265,
+        "benign_specificity": 0.7283,
+        "mel_recall": 0.6044,
+        "malignant_missed": 254,
+        "benign_false_alarm": 403
+      },
+      {
+        "cost_ratio": 2,
+        "macro_f1": 0.5205,
+        "malignant_sensitivity": 0.9598,
+        "benign_specificity": 0.6224,
+        "mel_recall": 0.7022,
+        "malignant_missed": 139,
+        "benign_false_alarm": 560
+      },
+      {
+        "cost_ratio": 3,
+        "macro_f1": 0.5068,
+        "malignant_sensitivity": 0.9719,
+        "benign_specificity": 0.5529,
+        "mel_recall": 0.7578,
+        "malignant_missed": 97,
+        "benign_false_alarm": 663
+      },
+      {
+        "cost_ratio": 5,
+        "macro_f1": 0.4758,
+        "malignant_sensitivity": 0.982,
+        "benign_specificity": 0.4599,
+        "mel_recall": 0.8022,
+        "malignant_missed": 62,
+        "benign_false_alarm": 801
+      }
+    ],
+    "hasta": [
+      {
+        "cost_ratio": 1,
+        "macro_f1": 0.4638,
+        "malignant_sensitivity": 0.892,
+        "benign_specificity": 0.6723,
+        "mel_recall": 0.5822,
+        "malignant_missed": 373,
+        "benign_false_alarm": 486
+      },
+      {
+        "cost_ratio": 2,
+        "macro_f1": 0.4665,
+        "malignant_sensitivity": 0.9435,
+        "benign_specificity": 0.5482,
+        "mel_recall": 0.6889,
+        "malignant_missed": 195,
+        "benign_false_alarm": 670
+      },
+      {
+        "cost_ratio": 3,
+        "macro_f1": 0.4533,
+        "malignant_sensitivity": 0.9629,
+        "benign_specificity": 0.4754,
+        "mel_recall": 0.7444,
+        "malignant_missed": 128,
+        "benign_false_alarm": 778
+      },
+      {
+        "cost_ratio": 5,
+        "macro_f1": 0.4275,
+        "malignant_sensitivity": 0.9754,
+        "benign_specificity": 0.3722,
+        "mel_recall": 0.7933,
+        "malignant_missed": 85,
+        "benign_false_alarm": 931
+      }
+    ]
+  }
+}

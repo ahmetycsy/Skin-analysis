@@ -1,0 +1,32 @@
+{
+  "run": "clin_tf_efficientnetv2_s",
+  "n_val": 1048,
+  "macro_f1": 0.4497,
+  "macro_f1_ci95_bootstrap": [
+    0.3907,
+    0.4961
+  ],
+  "macro_f1_without_MAL_OTH": 0.4947,
+  "accuracy": 0.666,
+  "balanced_accuracy": 0.4687,
+  "macro_auc_ovr": 0.8862,
+  "mel_predicted_as_nv": 32,
+  "mel_support": 90,
+  "by_skin_tone_group": {
+    "0-2 (darker)": {
+      "n": 132,
+      "accuracy": 0.6288,
+      "balanced_accuracy": 0.429
+    },
+    "3": {
+      "n": 614,
+      "accuracy": 0.6775,
+      "balanced_accuracy": 0.4769
+    },
+    "4-5 (lighter)": {
+      "n": 302,
+      "accuracy": 0.6589,
+      "balanced_accuracy": 0.457
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "method": "unweighted mean of A1 and A2 softmax probabilities, argmax; no tuning on validation",
+  "n_val": 1048,
+  "metrics": {
+    "A1_derm": {
+      "macro_f1": 0.4693,
+      "accuracy": 0.7137,
+      "balanced_accuracy": 0.4723,
+      "macro_auc_ovr": 0.8857
+    },
+    "A2_clin": {
+      "macro_f1": 0.4715,
+      "accuracy": 0.6823,
+      "balanced_accuracy": 0.4838,
+      "macro_auc_ovr": 0.8231
+    },
+    "A1_A2_avg": {
+      "macro_f1": 0.5194,
+      "accuracy": 0.7424,
+      "balanced_accuracy": 0.518,
+      "macro_auc_ovr": 0.8795
+    }
+  },
+  "gain_vs_A1": {
+    "mean": 0.0495,
+    "ci95": [
+      -0.0131,
+      0.1121
+    ],
+    "share_of_bootstraps_positive": 0.941
+  },
+  "gain_vs_A2": {
+    "mean": 0.0473,
+    "ci95": [
+      -0.007,
+      0.0998
+    ],
+    "share_of_bootstraps_positive": 0.965
+  },
+  "agreement": {
+    "both_correct": 0.5697,
+    "only_A1_correct": 0.1441,
+    "only_A2_correct": 0.1126,
+    "both_wrong": 0.1737
+  },
+  "mel_predicted_as_nv": {
+    "A1_derm": 28,
+    "A2_clin": 28,
+    "A1_A2_avg": 23
+  }
+}

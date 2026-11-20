@@ -1,0 +1,40 @@
+{
+  "run_name": "clin_efficientnet_b3",
+  "mode": "clin",
+  "model": "efficientnet_b3",
+  "img_size": 300,
+  "epochs": 12,
+  "best_epoch": 11,
+  "seed": 42,
+  "n_train": 4192,
+  "n_val": 1048,
+  "val_macro_f1": 0.4715,
+  "val_balanced_accuracy": 0.4838,
+  "per_class_f1": {
+    "AKIEC": 0.3396,
+    "BCC": 0.8281,
+    "BEN_OTH": 0.2105,
+    "BKL": 0.453,
+    "DF": 0.6,
+    "INF": 0.3636,
+    "MAL_OTH": 0.0,
+    "MEL": 0.5093,
+    "NV": 0.7319,
+    "SCCKA": 0.5787,
+    "VASC": 0.5714
+  },
+  "classes": [
+    "AKIEC",
+    "BCC",
+    "BEN_OTH",
+    "BKL",
+    "DF",
+    "INF",
+    "MAL_OTH",
+    "MEL",
+    "NV",
+    "SCCKA",
+    "VASC"
+  ],
+  "created": "2026-11-19 12:00"
+}

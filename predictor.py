@@ -133,28 +133,91 @@ class MockPredictor:
 
 
 class RealPredictor:
-    """Gerçek model. Bedirhan'ın teslim ettiği dosya biçimi netleşince burası doldurulur.
+    """Gerçek model: EfficientNet-B3 + EfficientNetV2-S topluluğu. Ayarların hepsi models/model_config.json'da.
 
-    Beklenen sözleşme (Bedirhan ile bu şekilde anlaşın):
-      - `models/` klasöründe model dosyası/dosyaları
-      - girdi: klinik görsel, dermoskopik görsel, Meta
-      - çıktı: CLASSES sırasında 11 olasılık (toplamı 1)
+    - Hekim modu: dermoskopik + klinik görüntü verilir (4 model). Her görüntü türünün modelleri kendi içinde
+      ortalanır, sonra dermoskopik ve klinik eşit ağırlıkla ortalanır.
+    - Hasta modu: dermoscopic=None verilirse yalnızca klinik modeller kullanılır (2 model).
+    Çıktı: CLASSES sırasında 11 kalibre olasılık (toplamı 1). Hasta bilgisi (Meta) bu modellere girmez.
 
-    İsteğe bağlı: `explain(clinical, dermoscopic, meta)` metodu eklenirse arayüz Grad-CAM ısı haritasını gösterir.
-    Dönüş: (ısı haritası bindirilmiş PIL görüntü, sınıf kodu) ya da None. Hazır kod: gradcam.py
-    (load_image_model, preprocess, gradcam, overlay). MockPredictor'da bu metot yoktur; demo modunda harita gösterilmez.
+    Model dosyaları models/ klasöründe yoksa ve MODEL_REPO (Streamlit Secrets) ya da config'teki "hf_repo"
+    tanımlıysa Hugging Face'ten indirilir.
     """
 
-    name = "Gerçek model"
     is_mock = False
 
     def __init__(self, model_dir: str):
-        raise NotImplementedError(
-            "Gerçek model henüz bağlanmadı. Model dosya biçimi netleşince bu sınıf doldurulacak."
-        )
+        import json
 
-    def predict(self, clinical, dermoscopic, meta):  # pragma: no cover
-        raise NotImplementedError
+        import torch
+        from gradcam import load_image_model
+
+        self.model_dir = model_dir
+        with open(os.path.join(model_dir, "model_config.json"), encoding="utf-8") as fh:
+            self.cfg = json.load(fh)
+        if self.cfg["classes"] != CLASSES:
+            raise ValueError("model_config.json içindeki sınıf sırası CLASSES ile aynı değil")
+        torch.set_num_threads(max(1, min(4, os.cpu_count() or 1)))
+        self.models = {name: load_image_model(self._weights(m["file"]), m["timm_name"], len(CLASSES))
+                       for name, m in self.cfg["models"].items()}
+        self.name = f"Gerçek model ({self.cfg['version']})"
+
+    def _weights(self, fname: str) -> str:
+        path = os.path.join(self.model_dir, fname)
+        if os.path.exists(path):
+            return path
+        repo = os.environ.get("MODEL_REPO") or self.cfg.get("hf_repo")
+        if not repo:
+            raise FileNotFoundError(f"{fname} bulunamadı. models/ klasörüne koyun ya da MODEL_REPO tanımlayın.")
+        from huggingface_hub import hf_hub_download
+        return hf_hub_download(repo_id=repo, filename=fname, local_dir=self.model_dir)
+
+    def _model_probs(self, name: str, img: Image.Image) -> np.ndarray:
+        import torch
+        from gradcam import preprocess
+
+        m = self.cfg["models"][name]
+        x, _ = preprocess(img, m["img_size"], m["mean"], m["std"])
+        net = self.models[name]
+        with torch.no_grad():
+            p = net(x).softmax(1)
+            if m.get("tta_hflip", True):                       # eğitimdeki gibi: aynı görüntü + yatay çevrilmişi
+                p = (p + net(torch.flip(x, dims=[3])).softmax(1)) / 2
+        return p[0].numpy().astype(np.float64)
+
+    @staticmethod
+    def mode_for(dermoscopic) -> str:
+        return "hekim" if dermoscopic is not None else "hasta"
+
+    def predict(self, clinical: Image.Image, dermoscopic: Image.Image | None, meta: Meta | None = None) -> dict[str, float]:
+        spec = self.cfg["modes"][self.mode_for(dermoscopic)]
+        imgs = {"clin": clinical, "derm": dermoscopic}
+        parts = [np.mean([self._model_probs(run, imgs[kind]) for run in runs], axis=0)
+                 for kind, runs in spec["members"].items()]
+        p = np.mean(parts, axis=0)
+        z = np.log(p + 1e-9) / spec["temperature"]          # kalibrasyon (temperature scaling)
+        z -= z.max()
+        p = np.exp(z) / np.exp(z).sum()
+        return dict(zip(CLASSES, p.tolist()))
+
+    def prediction_set(self, probs: dict[str, float], dermoscopic_given: bool = True) -> list[str]:
+        """%90 güvenle gerçek tanıyı içeren olası tanılar listesi (conformal prediction), olasılığa göre sıralı.
+        İsteğe bağlı: arayüzde 'ayırıcı tanı' ve güven seviyesi göstermek için."""
+        thr = self.cfg["modes"]["hekim" if dermoscopic_given else "hasta"]["conformal_include_if_prob_at_least"]
+        ranked = sorted(probs.items(), key=lambda kv: kv[1], reverse=True)
+        return [c for c, p in ranked if p >= thr] or [ranked[0][0]]
+
+    def explain(self, clinical: Image.Image, dermoscopic: Image.Image | None, meta: Meta | None = None):
+        """Grad-CAM: hekim modunda dermoskopik B3 modelinden, hasta modunda klinik B3 modelinden.
+        Harita, o modelin en olası bulduğu sınıf için çizilir; dönüşteki sınıf kodu bu sınıftır."""
+        from gradcam import gradcam, overlay, preprocess
+
+        kind = "derm" if dermoscopic is not None else "clin"
+        name = self.cfg["gradcam"][kind]
+        m = self.cfg["models"][name]
+        x, crop = preprocess(dermoscopic if kind == "derm" else clinical, m["img_size"], m["mean"], m["std"])
+        cam, probs = gradcam(self.models[name], x)
+        return overlay(crop, cam), CLASSES[int(np.argmax(probs))]
 
 
 def load_predictor():

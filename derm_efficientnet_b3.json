@@ -1,0 +1,40 @@
+{
+  "run_name": "derm_efficientnet_b3",
+  "mode": "derm",
+  "model": "efficientnet_b3",
+  "img_size": 300,
+  "epochs": 12,
+  "best_epoch": 6,
+  "seed": 42,
+  "n_train": 4192,
+  "n_val": 1048,
+  "val_macro_f1": 0.4693,
+  "val_balanced_accuracy": 0.4723,
+  "per_class_f1": {
+    "AKIEC": 0.4768,
+    "BCC": 0.8784,
+    "BEN_OTH": 0.1333,
+    "BKL": 0.4667,
+    "DF": 0.3529,
+    "INF": 0.4545,
+    "MAL_OTH": 0.0,
+    "MEL": 0.4972,
+    "NV": 0.7331,
+    "SCCKA": 0.6136,
+    "VASC": 0.5556
+  },
+  "classes": [
+    "AKIEC",
+    "BCC",
+    "BEN_OTH",
+    "BKL",
+    "DF",
+    "INF",
+    "MAL_OTH",
+    "MEL",
+    "NV",
+    "SCCKA",
+    "VASC"
+  ],
+  "created": "2026-11-19 10:49"
+}

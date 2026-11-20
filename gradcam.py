@@ -27,8 +27,12 @@ def load_image_model(weights_path: str, model_name: str = "efficientnet_b3", num
     return model
 
 
-def preprocess(img: Image.Image, img_size: int = 300) -> tuple[torch.Tensor, Image.Image]:
-    """Görüntüyü modele hazırlar. (tensör, modelin gördüğü kırpılmış RGB görüntü) döner."""
+def preprocess(img: Image.Image, img_size: int = 300, mean=MEAN, std=STD) -> tuple[torch.Tensor, Image.Image]:
+    """Görüntüyü modele hazırlar. (tensör, modelin gördüğü kırpılmış RGB görüntü) döner.
+
+    img_size, mean ve std modele göre verilmelidir (models/model_config.json):
+    EfficientNet-B3 = 300 px, ImageNet ortalama/sapma; EfficientNetV2-S = 384 px, 0.5/0.5.
+    Varsayılanlar B3 içindir."""
     im = img.convert("RGB")
     w, h = im.size
     s = min(w, h)
@@ -37,7 +41,7 @@ def preprocess(img: Image.Image, img_size: int = 300) -> tuple[torch.Tensor, Ima
     im = im.resize((cache, cache), Image.BILINEAR)
     off = (cache - img_size) // 2
     im = im.crop((off, off, off + img_size, off + img_size))
-    arr = (np.asarray(im, dtype=np.float32) / 255.0 - MEAN) / STD
+    arr = (np.asarray(im, dtype=np.float32) / 255.0 - np.asarray(mean, dtype=np.float32)) / np.asarray(std, dtype=np.float32)
     x = torch.from_numpy(arr.transpose(2, 0, 1).astype(np.float32)).unsqueeze(0)
     return x, im
 

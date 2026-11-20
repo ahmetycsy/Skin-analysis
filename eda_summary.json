@@ -1,0 +1,56 @@
+{
+  "validation": {
+    "n_lesions_gt": 5240,
+    "n_lesions_meta": 5240,
+    "n_images": 10480,
+    "n_classes": 11,
+    "one_label_per_lesion": true,
+    "each_lesion_1_clinical_1_dermoscopic": true,
+    "gt_meta_lesion_ids_match": true,
+    "pair_metadata_mismatches": {
+      "age_approx": 0,
+      "sex": 0,
+      "anatom_site_general": 0,
+      "diagnosis_3": 0
+    },
+    "passed": true
+  },
+  "n_lesions": 5240,
+  "class_counts": {
+    "BCC": 2522,
+    "NV": 746,
+    "BKL": 544,
+    "SCCKA": 473,
+    "MEL": 450,
+    "AKIEC": 303,
+    "DF": 52,
+    "INF": 50,
+    "VASC": 47,
+    "BEN_OTH": 44,
+    "MAL_OTH": 9
+  },
+  "largest_class": "BCC",
+  "smallest_class": "MAL_OTH",
+  "imbalance_ratio": 280.2,
+  "malignant_share_pct": 69.4,
+  "age_median": 65.0,
+  "age_missing_lesions": 20,
+  "pct_male": 60.2,
+  "site_column": "site_train",
+  "site_missing_lesions": 31,
+  "histopathology_confirmed_pct": 95.7,
+  "altered_images": {
+    "clinical: close-up": 327,
+    "dermoscopic": 8
+  },
+  "skin_tone_column": "skin_tone_class",
+  "tone_counts": {
+    "0": 6,
+    "1": 105,
+    "2": 506,
+    "3": 3174,
+    "4": 1066,
+    "5": 383
+  },
+  "cells_under_10": 30
+}
