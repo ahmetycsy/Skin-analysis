@@ -5,7 +5,7 @@ Tanımlı değilse veritabanı kapalıdır ve uygulama yalnızca bellekte çalı
 Bağlantı Supabase'in REST arayüzüyle (PostgREST) `requests` üzerinden yapılır; ek kütüphane gerekmez.
 Görüntü ve kişisel bilgi (ad, kimlik no) GÖNDERİLMEZ.
 
-Tablolar (SQL kurulumu README'de): cases (vaka başına bir satır), audit (yalnızca eklenen denetim kaydı).
+Tablolar: cases (vaka başına bir satır), audit (yalnızca eklenen denetim kaydı), sus (anonim anket yanıtları;\nkurulumu supabase_ek.sql).
 """
 from __future__ import annotations
 
@@ -49,8 +49,14 @@ class SupabaseDB:
 
     # ---------------------------------------------------------------- vakalar
     def upsert_case(self, row: dict) -> bool:
-        return self._req("POST", "cases", params={"on_conflict": "case_no"}, json=row,
-                         prefer="resolution=merge-duplicates,return=minimal") is not None
+        ok = self._req("POST", "cases", params={"on_conflict": "case_no"}, json=row,
+                       prefer="resolution=merge-duplicates,return=minimal") is not None
+        if not ok and "prev_case" in row and "prev_case" in (self.last_error or ""):
+            # tabloya prev_case sütunu henüz eklenmediyse (supabase_ek.sql) kayıt yine yapılsın, yalnızca bağlantı yazılmaz
+            row = {k: v for k, v in row.items() if k != "prev_case"}
+            ok = self._req("POST", "cases", params={"on_conflict": "case_no"}, json=row,
+                           prefer="resolution=merge-duplicates,return=minimal") is not None
+        return ok
 
     def get_case(self, case_no: str):
         rows = self._req("GET", "cases", params={"select": "*", "case_no": f"eq.{case_no}"})
@@ -68,6 +74,15 @@ class SupabaseDB:
         if case_no:
             params["case_no"] = f"eq.{case_no}"
         return self._req("GET", "audit", params=params) or []
+
+
+    # ---------------------------------------------------------------- kullanılabilirlik anketi (SUS)
+    def add_sus(self, row: dict) -> bool:
+        return self._req("POST", "sus", json=row, prefer="return=minimal") is not None
+
+    def list_sus(self, limit: int = 1000) -> list:
+        rows = self._req("GET", "sus", params={"select": "*", "order": "created_at.desc", "limit": str(limit)})
+        return rows if rows is not None else []
 
 
 def get_db():

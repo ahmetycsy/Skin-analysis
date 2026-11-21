@@ -140,7 +140,7 @@ def _tab_performance(D, M, mode):
         y=alt.Y("true:N", sort=classes, title=L("Gerçek tür", "True class"), axis=alt.Axis(ticks=False)))
     heat = base.mark_rect(stroke="#fff", strokeWidth=1.5).encode(
         color=alt.condition(alt.datum.n > 0, alt.Color(val, legend=None, scale=alt.Scale(scheme="tealblues", type="sqrt")),
-                            alt.value("#F4F7F7")),
+                            alt.value("#1C222B" if st.session_state.get("dark") else "#F4F7F7")),
         tooltip=[alt.Tooltip("true_name:N", title=L("Gerçek", "True")), alt.Tooltip("pred_name:N", title=L("Tahmin", "Predicted")),
                  alt.Tooltip("n:Q", title=L("Lezyon", "Lesions")), alt.Tooltip("p:Q", title=L("Satır payı", "Row share"), format=".1%")])
     txt = base.mark_text(fontSize=10.5).encode(
@@ -162,7 +162,9 @@ def _tab_performance(D, M, mode):
         "F1": round(r["f1"], 3)} for r in sorted(rows, key=lambda r: -r["sup"])])
     pc = {"format": "%.1f%%"}
     st.dataframe(tab, hide_index=True, width="stretch", column_config={
-        L("Duyarlılık", "Sensitivity"): st.column_config.ProgressColumn(min_value=0, max_value=100, **pc),
+        # koyu temada ilerleme çubuğu temanın kırmızı vurgusuyla çizilir (tuval, CSS'le değişmez) → düz sayı
+        L("Duyarlılık", "Sensitivity"): (st.column_config.NumberColumn(**pc) if st.session_state.get("dark") else
+                                         st.column_config.ProgressColumn(min_value=0, max_value=100, **pc)),
         L("Özgüllük", "Specificity"): st.column_config.NumberColumn(**pc),
         L("Kesinlik", "Precision"): st.column_config.NumberColumn(**pc),
         "F1": st.column_config.NumberColumn(format="%.3f")})
@@ -378,7 +380,7 @@ def _tab_fairness(D, M, mode):
                           alt.Tooltip("hi:Q", format=".1%", title=L("Üst sınır", "Upper")), alt.Tooltip("n:Q", title="n")])
     st.altair_chart((bars + pts).properties(height=34 * len(order) + 20).facet(
         column=alt.Column("m:N", title=None, sort=[L("Doğruluk", "Accuracy"), L("Kötü huylu yakalama", "Malignant caught")],
-                          header=alt.Header(labelFontWeight="bold", labelColor="#1F3A44")))
+                          header=alt.Header(labelFontWeight="bold")))
         .configure_view(strokeWidth=0), use_container_width=True)
 
     accs = [(s["correct"] / s["n"], name(s["key"])) for s in M["subgroups"][dim]]

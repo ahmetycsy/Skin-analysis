@@ -258,6 +258,10 @@ def render_about():
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
         st.caption(_L(TXT["f1_note"]))
 
+    _h(_L(("Sistem mimarisi", "System architecture")))
+    from architecture import render_architecture
+    render_architecture()
+
     _h(_L(TXT["h_data"]))
     d1, d2 = st.columns([1.3, 1], gap="large")
     with d1:

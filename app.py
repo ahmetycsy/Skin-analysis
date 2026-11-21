@@ -4,6 +4,7 @@ import html
 import io
 import os
 import time
+import zipfile
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -11,6 +12,7 @@ import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image, ImageDraw, ImageFilter, ImageOps, ImageStat
 
 import i18n
@@ -35,6 +37,7 @@ from predictor import (
 )
 from stats_page import render_stats
 from eval_page import render_eval
+from survey_page import render_survey
 from db import get_db
 
 try:  # kırpma eklentisi yoksa uygulama yine çalışsın
@@ -61,19 +64,30 @@ def now_tr() -> datetime:
 st.set_page_config(page_title="Skin Lesion Decision Support", page_icon="🩺", layout="wide",
                    initial_sidebar_state="auto")  # bilgisayarda açık, telefonda kapalı başlar
 
+# ---------------------------------------------------------------- tema (açık / koyu)
+# Koyu tema Streamlit'in hazır "Dark" temasıdır; yan menüdeki anahtar tarayıcıya kaydeder ve sayfayı ?theme=dark ile yeniler.
+# İlk açılışta st.context.theme.type gecikmeli gelebildiği için adres satırındaki ?theme önceliklidir.
+_qp_theme = st.query_params.get("theme")
+if _qp_theme in ("dark", "light"):
+    st.session_state["dark"] = _qp_theme == "dark"
+elif st.context.theme.type in ("dark", "light"):
+    st.session_state["dark"] = st.context.theme.type == "dark"
+DARK = bool(st.session_state.get("dark"))
+
 # ---------------------------------------------------------------- renkler (sakin, düşük kontrastlı yüzeyler)
-INK = "#1F3A44"
-MUTED = "#5F747C"
-TEAL = "#0F766E"
-BG = "#F6F8F8"
-LINE = "#DDE6E5"
+if DARK:
+    INK, MUTED, TEAL, BG, LINE = "#E4ECEF", "#9AA8AF", "#0F766E", "#0E1117", "#2B3340"
+    SURF, TEAL_TXT, SOFT, SOFT_B = "#161B22", "#3CC2B2", "#10302C", "#1E4A44"
+else:
+    INK, MUTED, TEAL, BG, LINE = "#1F3A44", "#5F747C", "#0F766E", "#F6F8F8", "#DDE6E5"
+    SURF, TEAL_TXT, SOFT, SOFT_B = "#FFFFFF", "#0F766E", "#E7F2F0", "#C5DFDA"
 C_MALIGN = "#A63D57"
 C_PREMALIGN = "#B0701A"
 C_BENIGN = "#2F7F78"
 GROUP_COLORS = {MALIGN: C_MALIGN, PREMALIGN: C_PREMALIGN, BENIGN: C_BENIGN}
 SKIN_SWATCH = {0: "#4A2C20", 1: "#6F4531", 2: "#94623F", 3: "#B98558", 4: "#D9AE86", 5: "#F0D3B8"}
 STATUSES = {"new": ("stat_new", "#5F747C"), "reviewed": ("stat_reviewed", "#2F7F78"),
-            "awaiting": ("stat_awaiting", "#B0701A"), "closed": ("stat_closed", "#1F3A44")}
+            "awaiting": ("stat_awaiting", "#B0701A"), "closed": ("stat_closed", "#56707A" if DARK else "#1F3A44")}
 LEVEL_COLORS = {"urgent": C_MALIGN, "refer": C_PREMALIGN, "benign": C_BENIGN}
 LEVEL_RANK = {"urgent": 0, "refer": 1, "benign": 2}
 METHODS = {"histo": "m_histo", "clinical": "m_clinical", "consensus": "m_consensus"}
@@ -220,6 +234,51 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
     unsafe_allow_html=True,
 )
 
+_DARK_CSS = f"""
+<style>
+:root {{ --surf:{SURF}; --ink:{INK}; --muted:{MUTED}; --line:{LINE}; --teal:{TEAL_TXT}; --soft:{SOFT}; --softb:{SOFT_B}; --bg:{BG}; }}
+section[data-testid="stSidebar"] {{ background:{SURF}; }}
+section[data-testid="stSidebar"] div.stButton > button[kind="primary"] {{ background:{SOFT}; color:{TEAL_TXT}; }}
+.chip.demo {{ background:#2E2412; border-color:#5A4520; color:#E0B86A; }}
+.chip.live, .pill {{ background:{SOFT}; border-color:{SOFT_B}; color:{TEAL_TXT}; }}
+.banner, .cmp-sum, .kpi, .guide, .notice, .gpill-ps {{ background:{SURF}; }}
+.stp i {{ border-color:#3A4452; background:{SURF}; }} .stp-line {{ background:#3A4452; }}
+.stp.done i {{ background:{SOFT}; border-color:{SOFT_B}; color:{TEAL_TXT}; }}
+div[data-testid="stVerticalBlockBorderWrapper"] {{ background:{SURF}; }}
+[data-testid="stFileUploaderDropzone"] {{ border-color:#35505A; }}
+div.stButton > button[kind="primary"]:hover {{ background:#13897F; }}
+div.stButton > button[kind="primary"]:disabled {{ background:#24403D; color:#8FA9A5; }}
+.sw.on i {{ box-shadow:0 0 0 2px {SURF} inset; }}
+.q.ok, .fb-done {{ color:#7FD1C6; background:#10302C; border-color:#1E4A44; }}
+.q.bad {{ color:#E0B86A; background:#2E2412; border-color:#5A4520; }}
+.rec.urgent {{ background:#2C1820; border-color:#5A2A38; }} .rec.urgent .rec-title {{ color:#E58AA0; }}
+.rec.refer {{ background:#2B2216; border-color:#5A4520; }} .rec.refer .rec-title {{ color:#E0B86A; }}
+.rec.benign {{ background:#10302C; border-color:#1E4A44; }} .rec.benign .rec-title {{ color:#6FCABD; }}
+.unsure {{ background:#2B2516; border-color:#5A4C24; }}
+.cam-empty {{ border-color:#3A4452; }} .cand-meta {{ color:#7F8C93; }}
+.fu .soon {{ color:#E0B86A; }} .fu .late, .arrow-up {{ color:#E58AA0; }} .arrow-down {{ color:#6FCABD; }}
+.ev-best {{ background:{SOFT} !important; border-color:{SOFT_B} !important; color:{INK} !important; }}
+.ev-best-t {{ color:{TEAL_TXT} !important; }} .ev-note {{ color:{MUTED} !important; }}
+a {{ color:{TEAL_TXT}; }}
+/* hazır koyu temanın kırmızı vurgusu yerine turkuaz */
+button[kind^="primary"] {{ background-color:{TEAL} !important; border-color:{TEAL} !important; color:#fff !important; }}
+button[kind^="primary"]:hover {{ background-color:#13897F !important; border-color:#13897F !important; }}
+button[kind^="primary"]:disabled {{ background-color:#24403D !important; border-color:#24403D !important; color:#8FA9A5 !important; }}
+[data-baseweb="tab-highlight"] {{ background-color:{TEAL_TXT} !important; }}
+button[data-baseweb="tab"][aria-selected="true"] p {{ color:{TEAL_TXT} !important; }}
+[data-testid="stButtonGroup"] button[kind="segmented_controlActive"] {{ color:{TEAL_TXT} !important; border-color:{TEAL_TXT} !important; background:{SOFT} !important; }}
+label[data-baseweb="checkbox"]:has(input:checked) > span {{ background-color:{TEAL} !important; border-color:{TEAL} !important; }}
+label[data-baseweb="checkbox"]:has(input:checked) > div:first-child {{ background-color:{TEAL} !important; }}
+label[data-baseweb="radio"]:has(input:checked) > div:first-child {{ background-color:{TEAL} !important; border-color:{TEAL} !important; }}
+[data-baseweb="slider"] [role="slider"] {{ background-color:{TEAL_TXT} !important; }}
+[data-testid="stSliderThumbValue"], [data-testid="stSliderTickBarMin"], [data-testid="stSliderTickBarMax"] {{ color:{TEAL_TXT} !important; }}
+[data-baseweb="tag"] {{ background-color:{SOFT} !important; }} [data-baseweb="tag"] span {{ color:{INK} !important; }}
+[data-baseweb="input"]:focus-within, [data-baseweb="select"] > div:focus-within, [data-baseweb="textarea"]:focus-within {{ border-color:{TEAL_TXT} !important; }}
+</style>
+"""
+st.markdown(_DARK_CSS if DARK else f"<style>:root {{ --surf:{SURF}; --ink:{INK}; --muted:{MUTED}; --line:{LINE}; --teal:{TEAL_TXT}; "
+            f"--soft:{SOFT}; --softb:{SOFT_B}; --bg:{BG}; }}</style>", unsafe_allow_html=True)
+
 # ---------------------------------------------------------------- oturum durumu
 ss = st.session_state
 ss.setdefault("lang", "tr")
@@ -238,7 +297,7 @@ ss.setdefault("audit", [])        # denetim kaydı: yalnızca eklenir, değişti
 ss.setdefault("dirty", [])        # veritabanına yazılacak vakalar
 ss.setdefault("pending_audit", [])  # veritabanına yazılacak denetim satırları
 ss.setdefault("db_synced", 0.0)   # vakaların veritabanından en son çekildiği an
-INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm", "patient")
+INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm", "patient", "prev")
 
 
 def go(page: str):
@@ -524,6 +583,25 @@ def export_csv(cases: dict) -> bytes:
     return df.to_csv(index=False).encode("utf-8-sig")
 
 
+def make_pdf(rec: dict) -> bytes:
+    return build_pdf(rec, assess(rec["probs"]), predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS,
+                     groups_of=GROUPS, group_order=GROUP_ORDER, meta_lines=meta_lines(rec["meta"]) + pdf_extra_lines(rec),
+                     physician=physician_lines(rec), qr=qr_png(rec["case"]))
+
+
+def make_zip(case_ids: list) -> bytes:
+    """Seçilen vakaların PDF raporları + özet CSV tek ZIP dosyasında."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for cid in case_ids:
+            try:
+                z.writestr(f"{cid}.pdf", make_pdf(ss.cases[cid]))
+            except Exception as exc:  # tek rapor bozulursa diğerleri yine insin
+                z.writestr(f"{cid}_HATA.txt", str(exc))
+        z.writestr("vakalar.csv", export_csv({c: ss.cases[c] for c in case_ids}))
+    return buf.getvalue()
+
+
 def pdf_extra_lines(rec: dict):
     rows = [(t("mode_label"), t("mode_hasta") if rec_mode(rec) == "hasta" else t("mode_hekim"))]
     ps = pred_set(rec)
@@ -598,6 +676,7 @@ def case_row(rec: dict) -> dict:
         "top1_prob": round(ranked[0][1], 6), "malignant_total": round(sum(p for c, p in rec["probs"].items() if GROUPS[c] == MALIGN), 6),
         "elapsed_s": round(rec["elapsed"], 3), "skin_override": any(ev["kind"] == "skin_override" for ev in rec["events"]),
         "status": rec["status"], "feedback": rec["feedback"], "final": rec.get("final"),
+        **({"prev_case": rec["prev"]} if rec.get("prev") else {}),  # sütun yoksa (supabase_ek.sql) yalnızca bağlı vakalar etkilenir
     }
 
 
@@ -611,7 +690,7 @@ def rec_from_row(row: dict) -> dict:
         "meta": {"age": row["age_band"], "sex": row["sex"], "skin_tone": row["skin_tone"], "site": row["site"]},
         "clin_jpg": None, "derm_jpg": None, "cam_img": None, "cam_class": None, "cam_jpg": None,
         "feedback": row.get("feedback"), "final": row.get("final"), "status": row.get("status") or "new",
-        "events": [], "saved": True, "from_db": True, "events_loaded": False,
+        "events": [], "saved": True, "from_db": True, "events_loaded": False, "prev": row.get("prev_case"),
     }
 
 
@@ -673,6 +752,10 @@ def event_text(ev: dict) -> str:
         if ev.get("old"):
             return t("ev_status_from", a=t(STATUSES[ev["old"]][0]), b=t(STATUSES[ev["status"]][0]))
         return t("ev_status", s=t(STATUSES[ev["status"]][0]))
+    if ev["kind"] == "zip":
+        return t("ev_zip", n=ev.get("n", 0))
+    if ev["kind"] == "sus":
+        return t("ev_sus", s=ev.get("score", ""))
     simple = {"pdf": "ev_pdf", "login": "ev_login", "logout": "ev_logout", "login_fail": "ev_login_fail",
               "consent": "ev_consent", "skin_override": "ev_skin_override"}
     if ev["kind"] in simple:
@@ -681,7 +764,83 @@ def event_text(ev: dict) -> str:
         return t("ev_closed", dx=dx_label(ev["dx"]))
     if ev["kind"] == "reopened":
         return t("ev_reopened")
+    if ev["kind"] == "linked":
+        return t("ev_linked", c=ev.get("prev", ""))
     return t({"created": "ev_created", "feedback": "ev_feedback", "feedback_upd": "ev_feedback_upd"}[ev["kind"]])
+
+
+def find_case(cid: str):
+    """Vaka numarası bu oturumda ya da veritabanında varsa numarayı döndürür (veritabanındakini belleğe alır)."""
+    if cid in ss.cases:
+        return cid
+    if DB is not None and cid.startswith("LZ-"):
+        row = DB.get_case(cid)
+        if row:
+            ss.cases[cid] = rec_from_row(row)
+            return cid
+    return None
+
+
+def lesion_chain(cid: str) -> list:
+    """Aynı lezyonun birbirine "önceki vaka" ile bağlı tüm vakaları, eskiden yeniye."""
+    links = {}
+    for c, r in ss.cases.items():
+        p = r.get("prev")
+        if p:
+            links.setdefault(c, set()).add(p)
+            links.setdefault(p, set()).add(c)
+    seen, todo = {cid}, [cid]
+    while todo:
+        for n in links.get(todo.pop(), ()):
+            if n not in seen and n in ss.cases:
+                seen.add(n)
+                todo.append(n)
+    return sorted(seen, key=lambda c: ss.cases[c]["ts"])
+
+
+def lesion_timeline(cid: str):
+    chain = lesion_chain(cid)
+    if len(chain) < 2:
+        return
+    st.markdown(f'<div class="sec-label">{t("lt_title")}</div>', unsafe_allow_html=True)
+    recs = []
+    for c in chain:
+        r = ss.cases[c]
+        a = assess(r["probs"])
+        when = datetime.fromtimestamp(r["ts"], TZ).replace(tzinfo=None)
+        for g, key in ((MALIGN, "lt_mal"), ("risk", "lt_risk")):
+            v = a["totals"][MALIGN] + (a["totals"][PREMALIGN] if g == "risk" else 0)
+            recs.append({"case": c, "when": when, "date": r["created"], "v": v, "s": t(key),
+                         "top": i18n.plain(a["ranked"][0][0]), "level": t(LEVEL_KEYS[a["level"]]), "me": c == cid})
+    df = pd.DataFrame(recs)
+    dom = [t("lt_mal"), t("lt_risk")]
+    base = alt.Chart(df).encode(
+        x=alt.X("when:T", title=None, axis=alt.Axis(format="%d.%m.%y", labelAngle=0, tickCount=min(6, len(chain)))),
+        y=alt.Y("v:Q", title=None, scale=alt.Scale(domain=[0, 1]), axis=alt.Axis(format="%")),
+        color=alt.Color("s:N", title=None, scale=alt.Scale(domain=dom, range=[C_MALIGN, C_PREMALIGN]),
+                        legend=alt.Legend(orient="bottom", labelLimit=320)),
+        tooltip=[alt.Tooltip("case:N", title=t("case_no")), alt.Tooltip("date:N", title=t("lt_date")),
+                 alt.Tooltip("v:Q", title=t("lt_value"), format=".1%"), alt.Tooltip("top:N", title=t("h_top")),
+                 alt.Tooltip("level:N", title=t("h_level"))])
+    line = base.mark_line(strokeWidth=2.2) + base.mark_point(filled=True, size=70)
+    me = base.transform_filter(alt.datum.me).mark_point(size=230, filled=False, strokeWidth=2)
+    st.altair_chart((line + me).properties(height=280).configure_view(strokeWidth=0), use_container_width=True)
+    first, last = ss.cases[chain[0]], ss.cases[chain[-1]]
+    d = assess(last["probs"])["totals"][MALIGN] - assess(first["probs"])["totals"][MALIGN]
+    trend = ("lt_up" if d > 0.05 else "lt_down" if d < -0.05 else "lt_flat")
+    st.caption(t("lt_note", n=len(chain), a=first["created"][:10], b=last["created"][:10], trend=t(trend),
+                 d=f"{d * 100:+.1f}".replace(".", "," if ss.lang == "tr" else ".")))
+    others = [c for c in chain if c != cid]
+    cols = st.columns(min(4, len(others)))
+    for i, c in enumerate(others[:4]):
+        cols[i].button(c, key=f"lt_open_{cid}_{c}", icon=":material/open_in_new:", width="stretch",
+                       on_click=lambda c=c: ss.update(page="track", open_case=c))
+
+
+def start_followup(cid: str):
+    """Aynı lezyonun yeni kontrolü: yeni analiz açılır, "önceki vaka" alanı doldurulur."""
+    new_analysis()
+    ss.v_prev = cid
 
 
 def doctor_pin() -> str:
@@ -770,6 +929,7 @@ with st.sidebar:
         ("track", t("nav_track") + (f"  ·  {n_cases}" if n_cases else ""), ":material/folder_open:"),
         ("stats", t("tab_stats"), ":material/bar_chart:"),
         ("eval", t("nav_eval"), ":material/analytics:"),
+        ("survey", t("nav_survey"), ":material/rate_review:"),
         ("about", t("tab_about"), ":material/info:"),
         ("guide", t("tab_guide"), ":material/menu_book:"),
     ]
@@ -815,6 +975,20 @@ with st.sidebar:
     ss.setdefault("lang_picker", ss.lang)
     st.segmented_control("Language", options=list(i18n.LANGS), format_func=i18n.LANGS.get,
                          key="lang_picker", label_visibility="collapsed", on_change=_set_lang)
+    st.toggle(t("dark_toggle"), value=DARK, key=f"dark_tg_{DARK}", help=t("dark_help"),
+              on_change=lambda: ss.update(theme_req="light" if DARK else "dark"))
+    if ss.get("theme_req"):
+        # Tercih tarayıcıda (Streamlit'in kendi tema kaydı) saklanır, sayfa yeni temayla yeniden açılır.
+        mode = ss.pop("theme_req")
+        act = ('w.localStorage.setItem(k, JSON.stringify({name: "Dark"}));' if mode == "dark"
+               else "w.localStorage.removeItem(k);")
+        components.html(
+            "<script>(function(){const w = window.parent; const k = `stActiveTheme-${w.location.pathname}-v1`;"
+            "try {" + act + "} catch (e) {}"
+            "const u = new URL(w.location.href); u.searchParams.set('theme', '" + mode + "');"
+            # yenileme komutu ana sayfanın kendi zamanlayıcısında çalışır (gömülü çerçevenin gezinme kısıtına takılmaz)
+            "w.setTimeout('window.location.replace(' + JSON.stringify(u.toString()) + ')', 30);"
+            "})();</script>", height=0)
     if getattr(predictor, "load_error", None):
         st.error(t("model_load_error", e=predictor.load_error[:300]))
     if DB is not None and DB.last_error:
@@ -849,9 +1023,7 @@ def render_case(cid: str, where: str):
         with h2:
             if build_pdf is not None:
                 try:
-                    pdf_bytes = build_pdf(rec, a, predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS,
-                                          groups_of=GROUPS, group_order=GROUP_ORDER, meta_lines=meta_lines(rec["meta"]) + pdf_extra_lines(rec),
-                                          physician=physician_lines(rec), qr=qr_png(cid))
+                    pdf_bytes = make_pdf(rec)
                     st.download_button(t("dl_pdf"), data=pdf_bytes, file_name=f"{cid}.pdf", mime="application/pdf",
                                        icon=":material/download:", width="stretch", type="primary", help=t("dl_pdf_help"),
                                        key=f"pdf_{cid}_{where}",
@@ -870,8 +1042,12 @@ def render_case(cid: str, where: str):
                 c2.button(t("cmp_from_case"), icon=":material/compare:", width="stretch", key="cmp_from_case",
                           on_click=lambda c=cid: ss.update(open_case=None, track_q="", cmp_a=c, cmp_open=True),
                           disabled=len(ss.cases) < 2)
+            st.button(t("btn_followup"), icon=":material/history:", width="stretch", key=f"fu_start_{cid}_{where}",
+                      on_click=start_followup, args=(cid,), help=t("btn_followup_help"))
         if where == "new":
             st.markdown(f'<div class="case-hint">{t("case_hint")}</div>', unsafe_allow_html=True)
+        if rec.get("prev"):
+            st.markdown(f'<div class="case-hint">{t("prev_info", c=rec["prev"])}</div>', unsafe_allow_html=True)
         if predictor.is_mock:
             st.caption(t("demo_caption"))
         if rec_mode(rec) == "hasta":
@@ -968,6 +1144,11 @@ def render_case(cid: str, where: str):
                          ok=t("tech_ok") if rec["elapsed"] < 10 else t("tech_slow")))
             st.caption(t("tech_thr", u=f"{REFER_URGENT_MALIGN * 100:.0f}", r=f"{REFER_MALIGN_OR_PRE * 100:.0f}",
                          t=f"{UNCERTAIN_TOP * 100:.0f}", g=f"{UNCERTAIN_GAP * 100:.0f}"))
+
+    # Aynı lezyonun önceki/sonraki kontrolleri
+    if len(lesion_chain(cid)) > 1:
+        with st.container(border=True):
+            lesion_timeline(cid)
 
     # Hekim değerlendirmesi ve vaka durumu
     st.markdown(f'<div class="sec-label" style="margin-top:1.4rem">{t("fb_section")}</div>', unsafe_allow_html=True)
@@ -1133,7 +1314,20 @@ def step_images():
                     ss.boxes[w] = None
                     ss.pop(f"v_crop_{w}", None)
 
-                st.button(t("btn_change"), key=f"chg_{which}", icon=":material/refresh:", on_click=_clear)
+                def _rotate(w=which):
+                    im = open_bytes(ss.imgs[w]["bytes"])
+                    if im is None:
+                        return
+                    buf = io.BytesIO()
+                    im.rotate(-90, expand=True).save(buf, format="PNG")  # saat yönünde 90°, kayıpsız
+                    data = buf.getvalue()
+                    ss.imgs[w] = {**ss.imgs[w], "bytes": data, "id": hashlib.md5(data).hexdigest()}
+                    ss.boxes[w] = None  # kırpma kutusu eski yöne göreydi
+
+                r1, r2 = st.columns(2)
+                r1.button(t("btn_rotate"), key=f"rot_{which}", icon=":material/rotate_right:", on_click=_rotate,
+                          width="stretch", help=t("rotate_help"))
+                r2.button(t("btn_change"), key=f"chg_{which}", icon=":material/refresh:", on_click=_clear, width="stretch")
 
     ready = all(ss.imgs[w] is not None for w in used)
     blocked = ready and any(not skin_like(get_image(w)) and not ss.get(f"v_skinok_{ss.imgs[w]['id']}") for w in used)
@@ -1200,7 +1394,21 @@ def step_patient():
         else:
             i2.caption(t("mode_hasta"))
 
+    prev_txt = st.text_input(t("prev_label"), value=ss.get("v_prev") or "", key=wkey("prev"), placeholder="LZ-…",
+                             help=t("prev_help")).strip().upper()
+    ss.v_prev = prev_txt
+    prev_ok = None
+    if prev_txt:
+        prev_ok = find_case(prev_txt)
+        if prev_ok:
+            pa = assess(ss.cases[prev_ok]["probs"])
+            st.caption(t("prev_found", d=ss.cases[prev_ok]["created"], top=i18n.plain(pa["ranked"][0][0])))
+        else:
+            st.warning(t("prev_missing", c=html.escape(prev_txt)))
+
     missing = [t(k) for k, v in [("m_age", age), ("m_sex", sex), ("m_skin", skin_tone), ("m_site", site)] if v is None]
+    if prev_txt and not prev_ok:
+        missing.append(t("m_prev"))
     if DB is not None and not predictor.is_mock:  # sahte (demo) sonuçlar araştırma verisine karışmasın
         save = st.checkbox(t("save_consent"), value=ss.get("v_save", False), key=wkey("save"), help=t("save_help"))
         ss.v_save = save
@@ -1255,8 +1463,11 @@ def step_patient():
             "saved": DB is not None and not predictor.is_mock and bool(ss.get("v_save")),  # izin + gerçek model şart
             "status": "new",
             "events": [],
+            "prev": prev_ok,
         }
         add_event(rec, "created")
+        if prev_ok:
+            add_event(rec, "linked", prev=prev_ok)
         if any(not skin_like(get_image(w)) for w in (("clin",) if pm else ("clin", "derm"))):
             add_event(rec, "skin_override")
         ss.cases = {cid: rec, **ss.cases}  # en yeni vaka en üstte
@@ -1417,10 +1628,24 @@ def page_track():
 
     rows = [r for cid, r in ss.cases.items() if (not query or query in cid) and (flt == "all" or r["status"] == flt)]
     rows.sort(key=priority_key if sort == "priority" else (lambda r: -r["ts"]))
-    h1, h2 = st.columns([3, 1.2], vertical_alignment="center")
+    h1, h2, h3 = st.columns([2.2, 1.2, 1.2], vertical_alignment="center")
     h1.caption(t("track_count", n=len(rows)))
     h2.download_button(t("export_btn"), data=export_csv(ss.cases), file_name=f"vakalar_{now_tr():%Y%m%d_%H%M}.csv",
                        mime="text/csv", icon=":material/table_view:", width="stretch", help=t("export_help"))
+    with h3.popover(t("zip_btn"), icon=":material/folder_zip:", width="stretch", help=t("zip_help")):
+        all_ids = [r["case"] for r in rows]
+        pick = st.multiselect(t("zip_pick"), list(ss.cases), default=all_ids[:20], key=f"zip_pick_{ss.lang}",
+                              placeholder=t("zip_ph"))
+        st.caption(t("zip_note"))
+        if st.button(t("zip_make", n=len(pick)), type="primary", disabled=not pick or build_pdf is None,
+                     width="stretch", key="zip_make"):
+            with st.spinner(t("zip_wait")):
+                ss.zip_data = (tuple(pick), make_zip(pick))
+            log("zip", None, n=len(pick))
+        zd = ss.get("zip_data")
+        if zd and list(zd[0]) == pick:
+            st.download_button(t("zip_dl", n=len(pick)), data=zd[1], file_name=f"raporlar_{now_tr():%Y%m%d_%H%M}.zip",
+                               mime="application/zip", icon=":material/download:", width="stretch", key="zip_dl")
     if not rows:
         st.info(t("track_none"))
     today = now_tr().date().isoformat()
@@ -1464,6 +1689,9 @@ elif ss.page == "stats":
 elif ss.page == "eval":
     page_header(t("nav_eval"), t("eval_sub"))
     render_eval()
+elif ss.page == "survey":
+    page_header(t("nav_survey"))
+    render_survey(DB, APP_VERSION, log)
 elif ss.page == "about":
     page_header(t("tab_about"))
     render_about()

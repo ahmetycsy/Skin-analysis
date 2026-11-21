@@ -32,7 +32,8 @@ DOCTOR_PIN = "kendi PIN'iniz"             # tanımlanmazsa koddaki demo PIN kull
 SUPABASE_URL = "https://xxxx.supabase.co" # isteğe bağlı: anonim vaka kaydı (Supabase)
 SUPABASE_KEY = "sb_secret_..."           # Supabase gizli (secret / service_role) anahtarı
 ```
-Supabase'te `cases` (vaka başına bir satır) ve `audit` (yalnızca eklenen denetim kaydı) tabloları olmalı; görüntü ve kişisel bilgi
+Supabase'te `cases` (vaka başına bir satır) ve `audit` (yalnızca eklenen denetim kaydı) tabloları olmalı; lezyon zaman
+çizelgesi ve kullanılabilirlik anketi için `supabase_ek.sql` dosyası da SQL Editor'de bir kez çalıştırılır; görüntü ve kişisel bilgi
 kaydedilmez. Kayıt yalnızca kullanıcı analiz öncesi izin verirse ve gerçek model çalışıyorsa yapılır.
 
 MODEL_REPO tanımlı değilse uygulama demo modunda (sahte model) çalışır. Model yüklenemezse menüde kırmızı uyarı çıkar.
