@@ -28,6 +28,9 @@ ADVISOR = "Zühal Özcan Yavuz"
 # Sonuçlar Tuğalp'in 5 katlı çapraz doğrulamasından (5.240 lezyonun her biri bir kez kontrol setinde; ortalama ± sapma).
 # Kaynak: tugalp dalındaki cv_table.md / ahmet_claude_ozet.md. Kullanılan ağırlıklar kat 0 modelleridir.
 MODEL_STATUS = [
+    {"name": ("ISIC MILK10k Benchmark — bağımsız gizli test (479 lezyon)", "ISIC MILK10k Benchmark — independent hidden test (479 lesions)"),
+     "arch": ("Kullanılan sistem (hekim modu)", "Deployed system (physician mode)"), "status": "external", "f1": 0.485,
+     "note": ("ISIC tarafından puanlandı · cevap anahtarı bizde değil", "Scored by ISIC · labels not available to us")},
     {"name": ("Kullanılan sistem — hekim modu (4 model)", "Deployed system — physician mode (4 models)"),
      "arch": ("B3 + V2-S, derm + klinik ortalaması", "B3 + V2-S, mean of derm + clinical"), "status": "used", "f1": 0.542,
      "note": ("±0,024 · doğruluk %77,4 · kalibre", "±0.024 · accuracy 77.4% · calibrated")},
@@ -46,7 +49,7 @@ MODEL_STATUS = [
      "arch": ("Füzyon ağı", "Fusion network"), "status": "done", "f1": 0.497,
      "note": ("yalnızca kat 0 · aynı sette hekim modu 0,547", "fold 0 only · physician mode 0.547 on the same set")},
 ]
-STATUS_LABEL = {"used": ("Kullanılıyor", "In use"), "done": ("Tamamlandı", "Done"), "wip": ("Devam ediyor", "In progress"), "planned": ("Planlandı", "Planned")}
+STATUS_LABEL = {"external": ("Bağımsız test", "Independent test"), "used": ("Kullanılıyor", "In use"), "done": ("Tamamlandı", "Done"), "wip": ("Devam ediyor", "In progress"), "planned": ("Planlandı", "Planned")}
 
 
 def _L(pair):

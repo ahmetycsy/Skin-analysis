@@ -77,10 +77,16 @@ GROUPS = {
     "VASC": BENIGN,
 }
 
-# Sonuç ekranındaki yönlendirme ve "kararsız" uyarısı için eşikler.
-# GEÇİCİ değerlerdir: gerçek model gelince Bedirhan'ın validation sonuçlarına göre ayarlanmalı.
+# Sonuç ekranındaki yönlendirme ve "kararsız" uyarısı için eşikler (olasılıklar kalibre).
+# 21 Kasım 2026'da kontrol kümesindeki 1.048 lezyonla seçildi (analysis/thresholds.py; hekim modu):
+#   öncelikli  (kötü huylu toplam ≥ 0,30): kötü huyluların %93,1'i öncelikli, iyi huyluların %32'si yanlış alarm
+#   değerlendirme (kötü+kansere dönüşebilir ≥ 0,20 ya da kararsız): riskli lezyonların %97,2'si en az "değerlendirme"ye
+#     yönlendirilir; 691 kötü huyludan 19'u (%2,7) "iyi huylu görünüm" alır; iyi huyluların %48,6'sı sevk edilir.
+#   kararsız (en yüksek < 0,40 ya da ilk iki fark < 0,10): vakaların %7,7'si; bu vakalarda doğruluk %41 (diğerlerinde %80).
+# Eşikler aynı kümede seçildiği için bu oranlar biraz iyimserdir. Tarama aracı olduğu için kanseri kaçırmamak öncelikli
+# tutuldu; son karar (Tuğalp'in maliyet katsayısı c dahil) ekip ve danışman tarafından verilmelidir.
 REFER_URGENT_MALIGN = 0.30      # kötü huylu toplamı bunun üstündeyse: öncelikli değerlendirme
-REFER_MALIGN_OR_PRE = 0.30      # kötü huylu + kansere dönüşebilir toplamı bunun üstündeyse: değerlendirme önerilir
+REFER_MALIGN_OR_PRE = 0.20      # kötü huylu + kansere dönüşebilir toplamı bunun üstündeyse: değerlendirme önerilir
 UNCERTAIN_TOP = 0.40            # en yüksek olasılık bunun altındaysa: kararsız
 UNCERTAIN_GAP = 0.10            # ilk iki sonuç arasındaki fark bunun altındaysa: kararsız
 
@@ -124,8 +130,9 @@ class MockPredictor:
     is_mock = True
     load_error = None  # gerçek model denendi ama yüklenemediyse hata metni
 
-    def predict(self, clinical: Image.Image, dermoscopic: Image.Image, meta: Meta) -> dict[str, float]:
-        h = hashlib.sha256(clinical.tobytes()[:50000] + dermoscopic.tobytes()[:50000]).digest()
+    def predict(self, clinical: Image.Image, dermoscopic, meta: Meta) -> dict[str, float]:
+        derm_bytes = dermoscopic.tobytes()[:50000] if dermoscopic is not None else b"hasta"
+        h = hashlib.sha256(clinical.tobytes()[:50000] + derm_bytes).digest()
         rng = np.random.default_rng(int.from_bytes(h[:8], "little"))
         logits = rng.normal(size=len(CLASSES)) * 1.5
         probs = np.exp(logits - logits.max())

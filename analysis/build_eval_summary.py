@@ -1,0 +1,90 @@
+"""Doğrulama tahminlerinden (val_predictions.py çıktısı) sitedeki "Model analizi" sayfası için ÖZET üretir.
+
+Kullanım: python3 analysis/build_eval_summary.py ~/Downloads/sonuclar/val_ensemble_predictions.csv
+Çıktı: assets/eval_summary.json — yalnızca toplu sayılar (karışıklık matrisi, eşik ızgarası, alt grup sayıları).
+Lezyon bazlı veri, görüntü ya da kimlik İÇERMEZ (MILK10k lisansı: veri herkese açık repoya konmaz).
+"""
+import json
+import os
+import sys
+
+import numpy as np
+import pandas as pd
+
+sys.path.insert(0, ".")
+from predictor import (CLASSES, GROUPS, MALIGN, PREMALIGN, REFER_MALIGN_OR_PRE,  # noqa: E402
+                       REFER_URGENT_MALIGN, UNCERTAIN_GAP, UNCERTAIN_TOP)
+
+GRID = [round(x, 2) for x in np.arange(0.05, 0.951, 0.05)]
+LEVELS = ["urgent", "refer", "benign"]
+TRUE_GROUPS = ["mal", "pre", "ben"]
+
+df = pd.read_csv(sys.argv[1])
+y = df.label.values
+yi = np.array([CLASSES.index(c) for c in y])
+tg = np.array(["mal" if GROUPS[c] == MALIGN else "pre" if GROUPS[c] == PREMALIGN else "ben" for c in y])
+MAL_IDX = [CLASSES.index(c) for c in CLASSES if GROUPS[c] == MALIGN]
+RISK_IDX = [CLASSES.index(c) for c in CLASSES if GROUPS[c] in (MALIGN, PREMALIGN)]
+
+
+def levels(P, U, R, use_unc=True):
+    mal, risk = P[:, MAL_IDX].sum(1), P[:, RISK_IDX].sum(1)
+    s = np.sort(P, 1)
+    unc = (s[:, -1] < UNCERTAIN_TOP) | ((s[:, -1] - s[:, -2]) < UNCERTAIN_GAP)
+    lv = np.where(mal >= U, 0, np.where((risk >= R) | (unc & use_unc), 1, 2))
+    return lv, unc
+
+
+def level_counts(lv, mask=None):
+    m = np.ones(len(lv), bool) if mask is None else mask
+    return [int(((tg == g) & (lv == k) & m).sum()) for g in TRUE_GROUPS for k in range(3)]
+
+
+def cm(pred, mask):
+    M = np.zeros((len(CLASSES), len(CLASSES)), int)
+    np.add.at(M, (yi[mask], pred[mask]), 1)
+    return M.tolist()
+
+
+def age_band(a):
+    if pd.isna(a):
+        return "unknown"
+    return "<40" if a < 40 else "40-59" if a < 60 else "60-74" if a < 75 else "75+"
+
+
+SUB = {
+    "tone": df.skin_tone.map(lambda v: "0-2" if v <= 2 else str(int(v))).values,
+    "sex": df.sex.fillna("unknown").values,
+    "age": df.age.map(age_band).values,
+}
+SUB_ORDER = {"tone": ["0-2", "3", "4", "5"], "sex": ["female", "male"], "age": ["<40", "40-59", "60-74", "75+"]}
+
+out = {"n": int(len(df)), "classes": CLASSES, "grid": GRID, "levels": LEVELS, "true_groups": TRUE_GROUPS,
+       "true_group_n": {g: int((tg == g).sum()) for g in TRUE_GROUPS},
+       "current": {"U": REFER_URGENT_MALIGN, "R": REFER_MALIGN_OR_PRE, "top": UNCERTAIN_TOP, "gap": UNCERTAIN_GAP},
+       "modes": {}}
+for mode in ("h", "p"):
+    P = df[[f"{mode}_{c}" for c in CLASSES]].values
+    pred = P.argmax(1)
+    allm = np.ones(len(df), bool)
+    lv_cur, unc = levels(P, REFER_URGENT_MALIGN, REFER_MALIGN_OR_PRE)
+    grid = [[[level_counts(levels(P, U, R, bool(u))[0]) for u in (0, 1)] for R in GRID] for U in GRID]
+    subs = {}
+    for dim, vals in SUB.items():
+        subs[dim] = []
+        for key in SUB_ORDER[dim]:
+            m = vals == key
+            if m.sum() == 0:
+                continue
+            subs[dim].append({"key": key, "n": int(m.sum()), "correct": int((pred[m] == yi[m]).sum()),
+                              "cm": cm(pred, m), "levels": level_counts(lv_cur, m)})
+    correct = pred == yi
+    out["modes"][mode] = {
+        "cm": cm(pred, allm), "grid": grid, "subgroups": subs,
+        "uncertain": {"n": int(unc.sum()), "acc_unc": float(correct[unc].mean()), "acc_rest": float(correct[~unc].mean())},
+    }
+
+path = os.path.join("assets", "eval_summary.json")
+with open(path, "w") as f:
+    json.dump(out, f, separators=(",", ":"))
+print(path, os.path.getsize(path) // 1024, "KB")

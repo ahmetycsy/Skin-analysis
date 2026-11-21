@@ -99,8 +99,9 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
         pdf.cell(90 - lab_w, 6, val, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     left_end = pdf.get_y()
 
-    imgs = [res.get("clin_jpg"), res.get("derm_jpg")] + ([res["cam_jpg"]] if res.get("cam_jpg") else [])
-    imgs = [i for i in imgs if i]
+    pairs = [(res.get("clin_jpg"), t("m_clin")), (res.get("derm_jpg"), t("m_derm")), (res.get("cam_jpg"), "Grad-CAM")]
+    pairs = [(i, c) for i, c in pairs if i]
+    imgs = [i for i, _ in pairs]
     if imgs:
         size = 30 if len(imgs) <= 2 else 24
         x = 15 + W - len(imgs) * (size + 3) + 3
@@ -108,7 +109,7 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
         pdf.set_font("DejaVu", "B", 10.5)
         pdf.set_text_color(*INK)
         pdf.cell(size, 6, t("pdf_images"))
-        caps = [t("m_clin"), t("m_derm"), "Grad-CAM"]
+        caps = [c for _, c in pairs]
         pdf.set_font("DejaVu", "", 7)
         pdf.set_text_color(*MUTED)
         for k, data in enumerate(imgs):

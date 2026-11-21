@@ -34,6 +34,7 @@ from predictor import (
     load_predictor,
 )
 from stats_page import render_stats
+from eval_page import render_eval
 from db import get_db
 
 try:  # kırpma eklentisi yoksa uygulama yine çalışsın
@@ -192,6 +193,9 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .final {{ font-size:.86rem; background:{BG}; border:1px solid {LINE}; border-radius:8px; padding:.55rem .75rem; margin-bottom:.5rem; line-height:1.5; }}
 .cmp-sum {{ background:#fff; border:1px solid {LINE}; border-radius:10px; padding:.8rem 1rem; font-size:.9rem; line-height:1.7; margin:.2rem 0 1rem; }}
 .arrow-up {{ color:{C_MALIGN}; font-weight:600; }} .arrow-down {{ color:{C_BENIGN}; font-weight:600; }} .arrow-flat {{ color:{MUTED}; font-weight:600; }}
+.ps-row {{ display:flex; flex-wrap:wrap; gap:.35rem; margin:.1rem 0 .3rem; }}
+.gpill-ps {{ font-size:.82rem; font-weight:600; border:1.5px solid; border-radius:999px; padding:.15rem .65rem; background:#fff; }}
+.ps-note {{ font-size:.8rem; color:{MUTED}; margin-bottom:.2rem; }}
 .empty {{ color:{MUTED}; font-size:.94rem; line-height:1.6; padding:1rem .2rem; }}
 
 /* vaka listesi */
@@ -234,7 +238,7 @@ ss.setdefault("audit", [])        # denetim kaydı: yalnızca eklenir, değişti
 ss.setdefault("dirty", [])        # veritabanına yazılacak vakalar
 ss.setdefault("pending_audit", [])  # veritabanına yazılacak denetim satırları
 ss.setdefault("db_synced", 0.0)   # vakaların veritabanından en son çekildiği an
-INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm")
+INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm", "patient")
 
 
 def go(page: str):
@@ -520,6 +524,32 @@ def export_csv(cases: dict) -> bytes:
     return df.to_csv(index=False).encode("utf-8-sig")
 
 
+def pdf_extra_lines(rec: dict):
+    rows = [(t("mode_label"), t("mode_hasta") if rec_mode(rec) == "hasta" else t("mode_hekim"))]
+    ps = pred_set(rec)
+    if ps:
+        rows.append((t("ps_title"), ", ".join(i18n.plain(c) for c in ps)))
+    return rows
+
+
+def patient_mode() -> bool:
+    return bool(ss.get("v_patient"))
+
+
+def rec_mode(rec: dict) -> str:
+    return rec.get("mode") or ("hasta" if "hasta modu" in (rec.get("model_name") or "") else "hekim")
+
+
+def pred_set(rec: dict):
+    """%90 güvenli olası tanılar listesi (conformal). Yalnızca gerçek modelde; sahte modelde None."""
+    if predictor.is_mock or not hasattr(predictor, "prediction_set"):
+        return None
+    try:
+        return predictor.prediction_set(rec["probs"], rec_mode(rec) == "hekim")
+    except Exception:
+        return None
+
+
 def meta_lines(m: dict):
     return [
         (t("age_label"), t("age_fmt", b=age_band_label(m["age"]))),
@@ -739,6 +769,7 @@ with st.sidebar:
         ("new", t("nav_new"), ":material/add_circle:"),
         ("track", t("nav_track") + (f"  ·  {n_cases}" if n_cases else ""), ":material/folder_open:"),
         ("stats", t("tab_stats"), ":material/bar_chart:"),
+        ("eval", t("nav_eval"), ":material/analytics:"),
         ("about", t("tab_about"), ":material/info:"),
         ("guide", t("tab_guide"), ":material/menu_book:"),
     ]
@@ -819,7 +850,7 @@ def render_case(cid: str, where: str):
             if build_pdf is not None:
                 try:
                     pdf_bytes = build_pdf(rec, a, predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS,
-                                          groups_of=GROUPS, group_order=GROUP_ORDER, meta_lines=meta_lines(rec["meta"]),
+                                          groups_of=GROUPS, group_order=GROUP_ORDER, meta_lines=meta_lines(rec["meta"]) + pdf_extra_lines(rec),
                                           physician=physician_lines(rec), qr=qr_png(cid))
                     st.download_button(t("dl_pdf"), data=pdf_bytes, file_name=f"{cid}.pdf", mime="application/pdf",
                                        icon=":material/download:", width="stretch", type="primary", help=t("dl_pdf_help"),
@@ -843,14 +874,19 @@ def render_case(cid: str, where: str):
             st.markdown(f'<div class="case-hint">{t("case_hint")}</div>', unsafe_allow_html=True)
         if predictor.is_mock:
             st.caption(t("demo_caption"))
+        if rec_mode(rec) == "hasta":
+            st.markdown(f'<div class="banner" style="margin:.6rem 0 0">{t("pm_note")}</div>', unsafe_allow_html=True)
 
     left, right = st.columns([1, 1.45], gap="large")
     with left:
         st.markdown(f'<div class="sec-label">{t("pdf_images")}</div>', unsafe_allow_html=True)
         i1, i2 = st.columns(2)
-        if rec.get("clin_jpg") and rec.get("derm_jpg"):
+        if rec.get("clin_jpg"):
             i1.image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
-            i2.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("derm_title"), width="stretch")
+            if rec.get("derm_jpg"):
+                i2.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("derm_title"), width="stretch")
+            else:
+                i2.caption(t("mode_hasta"))
         else:
             st.markdown(f'<div class="cam-empty">{t("no_images")}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="sec-label">{t("s2_title")}</div>', unsafe_allow_html=True)
@@ -871,6 +907,14 @@ def render_case(cid: str, where: str):
                          f'<b>{i18n.pct(a["totals"][g])}</b></span>' for g in GROUP_ORDER)
         st.markdown(f'<div class="stack">{bar}</div><div class="legend">{legend}</div>', unsafe_allow_html=True)
 
+        ps = pred_set(rec)
+        if ps:
+            st.markdown(f'<div class="sec-label">{t("ps_title")}</div>', unsafe_allow_html=True)
+            chips = "".join(f'<span class="gpill-ps" style="border-color:{GROUP_COLORS[GROUPS[c]]};color:{GROUP_COLORS[GROUPS[c]]}">'
+                            f'{i18n.plain(c)} · {i18n.pct(rec["probs"][c])}</span>' for c in ps)
+            note = t("ps_one") if len(ps) == 1 else t("ps_many", n=len(ps))
+            st.markdown(f'<div class="ps-row">{chips}</div><div class="ps-note">{note}</div>', unsafe_allow_html=True,
+                        help=t("ps_help"))
         st.markdown(f'<div class="sec-label">{t("top3")}</div>', unsafe_allow_html=True)
         cards = ""
         for c, p in a["ranked"][:3]:
@@ -885,9 +929,12 @@ def render_case(cid: str, where: str):
         st.markdown(f"<div>{cards}</div>", unsafe_allow_html=True)
 
         st.markdown(f'<div class="sec-label">{t("cam_title")}</div>', unsafe_allow_html=True)
-        if rec.get("cam_img") is not None and rec.get("derm_jpg"):
+        if rec.get("cam_img") is not None and (rec.get("derm_jpg") or rec.get("clin_jpg")):
             g1, g2 = st.columns(2)
-            g1.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("cam_orig"), width="stretch")
+            if rec.get("derm_jpg"):
+                g1.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("cam_orig"), width="stretch")
+            else:
+                g1.image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
             g2.image(lens_preview(rec["cam_img"]), caption=t("cam_heat", c=i18n.plain(rec["cam_class"])), width="stretch")
             st.caption(t("cam_note"))
         else:
@@ -1042,9 +1089,16 @@ def page_new():
 
 
 def step_images():
+    pm = st.toggle(t("pm_toggle"), value=patient_mode(), key=wkey("pm"), help=t("pm_help"))
+    ss.v_patient = pm
+    used = ("clin",) if pm else ("clin", "derm")
     cards = {"clin": ("clin_pill", "clin_title", "clin_text"), "derm": ("derm_pill", "derm_title", "derm_text")}
     cols = st.columns(2, gap="medium")
-    for col, which in zip(cols, ("clin", "derm")):
+    if pm:
+        with cols[1], st.container(border=True):
+            st.markdown(f'<span class="pill">{t("pm_card_title")}</span><div class="card-title" style="margin-top:.45rem">'
+                        f'{t("derm_title")}</div><p class="card-text">{t("pm_card_text")}</p>', unsafe_allow_html=True)
+    for col, which in zip(cols, used):
         pill, title, text = cards[which]
         with col, st.container(border=True):
             st.markdown(f'<span class="pill">{t(pill)}</span><div class="card-title" style="margin-top:.45rem">{t(title)}</div>'
@@ -1081,8 +1135,9 @@ def step_images():
 
                 st.button(t("btn_change"), key=f"chg_{which}", icon=":material/refresh:", on_click=_clear)
 
-    both = ss.imgs["clin"] is not None and ss.imgs["derm"] is not None
-    blocked = both and any(not skin_like(get_image(w)) and not ss.get(f"v_skinok_{ss.imgs[w]['id']}") for w in ("clin", "derm"))
+    ready = all(ss.imgs[w] is not None for w in used)
+    blocked = ready and any(not skin_like(get_image(w)) and not ss.get(f"v_skinok_{ss.imgs[w]['id']}") for w in used)
+    both = not pm and ss.imgs["clin"] is not None and ss.imgs["derm"] is not None
     if both:
         if looks_dermoscopic(open_bytes(ss.imgs["clin"]["bytes"])) and not looks_dermoscopic(open_bytes(ss.imgs["derm"]["bytes"])):
             st.warning(t("reversed_warn"))
@@ -1101,17 +1156,18 @@ def step_images():
     st.write("")
     _, nb = st.columns([2, 1])
     with nb:
-        st.button(t("btn_next"), type="primary", width="stretch", disabled=not both or blocked, icon=":material/arrow_forward:",
+        st.button(t("btn_next"), type="primary", width="stretch", disabled=not ready or blocked, icon=":material/arrow_forward:",
                   on_click=lambda: ss.update(step=2), key="to_step2")
-        if not both:
-            st.caption(t("need_both"))
+        if not ready:
+            st.caption(t("need_clin") if pm else t("need_both"))
         elif blocked:
             st.caption(t("skin_block"))
 
 
 def step_patient():
-    clin_img, derm_img = get_image("clin"), get_image("derm")
-    if clin_img is None or derm_img is None:
+    pm = patient_mode()
+    clin_img, derm_img = get_image("clin"), (None if pm else get_image("derm"))
+    if clin_img is None or (derm_img is None and not pm):
         ss.step = 1
         st.rerun()
 
@@ -1139,7 +1195,10 @@ def step_patient():
         st.markdown(f'<div class="card-title">{t("s2_images")}</div>', unsafe_allow_html=True)
         i1, i2 = st.columns(2)
         i1.image(jpeg_thumb(clin_img, 240), caption=t("clin_title"), width="stretch")
-        i2.image(lens_preview(derm_img, 240), caption=t("derm_title"), width="stretch")
+        if derm_img is not None:
+            i2.image(lens_preview(derm_img, 240), caption=t("derm_title"), width="stretch")
+        else:
+            i2.caption(t("mode_hasta"))
 
     missing = [t(k) for k, v in [("m_age", age), ("m_sex", sex), ("m_skin", skin_tone), ("m_site", site)] if v is None]
     if DB is not None and not predictor.is_mock:  # sahte (demo) sonuçlar araştırma verisine karışmasın
@@ -1174,17 +1233,18 @@ def step_patient():
             st.write("④ " + t("prog_4"))
             time.sleep(0.2)
             status.update(label=t("prog_done"), state="complete", expanded=False)
-        cid = new_case_id(ss.imgs["clin"]["id"] + ss.imgs["derm"]["id"])
+        cid = new_case_id(ss.imgs["clin"]["id"] + ((ss.imgs["derm"] or {}).get("id", "") if not pm else "hasta"))
         rec = {
             "case": cid,
             "created": now_tr().strftime("%d.%m.%Y %H:%M"),
             "time": now_tr().strftime("%H:%M"),
-            "model_name": predictor.name,
+            "model_name": predictor.name + (" – hasta modu" if pm else ""),
+            "mode": "hasta" if pm else "hekim",
             "probs": probs,
             "elapsed": elapsed,
             "meta": {"age": age, "sex": sex, "skin_tone": skin_tone, "site": site},
             "clin_jpg": jpeg_thumb(clin_img),
-            "derm_jpg": jpeg_thumb(derm_img),
+            "derm_jpg": jpeg_thumb(derm_img) if derm_img is not None else None,
             "cam_img": cam[0] if cam else None,
             "cam_class": cam[1] if cam else None,
             "cam_jpg": jpeg_thumb(cam[0]) if cam else None,
@@ -1197,7 +1257,7 @@ def step_patient():
             "events": [],
         }
         add_event(rec, "created")
-        if any(not skin_like(get_image(w)) for w in ("clin", "derm")):
+        if any(not skin_like(get_image(w)) for w in (("clin",) if pm else ("clin", "derm"))):
             add_event(rec, "skin_override")
         ss.cases = {cid: rec, **ss.cases}  # en yeni vaka en üstte
         ss.current = cid
@@ -1235,10 +1295,11 @@ def case_column(rec: dict):
     a = assess(rec["probs"])
     st.markdown(f'<div class="row-no">{rec["case"]}</div><div class="row-sub">{rec["created"]} · {patient_short(rec["meta"])}</div>',
                 unsafe_allow_html=True)
-    if rec.get("clin_jpg") and rec.get("derm_jpg"):
+    if rec.get("clin_jpg"):
         i1, i2 = st.columns(2)
         i1.image(rec["clin_jpg"], width="stretch")
-        i2.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), width="stretch")
+        if rec.get("derm_jpg"):
+            i2.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), width="stretch")
     else:
         st.markdown(f'<div class="cam-empty">{t("no_images")}</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="rec {a["level"]}" style="padding:.6rem .8rem"><div class="rec-title" style="font-size:.95rem">'
@@ -1400,6 +1461,9 @@ elif ss.page == "stats":
     finals = [{"case": cid, "final": r["final"]["dx"], "ranked": [c for c, _ in assess(r["probs"])["ranked"]],
                "level": assess(r["probs"])["level"]} for cid, r in ss.cases.items() if r.get("final")]
     render_stats(history, feedback, predictor.is_mock, GROUP_COLORS, finals, db_on=DB is not None)
+elif ss.page == "eval":
+    page_header(t("nav_eval"), t("eval_sub"))
+    render_eval()
 elif ss.page == "about":
     page_header(t("tab_about"))
     render_about()

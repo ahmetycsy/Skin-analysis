@@ -326,9 +326,9 @@ Do not use filtered, cropped or colour-corrected images.
     "tech_ok": ("10 sn hedefinin altında", "below the 10 s target"),
     "tech_slow": ("10 sn hedefinin üzerinde", "above the 10 s target"),
     "tech_thr": (
-        "Yönlendirme eşikleri (geçici): kötü huylu toplamı ≥ %{u} → öncelikli; kötü huylu + kansere dönüşebilir ≥ %{r} → "
+        "Yönlendirme eşikleri (1.048 lezyonluk doğrulama verisine göre): kötü huylu toplamı ≥ %{u} → öncelikli; kötü huylu + kansere dönüşebilir ≥ %{r} → "
         "değerlendirme. Kararsızlık: en yüksek olasılık < %{t} veya ilk iki fark < %{g}.",
-        "Referral thresholds (provisional): malignant total ≥ {u}% → priority; malignant + precancerous ≥ {r}% → review. "
+        "Referral thresholds (set on 1,048 validation lesions): malignant total ≥ {u}% → priority; malignant + precancerous ≥ {r}% → review. "
         "Uncertain: top probability < {t}% or gap between the top two < {g}%.",
     ),
     "history": ("Bu oturumdaki analizler ({n})", "Analyses in this session ({n})"),
@@ -533,6 +533,31 @@ Do not use filtered, cropped or colour-corrected images.
     "audit_action": ("İşlem", "Action"),
     "audit_export": ("Denetim kaydını indir (CSV)", "Download audit log (CSV)"),
     "audit_empty": ("Henüz işlem yok.", "No actions yet."),
+    "pm_toggle": ("Dermoskopik görüntü yok — yalnızca klinik fotoğrafla analiz et (hasta modu)",
+                  "No dermoscopic image — analyse with the clinical photo only (patient mode)"),
+    "pm_help": ("Dermatoskopu olmayan sağlık çalışanları için. Model yalnızca klinik fotoğrafa bakar; başarısı iki görüntülü "
+                "moddan düşüktür (Macro F1 0,463, hekim modunda 0,542).",
+                "For health workers without a dermatoscope. The model looks at the clinical photo only; accuracy is lower than "
+                "with both images (Macro F1 0.463 vs 0.542)."),
+    "pm_card_title": ("Hasta modu", "Patient mode"),
+    "pm_card_text": ("Yalnızca klinik yakın çekim kullanılacak. Mümkünse dermoskopik görüntü de ekleyin: iki görüntüyle sonuç daha "
+                     "güvenilirdir.",
+                     "Only the clinical close-up will be used. If possible, add a dermoscopic image too: results are more "
+                     "reliable with both images."),
+    "need_clin": ("Devam etmek için klinik fotoğrafı yükleyin.", "Upload the clinical photo to continue."),
+    "pm_note": ("<b>Hasta modu:</b> sonuç yalnızca klinik fotoğraftan hesaplandı; iki görüntülü moda göre daha az güvenilirdir.",
+                "<b>Patient mode:</b> the result was computed from the clinical photo only and is less reliable than with both images."),
+    "mode_label": ("Analiz modu", "Analysis mode"),
+    "mode_hekim": ("Hekim modu (iki görüntü)", "Physician mode (two images)"),
+    "mode_hasta": ("Hasta modu (yalnızca klinik fotoğraf)", "Patient mode (clinical photo only)"),
+    "ps_title": ("Olası tanılar (%90 güven)", "Possible diagnoses (90% confidence)"),
+    "ps_one": ("Model %90 güvenle tek bir türü işaret ediyor.", "The model points to a single type with 90% confidence."),
+    "ps_many": ("Gerçek tanı %90 olasılıkla bu {n} türden biridir. Liste uzadıkça model daha az emindir.",
+                "With 90% probability the true diagnosis is one of these {n} types. The longer the list, the less certain the model."),
+    "ps_help": ("Bu liste “conformal prediction” yöntemiyle hesaplanır: 5.240 lezyonluk doğrulamada gerçek tanı bu listenin "
+                "içinde %90 oranında yer aldı. Ayırıcı tanı için bir başlangıç noktasıdır, tanı değildir.",
+                "This list is computed with conformal prediction: in validation on 5,240 lesions the true diagnosis was inside "
+                "the list 90% of the time. It is a starting point for differential diagnosis, not a diagnosis."),
     "save_consent": ("Bu vakanın anonim sonuçlarının araştırma amacıyla kaydedilmesine izin veriyorum",
                      "I consent to the anonymous results of this case being stored for research"),
     "save_help": ("Kaydedilenler: vaka no, yaş aralığı, cinsiyet, ten rengi, bölge, olasılıklar, hekim değerlendirmesi ve "
@@ -605,6 +630,9 @@ Do not use filtered, cropped or colour-corrected images.
 
     # istatistik sekmesi
     "tab_stats": ("İstatistikler", "Statistics"),
+"nav_eval": ("Model analizi", "Model analysis"),
+"eval_sub": ("Doğrulama kümesine (1.048 lezyon) göre başarı, eşik seçimi, eşitlik ve iş yükü",
+             "Performance, thresholds, fairness and workload on the validation set (1,048 lesions)"),
     "st_lead": ("Bu oturumda yapılan analizlerin ve hekim değerlendirmelerinin özeti.",
                 "A summary of the analyses and physician assessments made in this session."),
     "st_scope": ("Şimdilik yalnızca bu sayfa açıkken yapılan analizleri kapsar. Veritabanı bağlandığında tüm analizleri gösterecek.",
