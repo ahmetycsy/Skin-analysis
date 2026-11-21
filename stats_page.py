@@ -41,6 +41,25 @@ def _int_axis(max_n: int):
     return alt.Axis(values=list(range(0, max_n + 1, step)), format="d", grid=False)
 
 
+def cohen_kappa(a: list, b: list):
+    """İki değerlendirici arası uyum: (gözlenen uyum − şans eseri beklenen uyum) / (1 − beklenen)."""
+    n = len(a)
+    if n == 0:
+        return None, None
+    cats = set(a) | set(b)
+    po = sum(x == y for x, y in zip(a, b)) / n
+    pe = sum((a.count(c) / n) * (b.count(c) / n) for c in cats)
+    return po, (1.0 if pe >= 1 else (po - pe) / (1 - pe))
+
+
+def kappa_label(k: float) -> str:
+    """Landis ve Koch (1977) yorumu."""
+    for lim, key in ((0.0, "kap_poor"), (0.20, "kap_slight"), (0.40, "kap_fair"), (0.60, "kap_moderate"), (0.80, "kap_substantial")):
+        if k <= lim:
+            return t(key)
+    return t("kap_perfect")
+
+
 def render_stats(history: list, feedback: dict, is_mock: bool, group_colors: dict, finals: list | None = None, db_on: bool = False):
     st.markdown(f'<p class="lead">{t("st_lead")}</p>', unsafe_allow_html=True)
     if is_mock:
@@ -125,6 +144,17 @@ def render_stats(history: list, feedback: dict, is_mock: bool, group_colors: dic
             })
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
         st.caption(t("st_match_note"))
+
+    _label(t("kap_title"))
+    pairs = [(feedback[h["case"]]["dx"], h["top"][0]) for h in known]
+    if len(pairs) < 5:
+        st.caption(t("kap_need", n=len(pairs)))
+    else:
+        po, k = cohen_kappa([p for p, _ in pairs], [m for _, m in pairs])
+        pog, kg = cohen_kappa([GROUPS[p] for p, _ in pairs], [GROUPS[m] for _, m in pairs])
+        _kpis([(str(len(pairs)), t("kap_n")), (f"{_num(k)}", t("kap_type", lab=kappa_label(k))),
+               (f"{_num(kg)}", t("kap_group", lab=kappa_label(kg))), (i18n.pct(pog), t("kap_group_agree"))])
+        st.caption(t("kap_note"))
 
     _label(t("st_final_title"))
     finals = finals or []

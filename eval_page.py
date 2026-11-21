@@ -513,6 +513,134 @@ def _tab_clinic(D, M, mode):
             "be updated with real clinic data. Validation rates reflect MILK10k (mostly biopsied lesions)."))
 
 
+
+# ------------------------------------------------------------------ 5. karar eğrisi (net fayda)
+def _tab_dca(D, M, mode):
+    ss = st.session_state
+    _note(L("<b>Karar eğrisi analizi</b> (Vickers ve Elkin, 2006), modeli kullanmanın \"herkesi sevk et\" ve \"kimseyi sevk etme\" "
+            "stratejilerinden daha faydalı olup olmadığını gösterir. Yatay eksen <b>eşik olasılığıdır</b>: hekimin bir hastayı "
+            "sevk etmeye değer bulduğu en düşük risk. Örneğin %20 eşik, bir kanseri yakalamak için 4 gereksiz sevki kabul etmek "
+            "demektir. Dikey eksen <b>net faydadır</b>: 100 hastada, gereksiz sevklerin bedeli düşüldükten sonra kalan doğru sevk sayısı.",
+            "<b>Decision curve analysis</b> (Vickers & Elkin, 2006) shows whether using the model is more useful than "
+            "\"refer everyone\" or \"refer no one\". The x-axis is the <b>threshold probability</b>: the lowest risk at which a "
+            "clinician would refer. A 20% threshold means accepting 4 unnecessary referrals to catch one cancer. The y-axis is "
+            "<b>net benefit</b>: correct referrals per 100 patients after subtracting the cost of unnecessary ones."))
+    lg = i18n.get_lang()
+    c1, c2 = st.columns(2)
+    targets = {"risk": L("Sevk kararı (kötü huylu + kansere dönüşebilir)", "Referral (malignant + premalignant)"),
+               "mal": L("Öncelikli karar (yalnızca kötü huylu)", "Priority (malignant only)")}
+    with c1:
+        tgt = st.segmented_control(L("Hedef", "Target"), list(targets), format_func=targets.get,
+                                   key=_wk("ev_dca_t", "risk", mode)) or "risk"
+        ss.ev_dca_t = tgt
+    mixes = {"clinic": L("Poliklinik varsayımı", "Clinic assumption"), "val": L("Doğrulama kümesi", "Validation set")}
+    with c2:
+        mk = st.segmented_control(L("Hasta karışımı", "Patient mix"), list(mixes), format_func=mixes.get,
+                                  key=_wk("ev_dca_mix", "clinic", mode)) or "clinic"
+        ss.ev_dca_mix = mk
+    d = M["dca"][tgt]
+    pm, pp = ss.get("ev_pm", 8.0) / 100, ss.get("ev_pp", 10.0) / 100
+    prev = (d["npos"] / (d["npos"] + d["nneg"])) if mk == "val" else (pm if tgt == "mal" else pm + pp)
+    pts = D["dca_thresholds"]
+    recs = []
+    best_lo = best_hi = None
+    for i, pt in enumerate(pts):
+        if pt > 0.6:
+            break
+        w = pt / (1 - pt)
+        sens, fpr = d["tp"][i] / d["npos"], d["fp"][i] / d["nneg"]
+        nb_m = prev * sens - (1 - prev) * fpr * w
+        nb_all = prev - (1 - prev) * w
+        for name, v in ((L("Model", "Model"), nb_m), (L("Herkesi sevk et", "Refer everyone"), nb_all),
+                        (L("Kimseyi sevk etme", "Refer no one"), 0.0)):
+            recs.append({"pt": pt, "nb": max(v, -0.05) * 100, "s": name, "raw": v * 100})
+        if nb_m > max(nb_all, 0) + 1e-9:
+            best_lo = pt if best_lo is None else best_lo
+            best_hi = pt
+    df = pd.DataFrame(recs)
+    names = [L("Model", "Model"), L("Herkesi sevk et", "Refer everyone"), L("Kimseyi sevk etme", "Refer no one")]
+    cur = D["current"]["R" if tgt == "risk" else "U"]
+    lines = alt.Chart(df).mark_line(strokeWidth=2.4).encode(
+        x=alt.X("pt:Q", title=L("Eşik olasılığı", "Threshold probability"), axis=alt.Axis(format="%")),
+        y=alt.Y("nb:Q", title=L("Net fayda (100 hastada)", "Net benefit (per 100 patients)")),
+        color=alt.Color("s:N", title=None, sort=names, scale=alt.Scale(domain=names, range=[TEAL, C_REFER, "#8A9AA0"]),
+                        legend=alt.Legend(orient="bottom")),
+        strokeDash=alt.StrokeDash("s:N", sort=names, scale=alt.Scale(domain=names, range=[[1, 0], [5, 3], [2, 2]]), legend=None),
+        tooltip=[alt.Tooltip("s:N", title=""), alt.Tooltip("pt:Q", format=".0%", title=L("Eşik", "Threshold")),
+                 alt.Tooltip("raw:Q", format=".1f", title=L("Net fayda", "Net benefit"))])
+    rule = alt.Chart(pd.DataFrame({"x": [cur]})).mark_rule(color=C_URGENT, strokeDash=[4, 3]).encode(x="x:Q")
+    st.altair_chart((lines + rule).properties(height=320).configure_view(strokeWidth=0), use_container_width=True)
+    i_cur = pts.index(cur)
+    w = cur / (1 - cur)
+    nb_cur = prev * d["tp"][i_cur] / d["npos"] - (1 - prev) * d["fp"][i_cur] / d["nneg"] * w
+    nb_all_cur = prev - (1 - prev) * w
+    rng = (L(f"Model, eşik {_pc0(best_lo)} – {_pc0(best_hi)} aralığında iki basit stratejiden de daha faydalı.",
+             f"The model beats both simple strategies for thresholds {_pc0(best_lo)} – {_pc0(best_hi)}.")
+           if best_lo is not None else L("Bu ayarlarla model hiçbir eşikte iki basit stratejiden üstün değil.",
+                                          "With these settings the model does not beat both simple strategies at any threshold."))
+    _note(rng + " " + L(
+        f"Kırmızı çizgi sitedeki eşik ({_pc0(cur)}): burada net fayda 100 hastada {_num(nb_cur * 100, 1)}; "
+        f"herkesi sevk etmenin net faydası {_num(nb_all_cur * 100, 1)}. Hasta karışımı: hedef hastalık oranı {_pc0(prev)}.",
+        f"The red line is the app's threshold ({_pc0(cur)}): net benefit {_num(nb_cur * 100, 1)} per 100 patients versus "
+        f"{_num(nb_all_cur * 100, 1)} for referring everyone. Patient mix: target prevalence {_pc0(prev)}."))
+    _note(L("Poliklinik varsayımında duyarlılık ve yanlış pozitif oranlarının doğrulama kümesindekiyle aynı kaldığı varsayılır; "
+            "oran Poliklinik senaryosu sekmesinden değiştirilebilir. Doğrulama kümesinin %66'sı kötü huylu olduğu için orada "
+            "\"herkesi sevk et\" stratejisi yapay olarak iyi görünür.",
+            "The clinic assumption keeps sensitivity and false-positive rates from the validation set; the prevalence can be "
+            "changed in the clinic scenario tab. 66% of the validation set is malignant, which makes \"refer everyone\" look "
+            "artificially good there."))
+
+
+# ------------------------------------------------------------------ 6. kalibrasyon
+def _tab_calibration(D, M, mode):
+    cal = M["calibration"]
+    _note(L("<b>Kalibrasyon</b>, modelin söylediği olasılığın gerçeğe uyup uymadığını gösterir: model \"%70\" dediği vakaların "
+            "yaklaşık %70'inde haklı çıkmalı. Noktalar çapraz çizgiye ne kadar yakınsa olasılıklar o kadar güvenilirdir. "
+            "Nokta büyüklüğü o aralıktaki lezyon sayısıdır.",
+            "<b>Calibration</b> shows whether the stated probabilities match reality: when the model says \"70%\" it should be "
+            "right about 70% of the time. The closer the points are to the diagonal, the more trustworthy the probabilities. "
+            "Point size is the number of lesions in the bin."))
+    bins = [b for b in cal["bins"] if b["n"]]
+    conf_mean = sum(b["conf"] * b["n"] for b in bins) / D["n"]
+    acc = sum(b["acc"] * b["n"] for b in bins) / D["n"]
+    _kpis([(_num(cal["ece"] * 100, 1) + L(" puan", " pts"), L("Ortalama kalibrasyon hatası (ECE)", "Expected calibration error (ECE)")),
+           (_pc(conf_mean), L("Ortalama güven", "Mean confidence")), (_pc(acc), L("Gerçek doğruluk", "Actual accuracy"))])
+
+    def chart(data, x, y, xt, yt):
+        df = pd.DataFrame(data)
+        diag = alt.Chart(pd.DataFrame({"a": [0, 1], "b": [0, 1]})).mark_line(color="#8A9AA0", strokeDash=[4, 4]).encode(
+            x=alt.X("a:Q", scale=alt.Scale(domain=[0, 1]), axis=alt.Axis(format="%"), title=xt),
+            y=alt.Y("b:Q", scale=alt.Scale(domain=[0, 1]), axis=alt.Axis(format="%"), title=yt))
+        ln = alt.Chart(df).mark_line(color=TEAL, strokeWidth=2).encode(x=f"{x}:Q", y=f"{y}:Q")
+        pt = alt.Chart(df).mark_circle(color=TEAL, opacity=.85).encode(
+            x=f"{x}:Q", y=f"{y}:Q", size=alt.Size("n:Q", legend=None, scale=alt.Scale(range=[30, 400])),
+            tooltip=[alt.Tooltip(f"{x}:Q", format=".0%", title=xt), alt.Tooltip(f"{y}:Q", format=".0%", title=yt),
+                     alt.Tooltip("n:Q", title=L("Lezyon", "Lesions"))])
+        return (diag + ln + pt).properties(height=300).configure_view(strokeWidth=0)
+
+    c1, c2 = st.columns(2, gap="large")
+    with c1:
+        _label(L("En olası tür: güven ↔ doğruluk", "Top class: confidence ↔ accuracy"))
+        st.altair_chart(chart(bins, "conf", "acc", L("Modelin güveni", "Model confidence"), L("Gerçekten doğru", "Actually correct")),
+                        use_container_width=True)
+    with c2:
+        _label(L("Kötü huylu toplam olasılık ↔ gerçek oran", "Malignant probability ↔ observed rate"))
+        st.altair_chart(chart([b for b in cal["mal_bins"] if b["n"]], "pred", "obs", L("Tahmin edilen", "Predicted"),
+                              L("Gerçekten kötü huylu", "Actually malignant")), use_container_width=True)
+    mb = [b for b in cal["mal_bins"] if b["n"] and b["lo"] in (0.1, 0.2)]
+    under = mb and all(b["obs"] > b["pred"] + 0.05 for b in mb)
+    _note(L("Modelin olasılıkları genel olarak gerçeğe yakın (ECE düşük). "
+            + ("Ancak kötü huylu olasılığı %10–30 arasında görünen lezyonların gerçekte daha büyük bölümü kötü huylu çıkıyor: "
+               "model bu aralıkta riski <b>olduğundan düşük</b> gösteriyor. Sevk eşiğinin %20 gibi düşük seçilmesi bunu dengeler. "
+               if under else "")
+            + "Not: sıcaklık kalibrasyonu 5 katlı çapraz doğrulama tahminleriyle (bu lezyonlar dahil) ayarlandığı için sonuç biraz iyimserdir.",
+            "The probabilities are close to reality overall (low ECE). "
+            + ("However, lesions shown at 10–30% malignant probability turn out malignant more often: the model "
+               "<b>underestimates</b> risk in this range. A low referral threshold such as 20% compensates for this. "
+               if under else "")
+            + "Note: temperature scaling was fitted on 5-fold cross-validation predictions (including these lesions), so the "
+              "result is slightly optimistic."))
+
 # ------------------------------------------------------------------ sayfa
 def render_eval():
     if not os.path.exists(PATH):
@@ -530,13 +658,17 @@ def render_eval():
                                 key=_wk("ev_mode", "h")) or "h"
     st.session_state.ev_mode = mode
     M = D["modes"][mode]
-    tabs = st.tabs([L("Performans", "Performance"), L("Eşik simülatörü", "Threshold simulator"),
-                    L("Eşitlik analizi", "Fairness"), L("Poliklinik senaryosu", "Clinic scenario")])
+    tabs = st.tabs([L("Performans", "Performance"), L("Kalibrasyon", "Calibration"), L("Eşik simülatörü", "Threshold simulator"),
+                    L("Karar eğrisi", "Decision curve"), L("Eşitlik analizi", "Fairness"), L("Poliklinik senaryosu", "Clinic scenario")])
     with tabs[0]:
         _tab_performance(D, M, mode)
     with tabs[1]:
-        _tab_simulator(D, M, mode)
+        _tab_calibration(D, M, mode)
     with tabs[2]:
-        _tab_fairness(D, M, mode)
+        _tab_simulator(D, M, mode)
     with tabs[3]:
+        _tab_dca(D, M, mode)
+    with tabs[4]:
+        _tab_fairness(D, M, mode)
+    with tabs[5]:
         _tab_clinic(D, M, mode)

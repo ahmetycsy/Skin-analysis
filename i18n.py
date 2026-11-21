@@ -632,6 +632,85 @@ Do not use filtered, cropped or colour-corrected images.
     "tab_stats": ("İstatistikler", "Statistics"),
 "nav_eval": ("Model analizi", "Model analysis"),
 "nav_survey": ("Kullanılabilirlik anketi", "Usability survey"),
+"kap_title": ("Hekim–model uyumu (Cohen kappa)", "Physician–model agreement (Cohen's kappa)"),
+"kap_need": ("Kappa için tanısı belirtilmiş en az 5 hekim değerlendirmesi gerekir (şu an {n}).",
+             "Kappa needs at least 5 physician reviews with a stated diagnosis (currently {n})."),
+"kap_n": ("Karşılaştırılan vaka", "Cases compared"),
+"kap_type": ("Tür düzeyinde kappa · {lab}", "Class-level kappa · {lab}"),
+"kap_group": ("Grup düzeyinde kappa · {lab}", "Group-level kappa · {lab}"),
+"kap_group_agree": ("Grup düzeyinde aynı karar", "Same group decision"),
+"kap_note": ("Kappa, şans eseri uyumu düşerek hesaplanır: 0 = şanstan farksız, 1 = tam uyum. Tür düzeyi 11 türün aynısını, "
+             "grup düzeyi kötü huylu / kansere dönüşebilir / iyi huylu kararını karşılaştırır. Yorum: Landis ve Koch (1977). "
+             "Hekim tanısı kesin tanı değildir; az vakayla değer çok oynaktır.",
+             "Kappa corrects for chance agreement: 0 = no better than chance, 1 = perfect. Class level compares the same of "
+             "11 classes; group level compares malignant / premalignant / benign. Interpretation: Landis & Koch (1977). "
+             "The physician's diagnosis is not a confirmed diagnosis; with few cases the value is very unstable."),
+"kap_poor": ("şanstan farksız", "no agreement"),
+"kap_slight": ("çok zayıf", "slight"),
+"kap_fair": ("zayıf", "fair"),
+"kap_moderate": ("orta", "moderate"),
+"kap_substantial": ("iyi", "substantial"),
+"kap_perfect": ("çok iyi", "almost perfect"),
+"tour_title": ("Hızlı tur", "Quick tour"),
+"tour1_t": ("1 · Üç adımda analiz", "1 · Analysis in three steps"),
+"tour1": ("**Yeni analiz**'de önce iki görüntüyü yükleyin (klinik yakın çekim + dermoskopik). Yalnızca telefon fotoğrafı "
+          "varsa **hasta modu**nu açın. Görüntüyü gerekirse **kırpın** ya da **döndürün**; site netlik, ışık ve cilt "
+          "kontrolü yapar. Sonra yaş, cinsiyet, ten rengi ve bölgeyi seçip **Analiz et**'e basın.",
+          "In **New analysis**, first upload both images (clinical close-up + dermoscopic). If you only have a phone photo, "
+          "turn on **patient mode**. **Crop** or **rotate** if needed; the site checks sharpness, light and skin. Then choose "
+          "age, sex, skin tone and site and press **Analyse**."),
+"tour2_t": ("2 · Sonucu okumak", "2 · Reading the result"),
+"tour2": ("Renkli kutu **yönlendirme önerisidir** (öncelikli / dermatolog değerlendirmesi / iyi huylu görünüm). Altında "
+          "**%90 güvenli olası tanılar**, **her görüntünün ayrı sonucu** ve modelin baktığı yeri gösteren **ısı haritası** var. "
+          "Sistem **tanı koymaz**; son karar hekimindir.",
+          "The coloured box is a **routing suggestion** (priority / dermatologist review / benign appearance). Below it are "
+          "the **90% possible diagnoses**, **each image's own result** and a **heat map** of where the model looked. The "
+          "system **does not diagnose**; the physician decides."),
+"tour3_t": ("3 · Rapor ve takip", "3 · Report and follow-up"),
+"tour3": ("Her analize bir **vaka numarası** verilir. **PDF raporu** QR kodludur. Aynı lezyon tekrar çekildiğinde "
+          "**\"Bu lezyonun kontrolünü başlat\"** ile vakalar bağlanır ve değişim grafikte görünür. Hekimler menüden "
+          "**PIN ile giriş** yapıp değerlendirme, ABCDE ve kesin tanı girebilir.",
+          "Every analysis gets a **case number**. The **PDF report** has a QR code. When the same lesion is photographed "
+          "again, **\"Start a follow-up of this lesion\"** links the cases and shows the change in a chart. Physicians can "
+          "**log in with a PIN** to add a review, ABCDE and the final diagnosis."),
+"tour4_t": ("4 · Model ve geri bildirim", "4 · Model and feedback"),
+"tour4": ("**Model analizi** sayfası modelin başarısını, kalibrasyonunu, eşik seçimini ve ten rengine göre eşitliği gösterir. "
+          "Sistemi denedikten sonra **Kullanılabilirlik anketi**'ni (2 dakika) doldurursanız projeye çok yardımcı olursunuz.",
+          "The **Model analysis** page shows performance, calibration, threshold choice and fairness by skin tone. After "
+          "trying the system, please fill in the **Usability survey** (2 minutes); it helps the project a lot."),
+"tour_off": ("Bu turu bir daha gösterme", "Don't show this tour again"),
+"tour_skip": ("Atla", "Skip"),
+"tour_next": ("İleri", "Next"),
+"tour_done": ("Başla", "Start"),
+"tour_again": ("Hızlı turu tekrar göster", "Show the quick tour again"),
+"abcde_label": ("ABCDE bulguları (işaretleyin)", "ABCDE findings (select)"),
+"abcde_help": ("Melanom için klasik klinik kontrol listesi. Modele girmez; kayıt ve rapor içindir. Melanom dışındaki türlerde "
+               "(ör. bazal hücreli karsinom) sınırlı değer taşır. Hiçbiri yoksa boş bırakın.",
+               "Classic clinical checklist for melanoma. Not used by the model; for the record and report. Of limited value "
+               "for other lesion types (e.g. basal cell carcinoma). Leave empty if none apply."),
+"abcde_short": ("ABCDE", "ABCDE"),
+"abcde_A": ("A · Asimetri", "A · Asymmetry"),
+"abcde_B": ("B · Düzensiz sınır", "B · Irregular border"),
+"abcde_C": ("C · Renk çeşitliliği", "C · Colour variation"),
+"abcde_D": ("D · Çap > 6 mm", "D · Diameter > 6 mm"),
+"abcde_E": ("E · Değişim", "E · Evolving"),
+"abcde_none": ("0/5 · bulgu yok", "0/5 · none"),
+"abcde_conflict": ("<b>Hekim bulguları ile model uyuşmuyor:</b> ABCDE kontrol listesi ile modelin değerlendirmesi farklı yönde. "
+                   "Klinik karar hekimindir; gerekirse dermatoloğa danışın.",
+                   "<b>Physician findings and the model disagree:</b> the ABCDE checklist and the model's assessment point in "
+                   "different directions. The clinical decision is the physician's; consult a dermatologist if needed."),
+"mod_pdf": ("Görüntü uyumu", "Image agreement"),
+"mod_pdf_v": ("İki görüntü farklı sonuçlara işaret ediyor; temkinli yorumlayın", "The two images disagree; interpret with caution"),
+"mod_title": ("Her görüntü ne diyor?", "What does each image say?"),
+"mod_top": ("en olası: {c} {p}", "most likely: {c} {p}"),
+"mod_help": ("Dermoskopik ve klinik modellerin ayrı ayrı çıktısı. Sonuç bu ikisinin eşit ağırlıklı ortalamasıdır "
+             "(ardından kalibre edilir); buradaki değerler kalibrasyon öncesidir.",
+             "Separate outputs of the dermoscopic and clinical models. The result is their equal-weight average "
+             "(then calibrated); values here are before calibration."),
+"mod_disagree": ("<b>İki görüntü farklı sonuçlara işaret ediyor.</b> Görüntülerden biri lezyonu iyi göstermiyor olabilir "
+                 "(bulanık, uzak, farklı lezyon) ya da lezyon gerçekten zor. Görüntüleri kontrol edin; sonucu temkinli yorumlayın.",
+                 "<b>The two images point to different results.</b> One image may not show the lesion well (blurred, far away, "
+                 "a different lesion) or the lesion is genuinely difficult. Check the images and interpret with caution."),
 "ev_sus": ("Kullanılabilirlik anketi dolduruldu (SUS {s})", "Usability survey submitted (SUS {s})"),
 "btn_rotate": ("Döndür", "Rotate"),
 "rotate_help": ("Görüntüyü saat yönünde 90° döndürür (yan çekilmiş fotoğraflar için).",

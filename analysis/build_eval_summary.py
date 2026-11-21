@@ -59,7 +59,7 @@ SUB = {
 }
 SUB_ORDER = {"tone": ["0-2", "3", "4", "5"], "sex": ["female", "male"], "age": ["<40", "40-59", "60-74", "75+"]}
 
-out = {"n": int(len(df)), "classes": CLASSES, "grid": GRID, "levels": LEVELS, "true_groups": TRUE_GROUPS,
+out = {"dca_thresholds": [round(x, 2) for x in np.arange(0.01, 0.801, 0.01)], "n": int(len(df)), "classes": CLASSES, "grid": GRID, "levels": LEVELS, "true_groups": TRUE_GROUPS,
        "true_group_n": {g: int((tg == g).sum()) for g in TRUE_GROUPS},
        "current": {"U": REFER_URGENT_MALIGN, "R": REFER_MALIGN_OR_PRE, "top": UNCERTAIN_TOP, "gap": UNCERTAIN_GAP},
        "modes": {}}
@@ -79,7 +79,34 @@ for mode in ("h", "p"):
             subs[dim].append({"key": key, "n": int(m.sum()), "correct": int((pred[m] == yi[m]).sum()),
                               "cm": cm(pred, m), "levels": level_counts(lv_cur, m)})
     correct = pred == yi
+    # kalibrasyon: en olası türün olasılığı (güven) ile gerçekten doğru çıkma oranı, 10 eşit aralık
+    conf = P.max(1)
+    cal = []
+    for lo in np.arange(0, 1, 0.1):
+        m = (conf >= lo) & ((conf < lo + 0.1) if lo < 0.9 else (conf <= 1))
+        cal.append({"lo": round(float(lo), 1), "n": int(m.sum()),
+                    "conf": float(conf[m].mean()) if m.any() else None, "acc": float(correct[m].mean()) if m.any() else None})
+    ece = float(sum(c["n"] * abs(c["conf"] - c["acc"]) for c in cal if c["n"]) / len(df))
+    # kötü huylu toplam olasılık ile gerçekten kötü huylu olma oranı (ikili kalibrasyon)
+    mal_score = P[:, MAL_IDX].sum(1)
+    is_mal = tg == "mal"
+    cal_mal = []
+    for lo in np.arange(0, 1, 0.1):
+        m = (mal_score >= lo) & ((mal_score < lo + 0.1) if lo < 0.9 else (mal_score <= 1))
+        cal_mal.append({"lo": round(float(lo), 1), "n": int(m.sum()),
+                        "pred": float(mal_score[m].mean()) if m.any() else None, "obs": float(is_mal[m].mean()) if m.any() else None})
+    # karar eğrisi (net fayda) için: eşik pt'de "pozitif" denen gerçek pozitif / yanlış pozitif sayıları
+    risk_score = P[:, RISK_IDX].sum(1)
+    is_risk = tg != "ben"
+    pts = [round(x, 2) for x in np.arange(0.01, 0.801, 0.01)]
+    dca = {
+        "mal": {"npos": int(is_mal.sum()), "nneg": int((~is_mal).sum()),
+                "tp": [int(((mal_score >= t) & is_mal).sum()) for t in pts], "fp": [int(((mal_score >= t) & ~is_mal).sum()) for t in pts]},
+        "risk": {"npos": int(is_risk.sum()), "nneg": int((~is_risk).sum()),
+                 "tp": [int(((risk_score >= t) & is_risk).sum()) for t in pts], "fp": [int(((risk_score >= t) & ~is_risk).sum()) for t in pts]},
+    }
     out["modes"][mode] = {
+        "calibration": {"bins": cal, "ece": ece, "mal_bins": cal_mal}, "dca": dca,
         "cm": cm(pred, allm), "grid": grid, "subgroups": subs,
         "uncertain": {"n": int(unc.sum()), "acc_unc": float(correct[unc].mean()), "acc_rest": float(correct[~unc].mean())},
     }

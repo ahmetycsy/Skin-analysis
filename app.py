@@ -90,6 +90,7 @@ STATUSES = {"new": ("stat_new", "#5F747C"), "reviewed": ("stat_reviewed", "#2F7F
             "awaiting": ("stat_awaiting", "#B0701A"), "closed": ("stat_closed", "#56707A" if DARK else "#1F3A44")}
 LEVEL_COLORS = {"urgent": C_MALIGN, "refer": C_PREMALIGN, "benign": C_BENIGN}
 LEVEL_RANK = {"urgent": 0, "refer": 1, "benign": 2}
+ABCDE = ["A", "B", "C", "D", "E"]  # asimetri, sınır, renk, çap > 6 mm, değişim (hekim işaretler; modele girmez)
 METHODS = {"histo": "m_histo", "clinical": "m_clinical", "consensus": "m_consensus"}
 APP_URL = "https://bau-skin-cds.streamlit.app"  # QR koddaki bağlantı (Streamlit Cloud adresi)
 
@@ -209,6 +210,10 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .arrow-up {{ color:{C_MALIGN}; font-weight:600; }} .arrow-down {{ color:{C_BENIGN}; font-weight:600; }} .arrow-flat {{ color:{MUTED}; font-weight:600; }}
 .ps-row {{ display:flex; flex-wrap:wrap; gap:.35rem; margin:.1rem 0 .3rem; }}
 .gpill-ps {{ font-size:.82rem; font-weight:600; border:1.5px solid; border-radius:999px; padding:.15rem .65rem; background:#fff; }}
+.mod-row {{ margin:.1rem 0 .55rem; }} .mod-name {{ font-size:.86rem; font-weight:600; }}
+.mod-sub {{ font-size:.8rem; color:{MUTED}; }}
+.tour-dots {{ display:flex; gap:.35rem; align-items:center; }} .tour-dots i {{ width:.5rem; height:.5rem; border-radius:50%; background:{LINE}; }}
+.tour-dots i.on {{ background:{TEAL}; width:1.3rem; border-radius:999px; }} .tour-dots span {{ font-size:.75rem; color:{MUTED}; margin-left:.4rem; }}
 .ps-note {{ font-size:.8rem; color:{MUTED}; margin-bottom:.2rem; }}
 .empty {{ color:{MUTED}; font-size:.94rem; line-height:1.6; padding:1rem .2rem; }}
 
@@ -533,6 +538,8 @@ def physician_lines(rec: dict):
     rows = []
     if fb:
         rows += [(t("fb_dx"), dx_label(fb["dx"])), (t("fb_agree"), t(AGREE[fb["agree"]])), (t("fb_action"), t(ACTIONS[fb["action"]]))]
+        if fb.get("abcde") is not None:
+            rows.append((t("abcde_short"), abcde_text(fb["abcde"])))
         if fb.get("followup"):
             rows.append((t("fu_label"), fmt_date(fb["followup"])))
         if fb["note"]:
@@ -540,6 +547,23 @@ def physician_lines(rec: dict):
     if fin:
         rows.append((t("final_dx"), f"{dx_label(fin['dx'])} · {t(METHODS[fin['method']])}"))
     return rows
+
+
+def abcde_text(ks: list) -> str:
+    ks = [k for k in ABCDE if k in (ks or [])]
+    if not ks:
+        return t("abcde_none")
+    return f"{len(ks)}/5 · " + ", ".join(t(f"abcde_{k}") for k in ks)
+
+
+def abcde_conflict(rec: dict) -> bool:
+    """Hekim ABCDE'de 3+ madde işaretledi ama model iyi huylu görünüm dedi (ya da tersine hiç işaret yok ama öncelikli)."""
+    fb = rec.get("feedback") or {}
+    if fb.get("abcde") is None:
+        return False
+    lvl = assess(rec["probs"])["level"]
+    return (len(fb["abcde"]) >= 3 and lvl == "benign") or (len(fb["abcde"]) == 0 and lvl == "urgent" and
+                                                             assess(rec["probs"])["ranked"][0][0] == "MEL")
 
 
 def qr_png(cid: str):
@@ -574,6 +598,7 @@ def export_csv(cases: dict) -> bytes:
         row.update({
             "status": r["status"], "physician_dx": fb.get("dx", ""), "agreement": fb.get("agree", ""),
             "action": fb.get("action", ""), "followup": fb.get("followup", "") or "",
+            "abcde": "".join(fb.get("abcde") or []) if fb.get("abcde") is not None else "",
             "final_dx": fin.get("dx", ""), "final_method": fin.get("method", ""), "model": r["model_name"],
         })
         rows.append(row)
@@ -607,6 +632,8 @@ def pdf_extra_lines(rec: dict):
     ps = pred_set(rec)
     if ps:
         rows.append((t("ps_title"), ", ".join(i18n.plain(c) for c in ps)))
+    if modality_disagree(rec.get("parts")):
+        rows.append((t("mod_pdf"), t("mod_pdf_v")))
     return rows
 
 
@@ -769,6 +796,36 @@ def event_text(ev: dict) -> str:
     return t({"created": "ev_created", "feedback": "ev_feedback", "feedback_upd": "ev_feedback_upd"}[ev["kind"]])
 
 
+def modality_disagree(parts: dict):
+    """İki görüntü belirgin biçimde farklı sonuç veriyor mu? En olası tür farklı VE kötü huylu toplam farkı ≥ 25 puan
+    ya da kötü huylu toplam farkı ≥ 40 puan."""
+    if not parts or "derm" not in parts or "clin" not in parts:
+        return False
+    mal = {k: sum(p for c, p in v.items() if GROUPS[c] == MALIGN) for k, v in parts.items()}
+    top = {k: max(v, key=v.get) for k, v in parts.items()}
+    d = abs(mal["derm"] - mal["clin"])
+    return (top["derm"] != top["clin"] and d >= 0.25) or d >= 0.40
+
+
+def modality_panel(rec: dict):
+    parts = rec.get("parts")
+    if not parts or len(parts) < 2:
+        return
+    st.markdown(f'<div class="sec-label">{t("mod_title")}</div>', unsafe_allow_html=True)
+    rows = ""
+    for kind, label in (("derm", t("derm_title")), ("clin", t("clin_title"))):
+        p = parts[kind]
+        tot = {g: sum(v for c, v in p.items() if GROUPS[c] == g) for g in GROUP_ORDER}
+        top = max(p, key=p.get)
+        bar = "".join(f'<div style="width:{tot[g] * 100:.2f}%;background:{GROUP_COLORS[g]}"></div>' for g in GROUP_ORDER)
+        rows += (f'<div class="mod-row"><div class="mod-name">{label}</div><div class="stack" style="margin:.15rem 0">{bar}</div>'
+                 f'<div class="mod-sub">{t("mod_top", c=i18n.plain(top), p=i18n.pct(p[top]))} · '
+                 f'{i18n.group(MALIGN)} {i18n.pct(tot[MALIGN])}</div></div>')
+    st.markdown(f'<div class="mod">{rows}</div>', unsafe_allow_html=True, help=t("mod_help"))
+    if modality_disagree(parts):
+        st.markdown(f'<div class="unsure">{t("mod_disagree")}</div>', unsafe_allow_html=True)
+
+
 def find_case(cid: str):
     """Vaka numarası bu oturumda ya da veritabanında varsa numarayı döndürür (veritabanındakini belleğe alır)."""
     if cid in ss.cases:
@@ -913,6 +970,40 @@ if not ss.consent:
             st.rerun()
 
     consent_dialog()
+elif not ss.get("tour_done") and (ss.get("tour_force") or not st.context.cookies.get("cds_tour_off")):
+    # İlk kullanım turu: onaydan hemen sonra bir kez (bu oturumda). "Bir daha gösterme" tarayıcıya çerez yazar.
+    @st.dialog(t("tour_title"), width="medium", on_dismiss=lambda: ss.update(tour_done=True, tour_force=False))
+    def tour_dialog():
+        steps = [("tour1_t", "tour1"), ("tour2_t", "tour2"), ("tour3_t", "tour3"), ("tour4_t", "tour4")]
+        i = min(ss.get("tour_step", 0), len(steps) - 1)
+        dots = "".join(f'<i class="{"on" if k == i else ""}"></i>' for k in range(len(steps)))
+        st.markdown(f'<div class="tour-dots">{dots}<span>{i + 1}/{len(steps)}</span></div>'
+                    f'<div class="card-title" style="margin-top:.4rem">{t(steps[i][0])}</div>', unsafe_allow_html=True)
+        st.markdown(t(steps[i][1]))
+        st.checkbox(t("tour_off"), key="tour_off_chk")
+        b1, b2, b3 = st.columns([1, 1, 1.2])
+        last = i == len(steps) - 1
+
+        def _close():
+            ss.update(tour_done=True, tour_force=False, tour_step=0, tour_cookie=bool(ss.get("tour_off_chk")))
+
+        if b1.button(t("tour_skip"), width="stretch", key="tour_skip"):
+            _close()
+            st.rerun()
+        if i > 0:
+            b2.button(t("btn_back"), width="stretch", key="tour_back", on_click=lambda: ss.update(tour_step=i - 1))
+        if last:
+            if b3.button(t("tour_done"), type="primary", width="stretch", key="tour_next"):
+                _close()
+                st.rerun()
+        else:
+            b3.button(t("tour_next"), type="primary", width="stretch", key="tour_next",
+                      on_click=lambda: ss.update(tour_step=i + 1))
+
+    tour_dialog()
+if ss.pop("tour_cookie", False):
+    components.html("<script>window.parent.document.cookie = 'cds_tour_off=1; max-age=31536000; path=/; SameSite=Lax';</script>",
+                    height=0)
 
 with st.sidebar:
     st.markdown(
@@ -1104,6 +1195,8 @@ def render_case(cid: str, where: str):
             )
         st.markdown(f"<div>{cards}</div>", unsafe_allow_html=True)
 
+        modality_panel(rec)
+
         st.markdown(f'<div class="sec-label">{t("cam_title")}</div>', unsafe_allow_html=True)
         if rec.get("cam_img") is not None and (rec.get("derm_jpg") or rec.get("clin_jpg")):
             g1, g2 = st.columns(2)
@@ -1158,8 +1251,11 @@ def render_case(cid: str, where: str):
             st.markdown(status_pill(rec["status"]), unsafe_allow_html=True)
             if fb:
                 extra = f" · {t('fu_label')}: {fmt_date(fb['followup'])}" if fb.get("followup") else ""
+                extra += f" · ABCDE {abcde_text(fb['abcde'])}" if fb.get("abcde") is not None else ""
                 st.markdown(f'<div class="fb-done" style="margin-top:.6rem">✓ {html.escape(fb_summary(fb))}{extra}</div>',
                             unsafe_allow_html=True)
+                if abcde_conflict(rec):
+                    st.markdown(f'<div class="unsure">{t("abcde_conflict")}</div>', unsafe_allow_html=True)
             if fin:
                 st.markdown(f'<div class="final">{t("closed_info", dx=dx_label(fin["dx"]), m=t(METHODS[fin["method"]]))}</div>',
                             unsafe_allow_html=True)
@@ -1221,7 +1317,10 @@ def render_case(cid: str, where: str):
         with s2:
             if fb:
                 extra = f" · {t('fu_label')}: {fmt_date(fb['followup'])}" if fb.get("followup") else ""
+                extra += f" · ABCDE {abcde_text(fb['abcde'])}" if fb.get("abcde") is not None else ""
                 st.markdown(f'<div class="fb-done">✓ {html.escape(fb_summary(fb))}{extra}</div>', unsafe_allow_html=True)
+                if abcde_conflict(rec):
+                    st.markdown(f'<div class="unsure">{t("abcde_conflict")}</div>', unsafe_allow_html=True)
             with st.expander(t("fb_edit") if fb else t("fb_open"), expanded=not fb and where == "track"):
                 st.caption(t("fb_intro"))
                 with st.form(key=f"fb_form_{cid}_{where}_{ss.lang}", border=False):
@@ -1232,6 +1331,8 @@ def render_case(cid: str, where: str):
                                      index=list(AGREE).index(fb["agree"]) if fb else None, format_func=lambda k: t(AGREE[k]))
                     action = st.selectbox(t("fb_action"), list(ACTIONS), format_func=lambda k: t(ACTIONS[k]),
                                           index=list(ACTIONS).index(fb["action"]) if fb else None, placeholder="—")
+                    abcde = st.pills(t("abcde_label"), ABCDE, selection_mode="multi", default=(fb or {}).get("abcde") or [],
+                                     format_func=lambda k: t(f"abcde_{k}"), help=t("abcde_help"))
                     fu_val = datetime.fromisoformat(fb["followup"]).date() if fb and fb.get("followup") else None
                     fu = st.date_input(t("follow_date"), value=fu_val, format="DD.MM.YYYY", help=t("follow_help"))
                     note = st.text_area(t("fb_note"), value=fb["note"] if fb else "", max_chars=300,
@@ -1244,6 +1345,7 @@ def render_case(cid: str, where: str):
                             r = ss.cases[cid]
                             add_event(r, "feedback_upd" if r["feedback"] else "feedback")
                             r["feedback"] = {"dx": dx, "agree": agree, "action": action, "note": note.strip(),
+                                             "abcde": [k for k in ABCDE if k in (abcde or [])],
                                              "followup": fu.isoformat() if fu else None,
                                              "time": now_tr().strftime("%d.%m.%Y %H:%M")}
                             new_status = "awaiting" if dx == "unknown" or action == "biopsy" else "reviewed"
@@ -1432,7 +1534,10 @@ def step_patient():
             st.write("② " + t("prog_2"))
             t0 = time.perf_counter()
             meta = Meta(age=age, sex=sex, skin_tone=skin_tone, site=site)
-            probs = predictor.predict(clin_img, derm_img, meta)
+            if hasattr(predictor, "predict_detail"):
+                probs, parts = predictor.predict_detail(clin_img, derm_img, meta)
+            else:
+                probs, parts = predictor.predict(clin_img, derm_img, meta), None
             cam = predictor.explain(clin_img, derm_img, meta) if hasattr(predictor, "explain") else None
             elapsed = time.perf_counter() - t0
             time.sleep(0.3)
@@ -1449,6 +1554,7 @@ def step_patient():
             "model_name": predictor.name + (" – hasta modu" if pm else ""),
             "mode": "hasta" if pm else "hekim",
             "probs": probs,
+            "parts": parts,  # görüntü başına ham olasılıklar (yalnızca bellekte; veritabanına gitmez)
             "elapsed": elapsed,
             "meta": {"age": age, "sex": sex, "skin_tone": skin_tone, "site": site},
             "clin_jpg": jpeg_thumb(clin_img),
@@ -1697,6 +1803,8 @@ elif ss.page == "about":
     render_about()
 else:
     page_header(t("tab_guide"))
+    st.button(t("tour_again"), icon=":material/tour:", key="tour_again",
+              on_click=lambda: ss.update(tour_done=False, tour_force=True, tour_step=0))
     render_guide()
 
 flush_db()  # bu çalıştırmada biriken kayıtları veritabanına yaz

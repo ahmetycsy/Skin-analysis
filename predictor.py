@@ -130,14 +130,23 @@ class MockPredictor:
     is_mock = True
     load_error = None  # gerçek model denendi ama yüklenemediyse hata metni
 
-    def predict(self, clinical: Image.Image, dermoscopic, meta: Meta) -> dict[str, float]:
-        derm_bytes = dermoscopic.tobytes()[:50000] if dermoscopic is not None else b"hasta"
-        h = hashlib.sha256(clinical.tobytes()[:50000] + derm_bytes).digest()
+    @staticmethod
+    def _fake(img: Image.Image) -> np.ndarray:
+        h = hashlib.sha256(img.tobytes()[:50000]).digest()
         rng = np.random.default_rng(int.from_bytes(h[:8], "little"))
         logits = rng.normal(size=len(CLASSES)) * 1.5
-        probs = np.exp(logits - logits.max())
-        probs /= probs.sum()
-        return dict(zip(CLASSES, probs.tolist()))
+        p = np.exp(logits - logits.max())
+        return p / p.sum()
+
+    def predict(self, clinical: Image.Image, dermoscopic, meta: Meta) -> dict[str, float]:
+        return self.predict_detail(clinical, dermoscopic, meta)[0]
+
+    def predict_detail(self, clinical: Image.Image, dermoscopic, meta=None):
+        parts = {"clin": self._fake(clinical)}
+        if dermoscopic is not None:
+            parts["derm"] = self._fake(dermoscopic)
+        p = np.mean(list(parts.values()), axis=0)
+        return dict(zip(CLASSES, p.tolist())), {k: dict(zip(CLASSES, v.tolist())) for k, v in parts.items()}
 
 
 class RealPredictor:
@@ -203,15 +212,20 @@ class RealPredictor:
         return "hekim" if dermoscopic is not None else "hasta"
 
     def predict(self, clinical: Image.Image, dermoscopic: Image.Image | None, meta: Meta | None = None) -> dict[str, float]:
+        return self.predict_detail(clinical, dermoscopic, meta)[0]
+
+    def predict_detail(self, clinical: Image.Image, dermoscopic: Image.Image | None, meta: Meta | None = None):
+        """(birleşik kalibre olasılıklar, görüntü türü başına ham olasılıklar). İkincisi "hangi görüntü ne dedi" gösterimi için;
+        kalibrasyon yalnızca birleşik sonuca uygulanır (config böyle ayarlandı), görüntü başına değerler kalibrasyon öncesidir."""
         spec = self.cfg["modes"][self.mode_for(dermoscopic)]
         imgs = {"clin": clinical, "derm": dermoscopic}
-        parts = [np.mean([self._model_probs(run, imgs[kind]) for run in runs], axis=0)
-                 for kind, runs in spec["members"].items()]
-        p = np.mean(parts, axis=0)
+        parts = {kind: np.mean([self._model_probs(run, imgs[kind]) for run in runs], axis=0)
+                 for kind, runs in spec["members"].items()}
+        p = np.mean(list(parts.values()), axis=0)
         z = np.log(p + 1e-9) / spec["temperature"]          # kalibrasyon (temperature scaling)
         z -= z.max()
         p = np.exp(z) / np.exp(z).sum()
-        return dict(zip(CLASSES, p.tolist()))
+        return dict(zip(CLASSES, p.tolist())), {k: dict(zip(CLASSES, v.tolist())) for k, v in parts.items()}
 
     def prediction_set(self, probs: dict[str, float], dermoscopic_given: bool = True) -> list[str]:
         """%90 güvenle gerçek tanıyı içeren olası tanılar listesi (conformal prediction), olasılığa göre sıralı.
