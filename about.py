@@ -29,9 +29,9 @@ ADVISOR = "Zühal Özcan Yavuz"
 # Kaynak: tugalp dalındaki cv_table.md / ahmet_claude_ozet.md. Kullanılan ağırlıklar kat 0 modelleridir.
 MODEL_STATUS = [
     {"name": ("ISIC MILK10k Benchmark — bağımsız gizli test (479 lezyon)", "ISIC MILK10k Benchmark — independent hidden test (479 lesions)"),
-     "arch": ("Kullanılan sistem (hekim modu)", "Deployed system (physician mode)"), "status": "external", "f1": 0.485,
-     "note": ("ISIC tarafından puanlandı (önceki klinik modellerle) · cevap anahtarı bizde değil",
-              "Scored by ISIC (with the previous clinical models) · labels not available to us")},
+     "arch": ("Kullanılan sistem (hekim modu)", "Deployed system (physician mode)"), "status": "external", "f1": 0.483,
+     "note": ("ISIC tarafından puanlandı · cevap anahtarı bizde değil · ilk sürüm (yalnız MILK10k) 0,485",
+              "Scored by ISIC · labels not available to us · first version (MILK10k only) 0.485")},
     {"name": ("Kullanılan sistem — hekim modu (4 model)", "Deployed system — physician mode (4 models)"),
      "arch": ("B3 + V2-S, derm (+ISIC 2019) + klinik (+PAD) ortalaması", "B3 + V2-S, mean of derm (+ISIC 2019) + clinical (+PAD)"), "status": "used", "f1": 0.594,
      "note": ("1.048 lezyonluk kontrol · doğruluk %80,1 · kaçırılan kötü huylu 14/691 · yalnızca MILK10k ile eğitilen ilk sürüm 0,546 / %76,8, 5 katlı CV 0,542",
@@ -251,7 +251,11 @@ FAQ = [
 ]
 
 
-def render_about():
+def render_about(part: str = "overview"):
+    """part: "overview" (özet + geliştirme durumu) ya da "details" (mimari, veri, sınırlılıklar, etik, proje)."""
+    if part == "details":
+        _render_details()
+        return
     st.markdown(f'<p class="lead">{_L(TXT["lead"])}</p>', unsafe_allow_html=True)
     best = next((m["f1"] for m in MODEL_STATUS if m["status"] == "used"), None)
     kpis = [(_int(N_LESIONS), _L(TXT["k_lesions"])), (_int(N_LESIONS * 2), _L(TXT["k_images"])),
@@ -275,6 +279,8 @@ def render_about():
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
         st.caption(_L(TXT["f1_note"]))
 
+
+def _render_details():
     _h(_L(("Sistem mimarisi", "System architecture")))
     from architecture import render_architecture
     render_architecture()

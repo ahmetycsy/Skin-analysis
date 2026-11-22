@@ -1,6 +1,7 @@
 """MILK10k Benchmark (ISIC gizli test seti, 479 lezyon) için tahmin dosyası üretir.
 
-Kullanım: python3 isic_benchmark/predict_benchmark.py <test_görüntü_klasörü> <MILK10k_Test_Metadata.csv>
+Kullanım: python3 isic_benchmark/predict_benchmark.py <test_görüntü_klasörü> <MILK10k_Test_Metadata.csv> [ek_ad]
+(ek_ad verilirse dosya adlarının sonuna eklenir, eski gönderim dosyaları korunur. ISIC puanlayıcısı `lesion_id` sütununu tanır.)
 Çıktılar (isic_benchmark/ içinde; .csv dosyaları .gitignore'da):
   - benchmark_probs_raw.csv   : modelin kalibre olasılıkları (toplamı 1), rapor ve analiz için
   - milk10k_benchmark_submission.csv : ISIC'e gönderilecek dosya
@@ -23,6 +24,7 @@ sys.path.insert(0, ROOT)
 from predictor import CLASSES, RealPredictor  # noqa: E402
 
 img_dir, meta_csv = sys.argv[1], sys.argv[2]
+sfx = f"_{sys.argv[3]}" if len(sys.argv) > 3 else ""
 out_dir = os.path.join(ROOT, "isic_benchmark")
 meta = pd.read_csv(meta_csv)
 paths = {os.path.splitext(os.path.basename(p))[0]: p for p in glob.glob(os.path.join(img_dir, "**", "*.jpg"), recursive=True)}
@@ -35,17 +37,17 @@ for i, (lid, g) in enumerate(meta.groupby("lesion_id", sort=True)):
     derm_id = g[g.image_type.str.contains("dermoscop", case=False)].isic_id.iloc[0]
     clin_id = g[~g.image_type.str.contains("dermoscop", case=False)].isic_id.iloc[0]
     probs = p.predict(Image.open(paths[clin_id]).convert("RGB"), Image.open(paths[derm_id]).convert("RGB"), None)
-    rows.append({"lesion": lid, **probs})
+    rows.append({"lesion_id": lid, **probs})
     if (i + 1) % 50 == 0:
         print(f"{i + 1} lezyon, {time.time() - t0:.0f} sn", flush=True)
 
-raw = pd.DataFrame(rows)[["lesion"] + CLASSES]
-raw.to_csv(os.path.join(out_dir, "benchmark_probs_raw.csv"), index=False)
+raw = pd.DataFrame(rows)[["lesion_id"] + CLASSES]
+raw.to_csv(os.path.join(out_dir, f"benchmark_probs_raw{sfx}.csv"), index=False)
 sub = raw.copy()
 top = sub[CLASSES].idxmax(axis=1)
 for c in CLASSES:
     sub.loc[top == c, c] = 1.0
 assert len(sub) == meta.lesion_id.nunique() and sub[CLASSES].ge(0.5).sum(axis=1).eq(1).all()
-sub.to_csv(os.path.join(out_dir, "milk10k_benchmark_submission.csv"), index=False, float_format="%.6f")
+sub.to_csv(os.path.join(out_dir, f"milk10k_benchmark_submission{sfx}.csv"), index=False, float_format="%.6f")
 print("tamam:", len(sub), "lezyon | tahmin edilen tür dağılımı:", top.value_counts().to_dict())
 print("en olası türün olasılığı < 0,5 olan lezyon:", int((raw[CLASSES].max(axis=1) < 0.5).sum()))

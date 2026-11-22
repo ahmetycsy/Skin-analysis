@@ -630,8 +630,18 @@ Do not use filtered, cropped or colour-corrected images.
 
     # istatistik sekmesi
     "tab_stats": ("İstatistikler", "Statistics"),
-"nav_eval": ("Model analizi", "Model analysis"),
+"nav_eval": ("Ayrıntılı analiz", "Detailed analysis"),
 "nav_survey": ("Kullanılabilirlik anketi", "Usability survey"),
+"nav_health": ("Cilt sağlığı", "Skin health"),
+"nav_model": ("Model", "Model"),
+"nav_help": ("Yardım", "Help"),
+"sub_cases": ("Vakalar", "Cases"),
+"sub_overview": ("Genel bakış", "Overview"),
+"sub_versions": ("Sürüm geçmişi", "Version history"),
+"sub_details": ("Veri ve sınırlılıklar", "Data and limitations"),
+"sub_share": ("Siteyi paylaş", "Share the site"),
+"health_sub": ("Erken fark etmek için kendi kendine muayene, uyarı işaretleri ve korunma", "Self-examination, warning signs and protection for early detection"),
+"photo_tips": ("İyi fotoğraf nasıl çekilir?", "How to take a good photo"),
 "kap_title": ("Hekim–model uyumu (Cohen kappa)", "Physician–model agreement (Cohen's kappa)"),
 "kap_need": ("Kappa için tanısı belirtilmiş en az 5 hekim değerlendirmesi gerekir (şu an {n}).",
              "Kappa needs at least 5 physician reviews with a stated diagnosis (currently {n})."),
@@ -674,10 +684,12 @@ Do not use filtered, cropped or colour-corrected images.
           "again, **\"Start a follow-up of this lesion\"** links the cases and shows the change in a chart. Physicians can "
           "**log in with a PIN** to add a review, ABCDE and the final diagnosis."),
 "tour4_t": ("4 · Model ve geri bildirim", "4 · Model and feedback"),
-"tour4": ("**Model analizi** sayfası modelin başarısını, kalibrasyonunu, eşik seçimini ve ten rengine göre eşitliği gösterir. "
-          "Sistemi denedikten sonra **Kullanılabilirlik anketi**'ni (2 dakika) doldurursanız projeye çok yardımcı olursunuz.",
-          "The **Model analysis** page shows performance, calibration, threshold choice and fairness by skin tone. After "
-          "trying the system, please fill in the **Usability survey** (2 minutes); it helps the project a lot."),
+"tour4": ("**Model** sayfası başarıyı, sürüm geçmişini ve ayrıntılı analizi (kalibrasyon, eşikler, ten rengine göre eşitlik) gösterir. "
+          "**Cilt sağlığı** sayfasında kendi kendine muayene ve fotoğraf çekme ipuçları var. Sistemi denedikten sonra "
+          "**Yardım → Kullanılabilirlik anketi**'ni (2 dakika) doldurursanız projeye çok yardımcı olursunuz.",
+          "The **Model** page shows performance, version history and detailed analysis (calibration, thresholds, fairness "
+          "by skin tone). **Skin health** has self-examination and photo tips. After trying the system, please fill in "
+          "**Help → Usability survey** (2 minutes); it helps the project a lot."),
 "tour_off": ("Bu turu bir daha gösterme", "Don't show this tour again"),
 "tour_skip": ("Atla", "Skip"),
 "tour_next": ("İleri", "Next"),

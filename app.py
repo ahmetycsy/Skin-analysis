@@ -38,6 +38,7 @@ from predictor import (
 from stats_page import render_stats
 from eval_page import render_eval
 from survey_page import render_survey
+from health_page import render_photo_tips, render_share, render_skin_health, render_versions
 from db import get_db
 
 try:  # kırpma eklentisi yoksa uygulama yine çalışsın
@@ -1018,11 +1019,9 @@ with st.sidebar:
     nav = [
         ("new", t("nav_new"), ":material/add_circle:"),
         ("track", t("nav_track") + (f"  ·  {n_cases}" if n_cases else ""), ":material/folder_open:"),
-        ("stats", t("tab_stats"), ":material/bar_chart:"),
-        ("eval", t("nav_eval"), ":material/analytics:"),
-        ("survey", t("nav_survey"), ":material/rate_review:"),
-        ("about", t("tab_about"), ":material/info:"),
-        ("guide", t("tab_guide"), ":material/menu_book:"),
+        ("health", t("nav_health"), ":material/health_and_safety:"),
+        ("model", t("nav_model"), ":material/insights:"),
+        ("help", t("nav_help"), ":material/help:"),
     ]
     for key, label, icon in nav:
         st.button(label, key=f"nav_{key}", icon=icon, width="stretch",
@@ -1374,6 +1373,8 @@ def page_new():
 def step_images():
     pm = st.toggle(t("pm_toggle"), value=patient_mode(), key=wkey("pm"), help=t("pm_help"))
     ss.v_patient = pm
+    with st.expander(t("photo_tips"), icon=":material/photo_camera:"):
+        render_photo_tips(compact=True)
     used = ("clin",) if pm else ("clin", "derm")
     cards = {"clin": ("clin_pill", "clin_title", "clin_text"), "derm": ("derm_pill", "derm_title", "derm_text")}
     cols = st.columns(2, gap="medium")
@@ -1779,32 +1780,62 @@ def page_track():
 
 
 # ---------------------------------------------------------------- yönlendirme
+def sub_nav(name: str, options: dict) -> str:
+    """Sayfa içi sade alt menü (sekme yerine; seçim oturumda kalır)."""
+    key = f"sub_{name}"
+    if ss.get(key) not in options:
+        ss[key] = next(iter(options))
+    st.segmented_control(name, list(options), format_func=options.get, key=key, label_visibility="collapsed",
+                         on_change=lambda: ss[key] or ss.update({key: next(iter(options))}))
+    return ss[key] or next(iter(options))
+
+
+OLD_PAGES = {"stats": ("track", "stats"), "eval": ("model", "details_eval"), "survey": ("help", "survey"),
+             "about": ("model", "overview"), "guide": ("help", "guide")}
+if ss.page in OLD_PAGES:  # eski sayfa adları (açık oturumlar)
+    _pg, _sub = OLD_PAGES[ss.page]
+    ss.page, ss[f"sub_{_pg}"] = _pg, _sub
+
 if ss.page == "new":
     page_new()
 elif ss.page == "track":
-    page_track()
-elif ss.page == "stats":
-    sync_from_db()
-    page_header(t("tab_stats"))
-    history = [{"case": r["case"], "time": r["time"], "meta": r["meta"], "top": assess(r["probs"])["ranked"][0],
-                "level": assess(r["probs"])["level"], "elapsed": r["elapsed"]} for r in ss.cases.values()]
-    feedback = {cid: r["feedback"] for cid, r in ss.cases.items() if r["feedback"]}
-    finals = [{"case": cid, "final": r["final"]["dx"], "ranked": [c for c, _ in assess(r["probs"])["ranked"]],
-               "level": assess(r["probs"])["level"]} for cid, r in ss.cases.items() if r.get("final")]
-    render_stats(history, feedback, predictor.is_mock, GROUP_COLORS, finals, db_on=DB is not None)
-elif ss.page == "eval":
-    page_header(t("nav_eval"), t("eval_sub"))
-    render_eval()
-elif ss.page == "survey":
-    page_header(t("nav_survey"))
-    render_survey(DB, APP_VERSION, log)
-elif ss.page == "about":
-    page_header(t("tab_about"))
-    render_about()
+    view = "cases" if ss.open_case in ss.cases else sub_nav("track", {"cases": t("sub_cases"), "stats": t("tab_stats")})
+    if view == "cases":
+        page_track()
+    else:
+        sync_from_db()
+        history = [{"case": r["case"], "time": r["time"], "meta": r["meta"], "top": assess(r["probs"])["ranked"][0],
+                    "level": assess(r["probs"])["level"], "elapsed": r["elapsed"]} for r in ss.cases.values()]
+        feedback = {cid: r["feedback"] for cid, r in ss.cases.items() if r["feedback"]}
+        finals = [{"case": cid, "final": r["final"]["dx"], "ranked": [c for c, _ in assess(r["probs"])["ranked"]],
+                   "level": assess(r["probs"])["level"]} for cid, r in ss.cases.items() if r.get("final")]
+        render_stats(history, feedback, predictor.is_mock, GROUP_COLORS, finals, db_on=DB is not None)
+elif ss.page == "health":
+    page_header(t("nav_health"), t("health_sub"))
+    render_skin_health()
+elif ss.page == "model":
+    page_header(t("nav_model"))
+    view = sub_nav("model", {"overview": t("sub_overview"), "versions": t("sub_versions"),
+                             "details_eval": t("nav_eval"), "details": t("sub_details")})
+    if view == "overview":
+        render_about()
+    elif view == "versions":
+        render_versions()
+    elif view == "details_eval":
+        st.caption(t("eval_sub"))
+        render_eval()
+    else:
+        render_about("details")
 else:
-    page_header(t("tab_guide"))
-    st.button(t("tour_again"), icon=":material/tour:", key="tour_again",
-              on_click=lambda: ss.update(tour_done=False, tour_force=True, tour_step=0))
-    render_guide()
+    page_header(t("nav_help"))
+    view = sub_nav("help", {"guide": t("tab_guide"), "survey": t("nav_survey"), "share": t("sub_share")})
+    if view == "guide":
+        st.button(t("tour_again"), icon=":material/tour:", key="tour_again",
+                  on_click=lambda: ss.update(tour_done=False, tour_force=True, tour_step=0))
+        render_guide()
+    elif view == "survey":
+        render_survey(DB, APP_VERSION, log)
+    else:
+        render_share(APP_URL)
 
 flush_db()  # bu çalıştırmada biriken kayıtları veritabanına yaz
