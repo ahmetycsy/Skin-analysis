@@ -536,9 +536,9 @@ Do not use filtered, cropped or colour-corrected images.
     "pm_toggle": ("Dermoskopik görüntü yok — yalnızca klinik fotoğrafla analiz et (hasta modu)",
                   "No dermoscopic image — analyse with the clinical photo only (patient mode)"),
     "pm_help": ("Dermatoskopu olmayan sağlık çalışanları için. Model yalnızca klinik fotoğrafa bakar; başarısı iki görüntülü "
-                "moddan düşüktür (Macro F1 0,463, hekim modunda 0,542).",
+                "moddan düşüktür (Macro F1 0,496, hekim modunda 0,594). Klinik modeller telefon fotoğraflarıyla da eğitildi.",
                 "For health workers without a dermatoscope. The model looks at the clinical photo only; accuracy is lower than "
-                "with both images (Macro F1 0.463 vs 0.542)."),
+                "with both images (Macro F1 0.496 vs 0.594). The clinical models were also trained on phone photos."),
     "pm_card_title": ("Hasta modu", "Patient mode"),
     "pm_card_text": ("Yalnızca klinik yakın çekim kullanılacak. Mümkünse dermoskopik görüntü de ekleyin: iki görüntüyle sonuç daha "
                      "güvenilirdir.",

@@ -78,11 +78,16 @@ GROUPS = {
 }
 
 # Sonuç ekranındaki yönlendirme ve "kararsız" uyarısı için eşikler (olasılıklar kalibre).
-# 21 Kasım 2026'da kontrol kümesindeki 1.048 lezyonla seçildi (analysis/thresholds.py; hekim modu):
-#   öncelikli  (kötü huylu toplam ≥ 0,30): kötü huyluların %93,1'i öncelikli, iyi huyluların %32'si yanlış alarm
-#   değerlendirme (kötü+kansere dönüşebilir ≥ 0,20 ya da kararsız): riskli lezyonların %97,2'si en az "değerlendirme"ye
-#     yönlendirilir; 691 kötü huyludan 19'u (%2,7) "iyi huylu görünüm" alır; iyi huyluların %48,6'sı sevk edilir.
-#   kararsız (en yüksek < 0,40 ya da ilk iki fark < 0,10): vakaların %7,7'si; bu vakalarda doğruluk %41 (diğerlerinde %80).
+# 21 Kasım 2026'da kontrol kümesindeki 1.048 lezyonla seçildi (analysis/thresholds.py; hekim modu). 22 Kasım'da klinik
+# modeller PAD-UFES-20 ile yenilenince yeniden kontrol edildi, eşikler aynı kaldı (parantez içinde önceki değerler):
+#   öncelikli  (kötü huylu toplam ≥ 0,30): kötü huyluların %95,2'si (%93,1) öncelikli, iyi huyluların %36,5'i (%32) yanlış alarm
+#   değerlendirme (kötü+kansere dönüşebilir ≥ 0,20 ya da kararsız): riskli lezyonların %97,5'i (%97,2) en az "değerlendirme"ye
+#     yönlendirilir; 691 kötü huyludan 18'i (19) "iyi huylu görünüm" alır; iyi huyluların %49'u (%48,6) sevk edilir.
+#     Hasta modunda: 691'den 20'si (24) kaçırılır, iyi huyluların %58'i sevk edilir.
+#   kararsız (en yüksek < 0,40 ya da ilk iki fark < 0,10): vakaların %7,3'ü; bu vakalarda doğruluk %34 (diğerlerinde %81).
+# 22 Kasım'da dermoskopik modeller ISIC 2019 ile yenilenince tekrar kontrol edildi (hekim modu), eşikler yine aynı:
+#   öncelikli: kötü huyluların %96,4'ü, iyi huylu yanlış alarm %31,1; değerlendirme: 691 kötü huyludan 14'ü kaçırılır,
+#   iyi huyluların %44,6'sı sevk edilir; kararsız: vakaların %5,9'u (doğruluk %34, diğerlerinde %83).
 # Eşikler aynı kümede seçildiği için bu oranlar biraz iyimserdir. Tarama aracı olduğu için kanseri kaçırmamak öncelikli
 # tutuldu; son karar (Tuğalp'in maliyet katsayısı c dahil) ekip ve danışman tarafından verilmelidir.
 REFER_URGENT_MALIGN = 0.30      # kötü huylu toplamı bunun üstündeyse: öncelikli değerlendirme
@@ -172,16 +177,25 @@ class RealPredictor:
         self.model_dir = model_dir
         os.makedirs(model_dir, exist_ok=True)
         cfg_path = os.path.join(model_dir, "model_config.json")
-        if not os.path.exists(cfg_path) and model_repo():  # yayında config de Hugging Face model reposundan gelir
-            from huggingface_hub import hf_hub_download
-            cfg_path = hf_hub_download(repo_id=model_repo(), filename="model_config.json", local_dir=model_dir)
+        if model_repo():  # yayında config Hugging Face model reposundan gelir; her açılışta güncel sürüm denetlenir
+            try:
+                from huggingface_hub import hf_hub_download
+                cfg_path = hf_hub_download(repo_id=model_repo(), filename="model_config.json", local_dir=model_dir,
+                                           force_download=True)
+            except Exception:
+                if not os.path.exists(cfg_path):  # internet/HF sorunu: elde config yoksa devam edilemez
+                    raise
         with open(cfg_path, encoding="utf-8") as fh:
             self.cfg = json.load(fh)
         if self.cfg["classes"] != CLASSES:
             raise ValueError("model_config.json içindeki sınıf sırası CLASSES ile aynı değil")
         torch.set_num_threads(max(1, min(4, os.cpu_count() or 1)))
+        # Yalnızca modlarda ve Grad-CAM'de kullanılan modeller yüklenir (config'te geri dönüş için eski modeller de
+        # listelenebilir; onları yüklemek ücretsiz sunucunun belleğini boşuna doldurur).
+        used = {n for spec in self.cfg["modes"].values() for runs in spec["members"].values() for n in runs}
+        used |= set(self.cfg.get("gradcam", {}).values())
         self.models = {name: load_image_model(self._weights(m["file"]), m["timm_name"], len(CLASSES))
-                       for name, m in self.cfg["models"].items()}
+                       for name, m in self.cfg["models"].items() if name in used}
         self.name = f"Gerçek model ({self.cfg['version']})"
 
     def _weights(self, fname: str) -> str:

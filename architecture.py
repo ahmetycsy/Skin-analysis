@@ -97,10 +97,11 @@ def svg() -> str:
 
     # çevrim dışı eğitim şeridi
     parts.append(f'<text class="a-head" x="20" y="512">{html.escape(L("ÇEVRİM DIŞI (BİR KEZ)", "OFFLINE (ONCE)"))}</text>')
-    parts.append(_box(20, 524, 200, 96, "MILK10k", [L("5.240 lezyon, 11 tür", "5,240 lesions, 11 classes"),
-                                                   L("CC-BY-NC, repoda yok", "CC-BY-NC, not in repo")], kind="off"))
+    parts.append(_box(20, 524, 200, 96, L("MILK10k + ek veri", "MILK10k + extra data"), [L("5.240 lezyon, 11 tür", "5,240 lesions, 11 classes"),
+                                                                 L("+ PAD-UFES-20, ISIC 2019", "+ PAD-UFES-20, ISIC 2019")], kind="off"))
     parts.append(_box(262, 524, 240, 96, L("Eğitim (Kaggle GPU)", "Training (Kaggle GPU)"),
-                      [L("5 katlı çapraz doğrulama", "5-fold cross-validation"), L("Macro F1 0,542 (hedef 0,45)", "Macro F1 0.542 (target 0.45)")],
+                      [L("5 katlı CV · Macro F1 0,542", "5-fold CV · Macro F1 0.542"),
+                       L("Klinik + PAD-UFES-20 · dermoskopik + ISIC 2019", "Clinical + PAD-UFES-20 · dermoscopic + ISIC 2019")],
                       kind="off"))
     parts.append(_box(544, 524, 418, 96, L("Değerlendirme", "Evaluation"),
                       [L("1.048 lezyonluk doğrulama → Model analizi sayfası", "1,048-lesion validation → Model analysis page"),

@@ -30,21 +30,32 @@ ADVISOR = "Zühal Özcan Yavuz"
 MODEL_STATUS = [
     {"name": ("ISIC MILK10k Benchmark — bağımsız gizli test (479 lezyon)", "ISIC MILK10k Benchmark — independent hidden test (479 lesions)"),
      "arch": ("Kullanılan sistem (hekim modu)", "Deployed system (physician mode)"), "status": "external", "f1": 0.485,
-     "note": ("ISIC tarafından puanlandı · cevap anahtarı bizde değil", "Scored by ISIC · labels not available to us")},
+     "note": ("ISIC tarafından puanlandı (önceki klinik modellerle) · cevap anahtarı bizde değil",
+              "Scored by ISIC (with the previous clinical models) · labels not available to us")},
     {"name": ("Kullanılan sistem — hekim modu (4 model)", "Deployed system — physician mode (4 models)"),
-     "arch": ("B3 + V2-S, derm + klinik ortalaması", "B3 + V2-S, mean of derm + clinical"), "status": "used", "f1": 0.542,
-     "note": ("±0,024 · doğruluk %77,4 · kalibre", "±0.024 · accuracy 77.4% · calibrated")},
-    {"name": ("Yalnızca klinik fotoğraf (hasta modu)", "Clinical photo only (patient mode)"),
-     "arch": ("B3 + V2-S, klinik", "B3 + V2-S, clinical"), "status": "done", "f1": 0.463,
-     "note": ("±0,025 · doğruluk %69,9 · arayüzde henüz yok", "±0.025 · accuracy 69.9% · not in the interface yet")},
-    {"name": ("Dermoskopik model", "Dermoscopic model"), "arch": "EfficientNetV2-S", "status": "done", "f1": 0.506,
-     "note": ("±0,035", "±0.035")},
-    {"name": ("Dermoskopik model", "Dermoscopic model"), "arch": "EfficientNet-B3", "status": "done", "f1": 0.484,
-     "note": ("±0,017", "±0.017")},
-    {"name": ("Klinik model", "Clinical model"), "arch": "EfficientNet-B3", "status": "done", "f1": 0.445,
-     "note": ("±0,020", "±0.020")},
-    {"name": ("Klinik model", "Clinical model"), "arch": "EfficientNetV2-S", "status": "done", "f1": 0.436,
-     "note": ("±0,023", "±0.023")},
+     "arch": ("B3 + V2-S, derm (+ISIC 2019) + klinik (+PAD) ortalaması", "B3 + V2-S, mean of derm (+ISIC 2019) + clinical (+PAD)"), "status": "used", "f1": 0.594,
+     "note": ("1.048 lezyonluk kontrol · doğruluk %80,1 · kaçırılan kötü huylu 14/691 · yalnızca MILK10k ile eğitilen ilk sürüm 0,546 / %76,8, 5 katlı CV 0,542",
+              "1,048-lesion validation · accuracy 80.1% · missed malignant 14/691 · first MILK10k-only version 0.546 / 76.8%, 5-fold CV 0.542")},
+    {"name": ("Kullanılan sistem — hasta modu (yalnızca klinik fotoğraf)", "Deployed system — patient mode (clinical photo only)"),
+     "arch": ("B3 + V2-S, klinik, MILK10k + PAD-UFES-20", "B3 + V2-S, clinical, MILK10k + PAD-UFES-20"), "status": "used", "f1": 0.496,
+     "note": ("1.048 lezyonluk kontrol · doğruluk %72,4 (önceki 0,484 / %70,3) · telefon fotoğraflarında (PAD testi, 433) 0,668, önceki 0,399",
+              "1,048-lesion validation · accuracy 72.4% (previous 0.484 / 70.3%) · on phone photos (PAD test, 433) 0.668, previous 0.399")},
+    {"name": ("Dermoskopik model + ISIC 2019", "Dermoscopic model + ISIC 2019"), "arch": "EfficientNet-B3", "status": "used", "f1": 0.553,
+     "note": ("tek model, kontrol kümesi · önceki aynı kümede 0,469", "single model, validation set · previous 0.469 on the same set")},
+    {"name": ("Dermoskopik model + ISIC 2019", "Dermoscopic model + ISIC 2019"), "arch": "EfficientNetV2-S", "status": "used", "f1": 0.547,
+     "note": ("tek model, kontrol kümesi · önceki aynı kümede 0,477", "single model, validation set · previous 0.477 on the same set")},
+    {"name": ("Dermoskopik model (önceki sürüm)", "Dermoscopic model (previous)"), "arch": "EfficientNetV2-S", "status": "done", "f1": 0.506,
+     "note": ("±0,035 (5 katlı CV)", "±0.035 (5-fold CV)")},
+    {"name": ("Dermoskopik model (önceki sürüm)", "Dermoscopic model (previous)"), "arch": "EfficientNet-B3", "status": "done", "f1": 0.484,
+     "note": ("±0,017 (5 katlı CV)", "±0.017 (5-fold CV)")},
+    {"name": ("Klinik model + PAD-UFES-20", "Clinical model + PAD-UFES-20"), "arch": "EfficientNet-B3", "status": "used", "f1": 0.442,
+     "note": ("tek model, kontrol kümesi · telefon testi 0,658", "single model, validation set · phone test 0.658")},
+    {"name": ("Klinik model + PAD-UFES-20", "Clinical model + PAD-UFES-20"), "arch": "EfficientNetV2-S", "status": "used", "f1": 0.443,
+     "note": ("tek model, kontrol kümesi · telefon testi 0,687", "single model, validation set · phone test 0.687")},
+    {"name": ("Klinik model (önceki sürüm)", "Clinical model (previous)"), "arch": "EfficientNet-B3", "status": "done", "f1": 0.445,
+     "note": ("±0,020 (5 katlı CV)", "±0.020 (5-fold CV)")},
+    {"name": ("Klinik model (önceki sürüm)", "Clinical model (previous)"), "arch": "EfficientNetV2-S", "status": "done", "f1": 0.436,
+     "note": ("±0,023 (5 katlı CV)", "±0.023 (5-fold CV)")},
     {"name": ("Görüntü + hasta bilgisi füzyonu (alternatif)", "Image + patient-info fusion (alternative)"),
      "arch": ("Füzyon ağı", "Fusion network"), "status": "done", "f1": 0.497,
      "note": ("yalnızca kat 0 · aynı sette hekim modu 0,547", "fold 0 only · physician mode 0.547 on the same set")},
@@ -108,10 +119,14 @@ TXT = {
     "c_note": ("Not", "Note"),
     "f1_note": (
         "Macro F1: 11 türün her biri için ayrı hesaplanan başarının ortalaması; nadir türleri de yaygın türler kadar önemser "
-        "(1 en iyi, 0 en kötü). Değerler 5 katlı çapraz doğrulamadan (her lezyon bir kez test edildi) ortalama ± sapmadır. "
-        "Füzyon modeli yalnızca tek bir bölünmede ölçüldü. Sonuçlar ~0,01–0,02 iyimser olabilir (en iyi epoch kontrol setine bakılarak seçildi).",
+        "(1 en iyi, 0 en kötü). ± verilen değerler 5 katlı çapraz doğrulamadan (her lezyon bir kez test edildi) ortalama ± sapmadır. "
+        "Kullanılan sistem satırları ve ek veriyle (PAD-UFES-20, ISIC 2019) eğitilen modeller aynı 1.048 lezyonluk kontrol kümesinde ölçüldü; "
+        "telefon testi, PAD-UFES-20'nin hasta bazında ayrılmış, eğitimde hiç kullanılmamış 433 fotoğrafıdır (6 tür). "
+        "ISIC 2019 görüntülerinden MILK10k ile aynı ya da çok benzer olan 33 tanesi eğitimden çıkarıldı. Füzyon modeli yalnızca tek bir bölünmede ölçüldü. Sonuçlar ~0,01–0,02 iyimser olabilir (en iyi epoch kontrol setine bakılarak seçildi).",
         "Macro F1: the average of the score computed separately for each of the 11 types; weighs rare types as much as common "
-        "ones (1 best, 0 worst). Values are mean ± SD from 5-fold cross-validation (each lesion tested once). The fusion model "
+        "ones (1 best, 0 worst). Values with ± are mean ± SD from 5-fold cross-validation (each lesion tested once). The deployed "
+        "system rows and the models trained with extra data (PAD-UFES-20, ISIC 2019) were measured on the same 1,048-lesion validation set; the phone test is "
+        "433 patient-grouped PAD-UFES-20 photos never used in training (6 types). 33 ISIC 2019 images identical or near-identical to MILK10k images were removed from training. The fusion model "
         "was measured on a single split only. Results may be ~0.01–0.02 optimistic (best epoch chosen on the validation set).",
     ),
     "h_data": ("Eğitim verisi: MILK10k", "Training data: MILK10k"),
@@ -139,7 +154,8 @@ TXT = {
         "- **Tek veri seti:** Sonuçlar yalnızca MILK10k üzerinde ölçülmüştür; farklı kamera, dermatoskop veya hasta "
         "gruplarında performans farklı olabilir.\n"
         "- **Yaş aralığı:** Veri setinde yaş 5–85 arasındadır; bu aralığın dışındaki hastalarda sonuç daha belirsizdir.\n"
-        "- **Çekim koşulları:** MILK10k klinik fotoğrafları klinikte çekilmiştir; telefonla çekilen fotoğraflarda başarı daha düşük olabilir.\n"
+        "- **Çekim koşulları:** Klinik modeller MILK10k'e ek olarak PAD-UFES-20 telefon fotoğraflarıyla eğitildi; telefon testinde "
+        "doğruluk %46'dan %78'e çıktı. Yine de bu fotoğraflar tek bir ülkeden (Brezilya), çoğunlukla açık tenli hastalardandır. Dermoskopik modeller ISIC 2019 ile de eğitildi; bu veri de çoğunlukla açık tenlidir.\n"
         "- **En nadir tür:** “Diğer kötü huylu oluşumlar” (9 lezyon) hiçbir modelde öğrenilemedi.",
         "- **Class imbalance:** performance is low for rare types (e.g. other malignant growths, 9 lesions).\n"
         "- **Skin-tone representation:** most training data is medium or light skin; performance on dark skin must be "
@@ -149,7 +165,8 @@ TXT = {
         "- **Single dataset:** results were measured only on MILK10k; performance may differ with other cameras, "
         "dermatoscopes or patient groups.\n"
         "- **Age range:** ages in the dataset range from 5 to 85; results are less certain outside this range.\n"
-        "- **Capture conditions:** MILK10k clinical photos were taken in clinics; accuracy may be lower for phone photos.\n"
+        "- **Capture conditions:** the clinical models were trained on PAD-UFES-20 phone photos in addition to MILK10k; on the "
+        "phone test accuracy rose from 46% to 78%. These photos still come from one country (Brazil), mostly light-skinned patients. The dermoscopic models were also trained on ISIC 2019, likewise mostly light skin.\n"
         "- **Rarest type:** “other malignant growths” (9 lesions) could not be learned by any model.",
     ),
     "h_ethics": ("Etik, gizlilik ve güvenlik", "Ethics, privacy and safety"),
