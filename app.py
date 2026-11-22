@@ -38,7 +38,8 @@ from predictor import (
 from stats_page import render_stats
 from eval_page import render_eval
 from survey_page import render_survey
-from patient_help import ics_bytes, reliability_html, render_symptom_form, symptom_advice, symptom_lines
+from patient_help import (calm_card_html, calm_meaning_html, details_warning, ics_bytes, reliability_html, render_symptom_form,
+                          symptom_advice, symptom_lines)
 from health_page import render_photo_tips, render_share, render_skin_health, render_versions
 from db import get_db
 
@@ -176,6 +177,8 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 
 /* sonuç */
 .rec {{ border-radius:10px; padding:.85rem 1rem; margin:0 0 .8rem; border:1px solid; }}
+.rec-ic {{ display:inline-block; font-weight:700; margin-right:.45rem; }}
+.dc-rows div {{ padding:.15rem 0; font-size:.92rem; }}
 .rec-title {{ font-weight:600; font-size:1.06rem; margin-bottom:.2rem; }}
 .rec-text {{ font-size:.9rem; line-height:1.55; }}
 .rec.urgent {{ background:#FAF0F2; border-color:#EBCDD5; }} .rec.urgent .rec-title {{ color:{C_MALIGN}; }}
@@ -722,10 +725,19 @@ def log(kind: str, case=None, **extra) -> dict:
     return ev
 
 
+TOASTS = {"pdf": ("toast_pdf", ":material/picture_as_pdf:"), "reminder": ("toast_reminder", ":material/event:"),
+          "feedback": ("toast_fb", ":material/check_circle:"), "feedback_upd": ("toast_fb", ":material/check_circle:"),
+          "status": ("toast_status", ":material/sync:"), "closed": ("toast_closed", ":material/lock:"),
+          "reopened": ("toast_reopened", ":material/lock_open:")}
+
+
 def add_event(rec: dict, kind: str, **extra):
     rec["events"].append(log(kind, rec["case"], **extra))
     if rec.get("saved") and rec["case"] not in ss.dirty:
         ss.dirty.append(rec["case"])
+    if kind in TOASTS:  # kısa onay mesajı (işlemin gerçekleştiğini gösterir)
+        key, icon = TOASTS[kind]  # sonraki çalıştırmanın başında gösterilir (st.rerun öncesi toast kaybolabiliyor)
+        ss.setdefault("toast_q", []).append((t(key) + (" " + t("toast_saved_db") if rec.get("saved") and DB is not None else ""), icon))
 
 
 # ---------------------------------------------------------------- veritabanı (Supabase) — anonim kayıt
@@ -968,6 +980,8 @@ def page_header(title: str, sub: str = ""):
 
 # ---------------------------------------------------------------- yan menü
 i18n.set_lang(ss.lang)
+for _msg, _icon in ss.pop("toast_q", []):
+    st.toast(_msg, icon=_icon)
 i18n.set_pm(False)  # hasta modunda sade dil; yeni analiz ve hasta vakası ekranında açılır
 st.markdown(
     "<style>"
@@ -1224,29 +1238,71 @@ def render_case(cid: str, where: str):
         st.markdown(f'<div class="tl">{tl}</div>', unsafe_allow_html=True)
 
     with right:
-        st.markdown(f'<div class="rec {a["level"]}"><div class="rec-title">{a["title"]}</div>'
-                    f'<div class="rec-text">{a["text"]}</div></div>', unsafe_allow_html=True)
+        simple = rec_mode(rec) == "hasta"
+        if simple:  # hasta modu: eylem odaklı, sakin dil; yüzdeler ayrıntılarda (sağlık kaygısı)
+            st.markdown(calm_card_html(a["level"]), unsafe_allow_html=True)
+            for kind, txt in symptom_advice(rec.get("symptoms"), a["level"], a["ranked"][0][0]):
+                st.markdown(f'<div class="sym-{kind}">{txt}</div>', unsafe_allow_html=True)
+            st.markdown(calm_meaning_html(a["level"]), unsafe_allow_html=True)
+            st.button(t("show_doc"), icon=":material/smartphone:", width="stretch", key=f"showdoc_{cid}_{where}",
+                      on_click=lambda c=cid: ss.update(show_doc=c))
+        else:
+            st.markdown(f'<div class="rec {a["level"]}"><div class="rec-title">{a["title"]}</div>'
+                        f'<div class="rec-text">{a["text"]}</div></div>', unsafe_allow_html=True)
+        detail = st.expander(t("details_pm"), icon=":material/tune:") if simple else st.container()
+        with detail:
+            if simple:
+                st.caption(details_warning())
+            _result_body(rec, a, simple, cid, where)
+
+    _case_footer(rec, cid, where)
+    if ss.get("show_doc") == cid:
+        doctor_card(cid)
+
+
+@st.dialog(" ", width="large", on_dismiss=lambda: ss.update(show_doc=None))
+def doctor_card(cid: str):
+    """Hastanın telefonu doktora uzatabileceği sade özet (tanı değildir). Doktor okuyacağı için tıbbi adlar da gösterilir."""
+    rec = ss.cases[cid]
+    i18n.set_pm(False)
+    a = assess(rec["probs"])
+    st.markdown(f'<div class="case-label">{t("dc_title")}</div><div class="case-no">{cid}</div>'
+                f'<div class="case-meta">{rec["created"]} · {t("mode_hasta") if rec_mode(rec) == "hasta" else t("mode_hekim")}</div>',
+                unsafe_allow_html=True)
+    c1, c2 = st.columns([1, 1.4], gap="medium")
+    with c1:
+        if rec.get("clin_jpg"):
+            st.image(rec["clin_jpg"], width="stretch")
+        kv = "".join(f"<span>{k}</span><div>{v}</div>" for k, v in meta_lines(rec["meta"]))
+        st.markdown(f'<div class="kv">{kv}</div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f'<div class="rec {a["level"]}"><div class="rec-title">{a["title"]}</div></div>', unsafe_allow_html=True)
+        rows = "".join(f'<div><b>{i18n.pct(p)}</b> · {i18n.cname(c)} ({c})</div>' for c, p in a["ranked"][:3])
+        tot = " · ".join(f"{i18n.group(g)} {i18n.pct(a['totals'][g])}" for g in GROUP_ORDER)
+        st.markdown(f'<div class="sec-label">{t("dc_model")}</div><div class="dc-rows">{rows}</div>'
+                    f'<div class="case-meta" style="margin-top:.3rem">{tot}</div>', unsafe_allow_html=True)
+        sym = symptom_lines(rec.get("symptoms"))
+        if sym:
+            items = "".join(f"<span>{html.escape(q)}</span><div>{html.escape(v)}</div>" for q, v in sym)
+            st.markdown(f'<div class="sec-label">{t("dc_symptoms")}</div><div class="kv">{items}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="banner" style="margin-top:.6rem">{t("dc_note")}</div>', unsafe_allow_html=True)
+    st.caption(t("dc_shot"))
+
+
+def _result_body(rec, a, simple, cid, where):
+    if True:
         if a["uncertain"]:
             st.markdown(f'<div class="unsure">{t("unsure_box")}</div>', unsafe_allow_html=True)
-        for kind, txt in symptom_advice(rec.get("symptoms"), a["level"], a["ranked"][0][0]):
-            st.markdown(f'<div class="sym-{kind}">{txt}</div>', unsafe_allow_html=True)
         if not predictor.is_mock:
             rel = reliability_html(a["ranked"][0][0], rec_mode(rec), a["ranked"][0][1])
             if rel:
                 st.markdown(rel, unsafe_allow_html=True)
-        simple = rec_mode(rec) == "hasta"
         bar = "".join(f'<div style="width:{a["totals"][g] * 100:.2f}%;background:{GROUP_COLORS[g]}"></div>' for g in GROUP_ORDER)
         legend = "".join(f'<span><span class="dot" style="background:{GROUP_COLORS[g]}"></span>{i18n.group(g)} '
                          f'<b>{i18n.pct(a["totals"][g])}</b></span>' for g in GROUP_ORDER)
         st.markdown(f'<div class="stack">{bar}</div><div class="legend">{legend}</div>', unsafe_allow_html=True)
 
-        if simple:  # hasta modu: sade görünüm, teknik ayrıntılar açılır kutuda
-            top3 = "".join(f'<div class="cand"><div class="cand-name">{i18n.plain(c)}</div>'
-                           f'<div class="cand-pct" style="color:{GROUP_COLORS[GROUPS[c]]}">{i18n.pct(p)}</div>'
-                           f'<div class="cand-desc">{i18n.desc(c)}</div></div>' for c, p in a["ranked"][:3])
-            st.markdown(f'<div class="sec-label">{t("top3")}</div><div>{top3}</div>', unsafe_allow_html=True)
-        detail = st.expander(t("details_more"), icon=":material/tune:") if simple else st.container()
-        with detail:
+        if True:
             ps = pred_set(rec)
             if ps:
                 st.markdown(f'<div class="sec-label">{t("ps_title")}</div>', unsafe_allow_html=True)
@@ -1255,8 +1311,7 @@ def render_case(cid: str, where: str):
                 note = t("ps_one") if len(ps) == 1 else t("ps_many", n=len(ps))
                 st.markdown(f'<div class="ps-row">{chips}</div><div class="ps-note">{note}</div>', unsafe_allow_html=True,
                             help=t("ps_help"))
-            if not simple:
-                st.markdown(f'<div class="sec-label">{t("top3")}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="sec-label">{t("top3")}</div>', unsafe_allow_html=True)
             cards = ""
             for c, p in a["ranked"][:3]:
                 col = GROUP_COLORS[GROUPS[c]]
@@ -1267,8 +1322,7 @@ def render_case(cid: str, where: str):
                     f'<div class="cand-desc">{i18n.desc(c)}</div>'
                     f'<div class="cand-meta">{i18n.group(GROUPS[c])} · {t("medical_name")}: {i18n.cname(c)} ({c})</div></div>'
                 )
-            if not simple:
-                st.markdown(f"<div>{cards}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div>{cards}</div>", unsafe_allow_html=True)
 
             modality_panel(rec)
 
@@ -1313,6 +1367,8 @@ def render_case(cid: str, where: str):
                 st.caption(t("tech_thr", u=f"{REFER_URGENT_MALIGN * 100:.0f}", r=f"{REFER_MALIGN_OR_PRE * 100:.0f}",
                              t=f"{UNCERTAIN_TOP * 100:.0f}", g=f"{UNCERTAIN_GAP * 100:.0f}"))
 
+
+def _case_footer(rec, cid, where):
     # Aynı lezyonun önceki/sonraki kontrolleri
     if len(lesion_chain(cid)) > 1:
         with st.container(border=True):
@@ -1552,8 +1608,8 @@ def step_patient():
     left, right = st.columns([1.5, 1], gap="large")
     with left, st.container(border=True):
         age_opts, sex_opts, skin_opts, site_opts = [lo for lo, _ in AGE_BANDS], ["female", "male"], list(SKIN_SWATCH), list(SITES)
-        age = st.selectbox(t("age_label"), age_opts, index=remembered_index("age", age_opts), placeholder=t("age_ph"),
-                           format_func=lambda lo: t("age_fmt", b=age_band_label(lo)), help=t("age_help"), key=wkey("age"))
+        age = st.pills(t("age_label"), age_opts, default=ss.get("v_age") if ss.get("v_age") in age_opts else None,
+                       format_func=age_band_label, help=t("age_help"), key=wkey("age"))
         sex = st.radio(t("sex_label"), sex_opts, index=remembered_index("sex", sex_opts), format_func=i18n.sex,
                        horizontal=True, key=wkey("sex"))
         skin_tone = st.radio(t("skin_label"), skin_opts, index=remembered_index("skin", skin_opts),
@@ -1561,8 +1617,8 @@ def step_patient():
         sw = "".join(f'<div class="sw{" on" if i == skin_tone else ""}"><i style="background:{c}"></i>{i}</div>'
                      for i, c in SKIN_SWATCH.items())
         st.markdown(f'<div class="swatches">{sw}</div>', unsafe_allow_html=True)
-        site = st.selectbox(t("site_label"), site_opts, index=remembered_index("site", site_opts), placeholder=t("site_ph"),
-                            format_func=i18n.site, key=wkey("site"))
+        site = st.pills(t("site_label"), site_opts, default=ss.get("v_site") if ss.get("v_site") in site_opts else None,
+                        format_func=i18n.site, key=wkey("site"))
         ss.v_age, ss.v_sex, ss.v_skin, ss.v_site = age, sex, skin_tone, site
         if skin_tone in LOW_DATA_SKIN_TONES:
             st.info(t("low_tone", n=SKIN_TONE_COUNTS[skin_tone]))

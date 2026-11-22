@@ -166,3 +166,69 @@ def ics_bytes(case_no: str, months: int, url: str) -> bytes:
              "BEGIN:VALARM", "TRIGGER:-PT0M", "ACTION:DISPLAY", f"DESCRIPTION:{summary}", "END:VALARM",
              "END:VEVENT", "END:VCALENDAR"]
     return ("\r\n".join(lines) + "\r\n").encode("utf-8")
+
+
+# ---------------------------------------------------------------- sağlık kaygısı: hasta modunda sakin sonuç
+# Sayılar 1.048 lezyonluk doğrulama kümesinden, hasta modu ve şu anki eşiklerle (analysis/thresholds.py, 22.11.2026):
+#   iyi huylu lekelerin %44'ü "öncelikli", %14'ü "değerlendirme" sonucu alıyor (toplam %58 sevk);
+#   poliklinik karışımı varsayımıyla (%8 kötü huylu, %10 kansere dönüşebilir) "öncelikli" sonuç alanların ~%15'i kötü huylu.
+# Eşikler değişirse bu sayılar da güncellenmeli.
+CALM = {
+    "urgent": ("Lekenizi kısa süre içinde (1–2 hafta) bir dermatoloğa gösterin",
+               "Show the spot to a dermatologist soon (within 1–2 weeks)",
+               "Model bu fotoğrafta doktorun bakması gereken bazı özellikler gördü. Bu bir tanı değildir; yalnızca lekenin "
+               "bir uzman tarafından görülmesi gerektiği anlamına gelir.",
+               "The model saw some features in this photo that a doctor should look at. This is not a diagnosis; it only "
+               "means the spot should be seen by a specialist."),
+    "refer": ("Lekenizi bir dermatoloğa gösterin (acil değil)", "Show the spot to a dermatologist (not urgent)",
+              "Model fotoğraftan kesin bir şey söyleyemedi ya da hafif bazı özellikler gördü. İlk uygun randevuda "
+              "bir dermatoloğa göstermeniz yeterli.",
+              "The model could not tell from the photo, or saw some mild features. Showing it to a dermatologist at the "
+              "next convenient appointment is enough."),
+    "benign": ("Belirgin bir endişe işareti görülmedi", "No clear warning sign was seen",
+               "Model fotoğrafta belirgin bir uyarı işareti görmedi. Leke büyürse, rengi ya da şekli değişirse, kanar ya da "
+               "yara açarsa bir doktora gidin.",
+               "The model saw no clear warning sign in the photo. See a doctor if the spot grows, changes colour or shape, "
+               "bleeds or becomes a sore."),
+}
+
+
+def calm_card_html(level: str) -> str:
+    tr_t, en_t, tr_b, en_b = CALM[level]
+    cls = "benign" if level == "benign" else "refer"  # hasta modunda kırmızı yerine daha sakin renk
+    ic = "✓" if level == "benign" else "→"
+    return (f'<div class="rec {cls}"><div class="rec-title"><span class="rec-ic">{ic}</span>{L(tr_t, en_t)}</div>'
+            f'<div class="rec-text">{L(tr_b, en_b)}</div></div>')
+
+
+def calm_meaning_html(level: str) -> str:
+    """Yönlendirilen hastaya sonucun anlamını dürüst sayılarla anlatır."""
+    if level == "benign":
+        body = L("Bu araç kanseri kaçırmamak için temkinli ayarlandı; yine de hiçbir yapay zekâ aracı her lekeyi doğru "
+                 "değerlendiremez. Sizi endişelendiren bir değişiklik olursa sonuç ne olursa olsun doktora gidin.",
+                 "This tool is set to be cautious so as not to miss cancer; still, no AI tool judges every spot correctly. "
+                 "If a change worries you, see a doctor whatever the result.")
+    else:
+        body = L("<b>Doktora yönlendirilmek kanser olduğunuz anlamına gelmez.</b> Bu araç kanseri kaçırmamak için bilerek "
+                 "temkinli ayarlandı; bu yüzden testlerde <b>zararsız lekelerin yarısından fazlasını</b> da doktora "
+                 "yönlendirdi. Tipik bir poliklinik hastası grubunda, “kısa süre içinde” sonucu alan her 100 kişiden "
+                 "<b>yaklaşık 85'inin lekesi kanser çıkmaz</b> (tahmini). Doktor çoğu lekeye bakarak birkaç dakikada karar verir; "
+                 "cilt kanserlerinin büyük çoğunluğu da erken fark edildiğinde tamamen tedavi edilir.",
+                 "<b>Being referred does not mean you have cancer.</b> This tool is deliberately cautious so as not to miss "
+                 "cancer, so in testing it also referred <b>more than half of harmless spots</b>. In a typical clinic "
+                 "population, of every 100 people who get the “soon” result, <b>about 85 do not have skin cancer</b> "
+                 "(estimate). A doctor can usually decide within minutes by looking, and most skin cancers are fully "
+                 "treatable when found early.")
+    tail = L("Aynı lekeyi tekrar tekrar analiz etmek sonucu daha doğru yapmaz; en iyi adım bir doktorla konuşmaktır.",
+             "Analysing the same spot again and again does not make the result more accurate; the best step is to talk "
+             "to a doctor.")
+    title = L("Bu sonuç ne anlama geliyor?", "What does this result mean?")
+    return (f'<div class="rely"><div class="rely-t">{title}</div><div class="rely-b">{body}</div>'
+            f'<div class="rely-h">{tail}</div></div>')
+
+
+def details_warning() -> str:
+    return L("Aşağıdaki yüzdeler modelin bu fotoğraftaki benzerlik tahminleridir; tek başına anlamlı değildir ve tanı yerine "
+             "geçmez. Özellikle tek bir fotoğrafla model sık yanılır.",
+             "The percentages below are the model's similarity estimates for this photo; on their own they mean little and "
+             "are not a diagnosis. With a single photo the model is often wrong.")

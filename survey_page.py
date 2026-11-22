@@ -90,6 +90,9 @@ def _form(db, version: str, log):
     ss.sus_last = (score, ok, db is not None)
     ss.sus_round = ss.get("sus_round", 0) + 1
     log("sus", None, score=score)
+    ss.setdefault("toast_q", []).append((L("Teşekkürler, yanıtınız kaydedildi", "Thank you, your answers were saved") if ok
+                                         else L("Teşekkürler, yanıtınız bu oturumda kaydedildi",
+                                                "Thank you, your answers were saved for this session"), ":material/favorite:"))
     st.rerun()
 
 
