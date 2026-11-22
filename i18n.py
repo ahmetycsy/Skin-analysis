@@ -27,10 +27,10 @@ def t(key: str, **kw) -> str:
 
 # ------------------------------------------------------------------ sınıf, grup, bölge adları
 PLAIN_NAMES_EN = {
-    "AKIEC": "Sun-damage spot (can become cancer)",
+    "AKIEC": "Actinic keratosis (rough sun-damage patch, can become cancer)",
     "BCC": "Slow-growing skin cancer",
     "BEN_OTH": "Other benign growths",
-    "BKL": "Benign spot / wart-like growth",
+    "BKL": "Benign spot (solar lentigo, seborrhoeic keratosis)",
     "DF": "Small firm bump under the skin",
     "INF": "Inflammation or infection",
     "MAL_OTH": "Other malignant growths",
@@ -53,10 +53,10 @@ CLASS_NAMES_EN = {
     "VASC": "Vascular lesions and hemorrhage",
 }
 DESCRIPTIONS_EN = {
-    "AKIEC": "A rough, scaly patch on long-term sun-exposed skin. It can turn into cancer over time, so it needs follow-up and treatment.",
+    "AKIEC": "A patch on long-term sun-exposed skin that feels rough like sandpaper, often pink-red and scaly. Not the same as a harmless flat brown \"sun spot\". It can turn into cancer over time, so it needs follow-up and treatment.",
     "BCC": "The most common skin cancer. It grows slowly and rarely spreads, but it needs treatment.",
     "BEN_OTH": "Harmless skin growths that do not fit the other categories.",
-    "BKL": "Harmless brown spots and wart-like bumps that usually appear with age.",
+    "BKL": "Harmless flat brown spots that come with age and sun (commonly called sun or age spots) and wart-like bumps.",
     "DF": "A small, harmless bump that feels firm to the touch, most often on the legs.",
     "INF": "Not cancer. Indicates an inflammatory or infection-related skin problem.",
     "MAL_OTH": "Rarer malignant skin growths that do not fit the other categories.",
@@ -764,6 +764,14 @@ Do not use filtered, cropped or colour-corrected images.
 "zip_wait": ("Raporlar hazırlanıyor…", "Preparing reports…"),
 "zip_dl": ("ZIP'i indir ({n} rapor)", "Download ZIP ({n} reports)"),
 "ev_zip": ("Toplu PDF hazırlandı ({n} vaka)", "Bulk PDF prepared ({n} cases)"),
+"ev_reminder": ("Kontrol hatırlatıcısı indirildi", "Check-up reminder downloaded"),
+"remind_btn": ("Kontrol hatırlatıcısı", "Check-up reminder"),
+"remind_help": ("Telefonunuzun takvimine eklenir: o gün aynı ışıkta yeni fotoğraf çekip “Önceki vaka no” ile karşılaştırın. Doktor randevusunun yerine geçmez.",
+                "Adds an event to your phone calendar: on that day take a new photo in the same light and compare it using “Previous case no”. It does not replace a doctor's appointment."),
+"remind_when": ("Ne zaman?", "When?"),
+"remind_m": ("{m} ay sonra", "In {m} months"),
+"remind_dl": ("Takvime ekle (.ics)", "Add to calendar (.ics)"),
+"details_more": ("Ayrıntılar (olası tanılar, ısı haritası, tüm sonuçlar)", "Details (possible diagnoses, heat map, all results)"),
 "dark_toggle": ("Koyu tema", "Dark theme"),
 "dark_help": ("Tercih bu tarayıcıda saklanır. Değiştirince sayfa yenilenir: kaydedilmemiş vakalar ve hekim girişi silinir.",
               "Saved in this browser. Switching reloads the page: unsaved cases and the physician login are cleared."),

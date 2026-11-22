@@ -38,6 +38,7 @@ from predictor import (
 from stats_page import render_stats
 from eval_page import render_eval
 from survey_page import render_survey
+from patient_help import ics_bytes, reliability_html, render_symptom_form, symptom_advice, symptom_lines
 from health_page import render_photo_tips, render_share, render_skin_health, render_versions
 from db import get_db
 
@@ -181,6 +182,10 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .rec.refer {{ background:#FBF5EA; border-color:#EBD9B8; }} .rec.refer .rec-title {{ color:#8C5A12; }}
 .rec.benign {{ background:#EDF6F4; border-color:#CFE5E1; }} .rec.benign .rec-title {{ color:#25685F; }}
 .unsure {{ background:#FCF8EE; border:1px solid #EFE2BF; border-radius:8px; padding:.6rem .85rem; font-size:.87rem; line-height:1.5; margin:0 0 .8rem; }}
+.sym-warn {{ background:#FBEFF2; border:1px solid #EBC9D2; border-radius:8px; padding:.6rem .85rem; font-size:.87rem; line-height:1.5; margin:0 0 .8rem; }}
+.sym-info {{ background:var(--soft,#E7F2F0); border:1px solid var(--softb,#C5DFDA); border-radius:8px; padding:.6rem .85rem; font-size:.87rem; line-height:1.5; margin:0 0 .8rem; }}
+.rely {{ border:1px solid var(--line,#DDE6E5); border-radius:8px; padding:.65rem .85rem; margin:0 0 .8rem; font-size:.87rem; line-height:1.5; }}
+.rely-t {{ font-weight:600; margin-bottom:.2rem; }} .rely-h {{ color:var(--muted,#5F747C); font-size:.8rem; margin-top:.3rem; }}
 .sec-label {{ font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:{MUTED}; margin:1rem 0 .45rem; }}
 .stack {{ display:flex; height:.6rem; border-radius:999px; overflow:hidden; margin:.2rem 0 .45rem; background:{LINE}; }}
 .legend {{ display:flex; flex-wrap:wrap; gap:.3rem 1.1rem; font-size:.84rem; color:{MUTED}; }}
@@ -261,6 +266,7 @@ div.stButton > button[kind="primary"]:disabled {{ background:#24403D; color:#8FA
 .rec.refer {{ background:#2B2216; border-color:#5A4520; }} .rec.refer .rec-title {{ color:#E0B86A; }}
 .rec.benign {{ background:#10302C; border-color:#1E4A44; }} .rec.benign .rec-title {{ color:#6FCABD; }}
 .unsure {{ background:#2B2516; border-color:#5A4C24; }}
+.sym-warn {{ background:#2E1A20; border-color:#5C2F3B; }}
 .cam-empty {{ border-color:#3A4452; }} .cand-meta {{ color:#7F8C93; }}
 .fu .soon {{ color:#E0B86A; }} .fu .late, .arrow-up {{ color:#E58AA0; }} .arrow-down {{ color:#6FCABD; }}
 .ev-best {{ background:{SOFT} !important; border-color:{SOFT_B} !important; color:{INK} !important; }}
@@ -303,7 +309,7 @@ ss.setdefault("audit", [])        # denetim kaydı: yalnızca eklenir, değişti
 ss.setdefault("dirty", [])        # veritabanına yazılacak vakalar
 ss.setdefault("pending_audit", [])  # veritabanına yazılacak denetim satırları
 ss.setdefault("db_synced", 0.0)   # vakaların veritabanından en son çekildiği an
-INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm", "patient", "prev")
+INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm", "patient", "prev", "symp")
 
 
 def go(page: str):
@@ -635,6 +641,7 @@ def pdf_extra_lines(rec: dict):
         rows.append((t("ps_title"), ", ".join(i18n.plain(c) for c in ps)))
     if modality_disagree(rec.get("parts")):
         rows.append((t("mod_pdf"), t("mod_pdf_v")))
+    rows += symptom_lines(rec.get("symptoms"))
     return rows
 
 
@@ -785,7 +792,7 @@ def event_text(ev: dict) -> str:
     if ev["kind"] == "sus":
         return t("ev_sus", s=ev.get("score", ""))
     simple = {"pdf": "ev_pdf", "login": "ev_login", "logout": "ev_logout", "login_fail": "ev_login_fail",
-              "consent": "ev_consent", "skin_override": "ev_skin_override"}
+              "consent": "ev_consent", "skin_override": "ev_skin_override", "reminder": "ev_reminder"}
     if ev["kind"] in simple:
         return t(simple[ev["kind"]])
     if ev["kind"] == "closed":
@@ -1134,6 +1141,14 @@ def render_case(cid: str, where: str):
                           disabled=len(ss.cases) < 2)
             st.button(t("btn_followup"), icon=":material/history:", width="stretch", key=f"fu_start_{cid}_{where}",
                       on_click=start_followup, args=(cid,), help=t("btn_followup_help"))
+            with st.popover(t("remind_btn"), icon=":material/event:", width="stretch"):
+                st.caption(t("remind_help"))
+                months = st.segmented_control(t("remind_when"), [1, 3, 6], default=1 if a["level"] != "benign" else 3,
+                                              format_func=lambda m: t("remind_m", m=m), key=f"rm_{cid}_{where}")
+                months = months or 3
+                st.download_button(t("remind_dl"), ics_bytes(cid, months, APP_URL), file_name=f"{cid}-kontrol.ics",
+                                   mime="text/calendar", icon=":material/download:", width="stretch", key=f"ics_{cid}_{where}",
+                                   on_click=lambda c=cid: add_event(ss.cases[c], "reminder"))
         if where == "new":
             st.markdown(f'<div class="case-hint">{t("case_hint")}</div>', unsafe_allow_html=True)
         if rec.get("prev"):
@@ -1168,74 +1183,90 @@ def render_case(cid: str, where: str):
                     f'<div class="rec-text">{a["text"]}</div></div>', unsafe_allow_html=True)
         if a["uncertain"]:
             st.markdown(f'<div class="unsure">{t("unsure_box")}</div>', unsafe_allow_html=True)
+        for kind, txt in symptom_advice(rec.get("symptoms"), a["level"], a["ranked"][0][0]):
+            st.markdown(f'<div class="sym-{kind}">{txt}</div>', unsafe_allow_html=True)
+        if not predictor.is_mock:
+            rel = reliability_html(a["ranked"][0][0], rec_mode(rec), a["ranked"][0][1])
+            if rel:
+                st.markdown(rel, unsafe_allow_html=True)
+        simple = rec_mode(rec) == "hasta"
         bar = "".join(f'<div style="width:{a["totals"][g] * 100:.2f}%;background:{GROUP_COLORS[g]}"></div>' for g in GROUP_ORDER)
         legend = "".join(f'<span><span class="dot" style="background:{GROUP_COLORS[g]}"></span>{i18n.group(g)} '
                          f'<b>{i18n.pct(a["totals"][g])}</b></span>' for g in GROUP_ORDER)
         st.markdown(f'<div class="stack">{bar}</div><div class="legend">{legend}</div>', unsafe_allow_html=True)
 
-        ps = pred_set(rec)
-        if ps:
-            st.markdown(f'<div class="sec-label">{t("ps_title")}</div>', unsafe_allow_html=True)
-            chips = "".join(f'<span class="gpill-ps" style="border-color:{GROUP_COLORS[GROUPS[c]]};color:{GROUP_COLORS[GROUPS[c]]}">'
-                            f'{i18n.plain(c)} · {i18n.pct(rec["probs"][c])}</span>' for c in ps)
-            note = t("ps_one") if len(ps) == 1 else t("ps_many", n=len(ps))
-            st.markdown(f'<div class="ps-row">{chips}</div><div class="ps-note">{note}</div>', unsafe_allow_html=True,
-                        help=t("ps_help"))
-        st.markdown(f'<div class="sec-label">{t("top3")}</div>', unsafe_allow_html=True)
-        cards = ""
-        for c, p in a["ranked"][:3]:
-            col = GROUP_COLORS[GROUPS[c]]
-            cards += (
-                f'<div class="cand"><div class="cand-name">{i18n.plain(c)}</div>'
-                f'<div class="cand-pct" style="color:{col}">{i18n.pct(p)}</div>'
-                f'<div class="cand-bar"><i style="width:{p * 100:.2f}%;background:{col}"></i></div>'
-                f'<div class="cand-desc">{i18n.desc(c)}</div>'
-                f'<div class="cand-meta">{i18n.group(GROUPS[c])} · {t("medical_name")}: {i18n.cname(c)} ({c})</div></div>'
-            )
-        st.markdown(f"<div>{cards}</div>", unsafe_allow_html=True)
-
-        modality_panel(rec)
-
-        st.markdown(f'<div class="sec-label">{t("cam_title")}</div>', unsafe_allow_html=True)
-        if rec.get("cam_img") is not None and (rec.get("derm_jpg") or rec.get("clin_jpg")):
-            g1, g2 = st.columns(2)
-            if rec.get("derm_jpg"):
-                g1.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("cam_orig"), width="stretch")
-            else:
-                g1.image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
-            g2.image(lens_preview(rec["cam_img"]), caption=t("cam_heat", c=i18n.plain(rec["cam_class"])), width="stretch")
-            st.caption(t("cam_note"))
-        else:
-            st.markdown(f'<div class="cam-empty">{t("cam_demo")}</div>', unsafe_allow_html=True)
-
-        st.write("")
-        df = pd.DataFrame({
-            t("col_plain"): [i18n.plain(c) for c, _ in a["ranked"]],
-            t("col_medical"): [f"{i18n.cname(c)} ({c})" for c, _ in a["ranked"]],
-            t("col_group"): [i18n.group(GROUPS[c]) for c, _ in a["ranked"]],
-            t("col_prob"): [p for _, p in a["ranked"]],
-        })
-        with st.expander(t("all_results")):
-            pc, gc, nc = t("col_prob"), t("col_group"), t("col_plain")
-            chart = (
-                alt.Chart(df).mark_bar(cornerRadiusEnd=3, size=12)
-                .encode(
-                    x=alt.X(f"{pc}:Q", axis=alt.Axis(format="%", title=None, grid=False),
-                            scale=alt.Scale(domain=[0, max(0.05, float(df[pc].max()) * 1.1)])),
-                    y=alt.Y(f"{nc}:N", sort="-x", title=None, axis=alt.Axis(labelFontSize=12, labelLimit=260, domain=False, ticks=False)),
-                    color=alt.Color(f"{gc}:N", legend=None, scale=alt.Scale(
-                        domain=[i18n.group(g) for g in GROUP_ORDER], range=[GROUP_COLORS[g] for g in GROUP_ORDER])),
-                    tooltip=[nc, t("col_medical"), gc, alt.Tooltip(f"{pc}:Q", format=".1%")],
+        if simple:  # hasta modu: sade görünüm, teknik ayrıntılar açılır kutuda
+            top3 = "".join(f'<div class="cand"><div class="cand-name">{i18n.plain(c)}</div>'
+                           f'<div class="cand-pct" style="color:{GROUP_COLORS[GROUPS[c]]}">{i18n.pct(p)}</div>'
+                           f'<div class="cand-desc">{i18n.desc(c)}</div></div>' for c, p in a["ranked"][:3])
+            st.markdown(f'<div class="sec-label">{t("top3")}</div><div>{top3}</div>', unsafe_allow_html=True)
+        detail = st.expander(t("details_more"), icon=":material/tune:") if simple else st.container()
+        with detail:
+            ps = pred_set(rec)
+            if ps:
+                st.markdown(f'<div class="sec-label">{t("ps_title")}</div>', unsafe_allow_html=True)
+                chips = "".join(f'<span class="gpill-ps" style="border-color:{GROUP_COLORS[GROUPS[c]]};color:{GROUP_COLORS[GROUPS[c]]}">'
+                                f'{i18n.plain(c)} · {i18n.pct(rec["probs"][c])}</span>' for c in ps)
+                note = t("ps_one") if len(ps) == 1 else t("ps_many", n=len(ps))
+                st.markdown(f'<div class="ps-row">{chips}</div><div class="ps-note">{note}</div>', unsafe_allow_html=True,
+                            help=t("ps_help"))
+            if not simple:
+                st.markdown(f'<div class="sec-label">{t("top3")}</div>', unsafe_allow_html=True)
+            cards = ""
+            for c, p in a["ranked"][:3]:
+                col = GROUP_COLORS[GROUPS[c]]
+                cards += (
+                    f'<div class="cand"><div class="cand-name">{i18n.plain(c)}</div>'
+                    f'<div class="cand-pct" style="color:{col}">{i18n.pct(p)}</div>'
+                    f'<div class="cand-bar"><i style="width:{p * 100:.2f}%;background:{col}"></i></div>'
+                    f'<div class="cand-desc">{i18n.desc(c)}</div>'
+                    f'<div class="cand-meta">{i18n.group(GROUPS[c])} · {t("medical_name")}: {i18n.cname(c)} ({c})</div></div>'
                 )
-                .properties(height=22 * len(df)).configure_view(strokeWidth=0)
-            )
-            st.altair_chart(chart, use_container_width=True)
-            st.dataframe(df.assign(**{pc: df[pc].map(i18n.pct)}), hide_index=True, width="stretch")
-        with st.expander(t("tech")):
-            st.caption(t("tech_line", m=rec["model_name"], s=rec["elapsed"], c=rec["created"],
-                         ok=t("tech_ok") if rec["elapsed"] < 10 else t("tech_slow")))
-            st.caption(t("tech_thr", u=f"{REFER_URGENT_MALIGN * 100:.0f}", r=f"{REFER_MALIGN_OR_PRE * 100:.0f}",
-                         t=f"{UNCERTAIN_TOP * 100:.0f}", g=f"{UNCERTAIN_GAP * 100:.0f}"))
+            if not simple:
+                st.markdown(f"<div>{cards}</div>", unsafe_allow_html=True)
+
+            modality_panel(rec)
+
+            st.markdown(f'<div class="sec-label">{t("cam_title")}</div>', unsafe_allow_html=True)
+            if rec.get("cam_img") is not None and (rec.get("derm_jpg") or rec.get("clin_jpg")):
+                g1, g2 = st.columns(2)
+                if rec.get("derm_jpg"):
+                    g1.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("cam_orig"), width="stretch")
+                else:
+                    g1.image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
+                g2.image(lens_preview(rec["cam_img"]), caption=t("cam_heat", c=i18n.plain(rec["cam_class"])), width="stretch")
+                st.caption(t("cam_note"))
+            else:
+                st.markdown(f'<div class="cam-empty">{t("cam_demo")}</div>', unsafe_allow_html=True)
+
+            st.write("")
+            df = pd.DataFrame({
+                t("col_plain"): [i18n.plain(c) for c, _ in a["ranked"]],
+                t("col_medical"): [f"{i18n.cname(c)} ({c})" for c, _ in a["ranked"]],
+                t("col_group"): [i18n.group(GROUPS[c]) for c, _ in a["ranked"]],
+                t("col_prob"): [p for _, p in a["ranked"]],
+            })
+            with (st.container() if simple else st.expander(t("all_results"))):
+                pc, gc, nc = t("col_prob"), t("col_group"), t("col_plain")
+                chart = (
+                    alt.Chart(df).mark_bar(cornerRadiusEnd=3, size=12)
+                    .encode(
+                        x=alt.X(f"{pc}:Q", axis=alt.Axis(format="%", title=None, grid=False),
+                                scale=alt.Scale(domain=[0, max(0.05, float(df[pc].max()) * 1.1)])),
+                        y=alt.Y(f"{nc}:N", sort="-x", title=None, axis=alt.Axis(labelFontSize=12, labelLimit=260, domain=False, ticks=False)),
+                        color=alt.Color(f"{gc}:N", legend=None, scale=alt.Scale(
+                            domain=[i18n.group(g) for g in GROUP_ORDER], range=[GROUP_COLORS[g] for g in GROUP_ORDER])),
+                        tooltip=[nc, t("col_medical"), gc, alt.Tooltip(f"{pc}:Q", format=".1%")],
+                    )
+                    .properties(height=22 * len(df)).configure_view(strokeWidth=0)
+                )
+                st.altair_chart(chart, use_container_width=True)
+                st.dataframe(df.assign(**{pc: df[pc].map(i18n.pct)}), hide_index=True, width="stretch")
+            with (st.container() if simple else st.expander(t("tech"))):
+                st.caption(t("tech_line", m=rec["model_name"], s=rec["elapsed"], c=rec["created"],
+                             ok=t("tech_ok") if rec["elapsed"] < 10 else t("tech_slow")))
+                st.caption(t("tech_thr", u=f"{REFER_URGENT_MALIGN * 100:.0f}", r=f"{REFER_MALIGN_OR_PRE * 100:.0f}",
+                             t=f"{UNCERTAIN_TOP * 100:.0f}", g=f"{UNCERTAIN_GAP * 100:.0f}"))
 
     # Aynı lezyonun önceki/sonraki kontrolleri
     if len(lesion_chain(cid)) > 1:
@@ -1497,6 +1528,10 @@ def step_patient():
         else:
             i2.caption(t("mode_hasta"))
 
+    if pm:
+        with st.container(border=True):
+            ss.v_symp = render_symptom_form(ss.get("v_symp") or {}, wkey)
+
     prev_txt = st.text_input(t("prev_label"), value=ss.get("v_prev") or "", key=wkey("prev"), placeholder="LZ-…",
                              help=t("prev_help")).strip().upper()
     ss.v_prev = prev_txt
@@ -1571,6 +1606,7 @@ def step_patient():
             "status": "new",
             "events": [],
             "prev": prev_ok,
+            "symptoms": (ss.get("v_symp") or None) if pm else None,  # yalnızca bellekte ve PDF'te
         }
         add_event(rec, "created")
         if prev_ok:

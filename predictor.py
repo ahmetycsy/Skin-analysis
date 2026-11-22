@@ -30,10 +30,10 @@ CLASS_NAMES = {
 
 # Ekranda gösterilen sade adlar (tıbbi terim bilmeyen biri de anlasın diye)
 PLAIN_NAMES = {
-    "AKIEC": "Güneş lekesi (kansere dönüşebilir)",
+    "AKIEC": "Aktinik keratoz (güneşe bağlı pürüzlü leke, kansere dönüşebilir)",
     "BCC": "Yavaş büyüyen deri kanseri",
     "BEN_OTH": "Diğer iyi huylu oluşumlar",
-    "BKL": "İyi huylu leke / siğil benzeri oluşum",
+    "BKL": "İyi huylu leke (güneş lentigosu, seboreik keratoz)",
     "DF": "Deri altında sert küçük şişlik",
     "INF": "İltihap veya enfeksiyon",
     "MAL_OTH": "Diğer kötü huylu oluşumlar",
@@ -45,10 +45,10 @@ PLAIN_NAMES = {
 
 # Tek cümlelik sade açıklamalar
 DESCRIPTIONS = {
-    "AKIEC": "Uzun süre güneş görmüş deride çıkan pürüzlü, kabuklu leke. Zamanla kansere dönüşebildiği için takip ve tedavi gerekir.",
+    "AKIEC": "Uzun süre güneş görmüş deride çıkan, dokununca zımpara gibi pürüzlü, çoğu zaman pembe-kırmızı kabuklu leke. Halk arasındaki zararsız kahverengi \"güneş lekesi\" ile karıştırılmamalı. Zamanla kansere dönüşebildiği için takip ve tedavi gerekir.",
     "BCC": "En sık görülen deri kanseri. Yavaş büyür ve nadiren yayılır, ancak tedavi edilmesi gerekir.",
     "BEN_OTH": "Listedeki diğer türlere girmeyen, zararsız deri oluşumları.",
-    "BKL": "Genellikle yaşla birlikte çıkan, zararsız kahverengi lekeler ve siğil benzeri kabarıklıklar.",
+    "BKL": "Yaşla ve güneşle birlikte çıkan, zararsız düz kahverengi lekeler (halk arasında güneş/yaşlılık lekesi) ve siğil benzeri kabarıklıklar.",
     "DF": "Çoğunlukla bacakta görülen, dokununca sert hissedilen küçük ve zararsız bir şişlik.",
     "INF": "Kanser değildir. Deride iltihap ya da mikrop kaynaklı bir sorunu gösterir.",
     "MAL_OTH": "Listedeki diğer türlere girmeyen, daha nadir görülen kötü huylu deri oluşumları.",
