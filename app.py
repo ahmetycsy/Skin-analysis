@@ -238,7 +238,17 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .legend-big div {{ margin:.3rem 0; font-size:.9rem; line-height:1.5; }}
 .notice {{ background:#fff; border:1px solid {LINE}; border-left:3px solid {C_PREMALIGN}; border-radius:8px; padding:.55rem .8rem; margin:.4rem 0; font-size:.88rem; }}
 .notice.demo {{ border-left-color:{TEAL}; }}
-@media (max-width:640px) {{ .page-title {{ font-size:1.3rem; }} .case-no {{ font-size:1.2rem; }} .stp-line {{ flex-basis:.8rem; }} }}
+@media (max-width:640px) {{ .page-title {{ font-size:1.3rem; }} .case-no {{ font-size:1.2rem; }}
+  .stepper {{ flex-wrap:nowrap; gap:.3rem; }} .stp {{ font-size:.8rem; gap:.3rem; white-space:nowrap; }} .stp i {{ width:1.35rem; height:1.35rem; }}
+  .stp-line {{ flex-basis:.6rem; }}
+  [data-testid="stHorizontalBlock"]:has(.kpi), [data-testid="stHorizontalBlock"]:has(.guide) {{ flex-wrap:wrap !important; gap:.5rem !important; }}
+  [data-testid="stHorizontalBlock"]:has(.kpi) > [data-testid="stColumn"], [data-testid="stHorizontalBlock"]:has(.guide) > [data-testid="stColumn"]
+    {{ flex:1 1 calc(50% - .5rem) !important; width:calc(50% - .5rem) !important; min-width:calc(50% - .5rem) !important; }}
+  .kpi {{ padding:.6rem .7rem; }} .role-card {{ padding:1rem; }} }}
+.chip {{ white-space:normal; max-width:100%; overflow-wrap:anywhere; }}
+.role-card {{ background:var(--surf,#fff); border:1px solid {LINE}; border-radius:12px; padding:1.2rem 1.2rem .9rem; margin-bottom:.5rem; }}
+.role-card .ic {{ font-size:1.8rem; line-height:1; }} .role-card .rt {{ font-weight:600; font-size:1.05rem; margin:.5rem 0 .2rem; }}
+.role-card .rd {{ color:{MUTED}; font-size:.9rem; line-height:1.45; }}
 @media (prefers-reduced-motion: reduce) {{ * {{ transition:none !important; animation:none !important; }} }}
 </style>
 """,
@@ -314,6 +324,7 @@ INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm", "patient", "pr
 
 def go(page: str):
     ss.page = page
+    ss.nav_close = True  # telefonda menü seçimden sonra kapansın
     if page == "track":
         ss.open_case = None
 
@@ -646,7 +657,26 @@ def pdf_extra_lines(rec: dict):
 
 
 def patient_mode() -> bool:
-    return bool(ss.get("v_patient"))
+    v = ss.get("v_patient")
+    return bool(v) if v is not None else ss.get("role") == "patient"
+
+
+def choose_role(role: str):
+    ss.role = role
+    ss.v_patient = role == "patient"
+
+
+def role_screen():
+    """Yeni analizin ilk ekranı (oturumda bir kez): kim kullanıyor? Seçime göre doğru akış açılır."""
+    st.markdown(f'<p class="lead">{t("role_q")}</p>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2, gap="medium")
+    for col, role, ic in ((c1, "patient", "📱"), (c2, "doctor", "🩺")):
+        with col:
+            st.markdown(f'<div class="role-card"><div class="ic">{ic}</div><div class="rt">{t("role_" + role)}</div>'
+                        f'<div class="rd">{t("role_" + role + "_d")}</div></div>', unsafe_allow_html=True)
+            st.button(t("role_" + role + "_btn"), key=f"role_{role}", type="primary" if role == "patient" else "secondary",
+                      width="stretch", on_click=choose_role, args=(role,))
+    st.caption(t("role_note"))
 
 
 def rec_mode(rec: dict) -> str:
@@ -938,6 +968,14 @@ def page_header(title: str, sub: str = ""):
 
 # ---------------------------------------------------------------- yan menü
 i18n.set_lang(ss.lang)
+i18n.set_pm(False)  # hasta modunda sade dil; yeni analiz ve hasta vakası ekranında açılır
+st.markdown(
+    "<style>"
+    '[data-testid="stFileUploaderDropzoneInstructions"] > div { display:none; }'
+    f'[data-testid="stFileUploaderDropzoneInstructions"]::after {{ content:"{t("up_hint")}"; font-size:.85rem; color:{MUTED}; }}'
+    '[data-testid="stFileUploaderDropzone"] button { font-size:0 !important; }'
+    f'[data-testid="stFileUploaderDropzone"] button::after {{ content:"{t("up_btn")}"; font-size:.95rem; }}'
+    "</style>", unsafe_allow_html=True)
 predictor = get_predictor(os.environ.get("MODEL_REPO", ""))
 DB = get_db()
 flush_db()  # önceki çalıştırmadan kalan (ör. st.rerun ile yarıda kalan) yazmalar
@@ -971,6 +1009,7 @@ if not ss.consent:
         st.segmented_control("Language", options=list(i18n.LANGS), format_func=i18n.LANGS.get, default=ss.lang,
                              key="lang_dlg", label_visibility="collapsed", on_change=_dlg_lang)
         st.markdown(t("consent_body"))
+        st.markdown(f'<div class="banner" style="border-left-color:{TEAL}">{t("consent_how")}</div>', unsafe_allow_html=True)
         ok = st.checkbox(t("consent_check"), key=f"consent_chk_{ss.lang}")
         if st.button(t("consent_btn"), type="primary", disabled=not ok, width="stretch"):
             ss.consent = True
@@ -978,8 +1017,8 @@ if not ss.consent:
             st.rerun()
 
     consent_dialog()
-elif not ss.get("tour_done") and (ss.get("tour_force") or not st.context.cookies.get("cds_tour_off")):
-    # İlk kullanım turu: onaydan hemen sonra bir kez (bu oturumda). "Bir daha gösterme" tarayıcıya çerez yazar.
+elif not ss.get("tour_done") and ss.get("tour_force"):
+    # Hızlı tur yalnızca istenince açılır (Yardım → Kılavuz). Girişte tek pencere: onay + kısa kullanım bilgisi.
     @st.dialog(t("tour_title"), width="medium", on_dismiss=lambda: ss.update(tour_done=True, tour_force=False))
     def tour_dialog():
         steps = [("tour1_t", "tour1"), ("tour2_t", "tour2"), ("tour3_t", "tour3"), ("tour4_t", "tour4")]
@@ -1033,6 +1072,11 @@ with st.sidebar:
     for key, label, icon in nav:
         st.button(label, key=f"nav_{key}", icon=icon, width="stretch",
                   type="primary" if ss.page == key else "secondary", on_click=go, args=(key,))
+    if ss.pop("nav_close", False):
+        components.html(
+            "<script>(function(){const w = window.parent; if (w.innerWidth >= 768) return;"
+            "const b = w.document.querySelector('[data-testid=\"stSidebarCollapseButton\"] button'); if (b) b.click();})();</script>",
+            height=0)
 
     st.markdown('<div class="side-sep"></div>', unsafe_allow_html=True)
 
@@ -1107,6 +1151,7 @@ with st.sidebar:
 def render_case(cid: str, where: str):
     rec = ss.cases[cid]
     load_events(rec)
+    i18n.set_pm(rec_mode(rec) == "hasta")
     a = assess(rec["probs"])
 
     with st.container(border=True):
@@ -1388,6 +1433,11 @@ def render_case(cid: str, where: str):
 
 # ---------------------------------------------------------------- sayfa: yeni analiz
 def page_new():
+    if ss.get("role") is None and ss.get("v_patient") is None and ss.step == 1:
+        page_header(t("new_title"))
+        role_screen()
+        return
+    i18n.set_pm(patient_mode())
     page_header(t("new_title"), t("new_sub"))
     st.markdown(f'<div class="banner">{t("banner")}{t("banner_demo") if predictor.is_mock else ""}</div>',
                 unsafe_allow_html=True)

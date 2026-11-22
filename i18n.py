@@ -20,8 +20,17 @@ def get_lang() -> str:
     return _lang
 
 
+_pm = False  # hasta modu: bazı metinlerin sade (tıbbi terimsiz) sürümü kullanılır
+
+
+def set_pm(on: bool):
+    global _pm
+    _pm = bool(on)
+
+
 def t(key: str, **kw) -> str:
-    s = S[key][0 if _lang == "tr" else 1]
+    pair = PM[key] if _pm and key in PM else S[key]
+    s = pair[0 if _lang == "tr" else 1]
     return s.format(**kw) if kw else s
 
 
@@ -840,4 +849,66 @@ Do not use filtered, cropped or colour-corrected images.
     "pdf_all": ("Tüm türler", "All types"),
     "pdf_footer": ("MILK10k (ISIC Archive), CC-BY-NC 4.0 · Bu uygulama bir tıbbi cihaz değildir.",
                    "MILK10k (ISIC Archive), CC-BY-NC 4.0 · This application is not a medical device."),
+}
+
+
+S.update({
+    "up_hint": ("JPG veya PNG · telefonda kamera ya da galeri açılır", "JPG or PNG · on a phone this opens the camera or gallery"),
+    "up_btn": ("Fotoğraf seç", "Choose photo"),
+    "consent_how": ("<b>Nasıl kullanılır?</b> 1) Lekenin fotoğrafını yükleyin · 2) Yaş, cinsiyet gibi birkaç bilgiyi seçin · "
+                    "3) Sonucu ve öneriyi okuyun. Ayrıntılı tanıtım: Yardım → Kılavuz → Hızlı tur.",
+                    "<b>How to use:</b> 1) Upload a photo of the spot · 2) Pick a few details such as age and sex · "
+                    "3) Read the result and advice. Full walkthrough: Help → Guide → Quick tour."),
+    "role_q": ("Siteyi kim kullanıyor? Seçiminize göre doğru adımlar açılır; sonradan değiştirebilirsiniz.",
+               "Who is using the site? The right steps open for your choice; you can change it later."),
+    "role_patient": ("Kendim / yakınım için bakıyorum", "Checking for myself or a relative"),
+    "role_patient_d": ("Yalnızca telefonla çekilmiş bir fotoğraf yeterli. Sonuç sade dille gösterilir.",
+                       "A phone photo is all you need. The result is shown in plain language."),
+    "role_patient_btn": ("Telefon fotoğrafıyla başla", "Start with a phone photo"),
+    "role_doctor": ("Hekim / sağlık çalışanıyım", "I am a physician / health worker"),
+    "role_doctor_d": ("Klinik yakın çekim + dermoskopik görüntü (dermatoskop gerekir). En güvenilir sonuç bu moddadır.",
+                      "Clinical close-up + dermoscopic image (needs a dermatoscope). This mode gives the most reliable result."),
+    "role_doctor_btn": ("İki görüntüyle başla", "Start with two images"),
+    "role_note": ("Hiçbir seçenek tanı koymaz; sonuçlar hekim değerlendirmesinin yerine geçmez.",
+                  "Neither option gives a diagnosis; results do not replace a physician's assessment."),
+})
+
+# Hasta modunda kullanılan sade metinler (aynı anahtar; set_pm(True) iken bunlar gösterilir)
+PM = {
+    "new_sub": ("Üç adım: lekenin fotoğrafını yükleyin, birkaç bilgi seçin, sonucu okuyun.",
+                "Three steps: upload a photo of the spot, pick a few details, read the result."),
+    "s1_title": ("Fotoğraf", "Photo"),
+    "s2_title": ("Bilgiler", "Details"),
+    "clin_title": ("Lekenin fotoğrafı", "Photo of the spot"),
+    "clin_text": ("Lekeyi telefonla, 10–15 cm uzaktan, gün ışığında ve flaşsız çekin. Leke ortada ve net olsun; çevresindeki "
+                  "deri de görünsün.",
+                  "Photograph the spot with your phone from 10–15 cm, in daylight, without flash. Keep the spot centred and "
+                  "sharp, with some surrounding skin visible."),
+    "s2_images": ("Yüklenen fotoğraf", "Uploaded photo"),
+    "pdf_images": ("Fotoğraf", "Photo"),
+    "case_no": ("Kayıt no", "Record no"),
+    "case_hint": ("Bu numarayı not edin; doktorunuza gösterebilir ya da <b>Vaka takibi</b> sayfasından tekrar açabilirsiniz.",
+                  "Note this number; you can show it to your doctor or reopen it on the <b>Case tracking</b> page."),
+    "pm_note": ("Sonuç yalnızca telefon fotoğrafından hesaplandı. Doktorların kullandığı büyüteçli görüntüyle yapılan analize göre "
+                "daha az güvenilirdir.",
+                "The result was computed from the phone photo only. It is less reliable than an analysis with the magnified "
+                "image doctors use."),
+    "top3": ("En çok benzediği 3 tür", "The 3 types it looks most like"),
+    "r_urgent": ("Fotoğraftaki leke, kötü huylu (kanser) türlere belirgin şekilde benziyor (toplam benzerlik {p}). "
+                 "Lekeyi kısa süre içinde bir dermatoloğa gösterin.",
+                 "The spot clearly resembles malignant (cancer) types (total {p}). Please show it to a dermatologist soon."),
+    "r_refer": ("Fotoğraftaki leke, kanser ya da kansere dönüşebilen türlere bir ölçüde benziyor (toplam benzerlik {p}). "
+                "Lekeyi bir dermatoloğa gösterin.",
+                "The spot somewhat resembles cancer or pre-cancer types (total {p}). Please show it to a dermatologist."),
+    "r_unsure": ("Model belirgin bir kanser bulgusu görmüyor ama sonuçtan emin değil. Lekeyi bir doktora gösterin.",
+                 "The model sees no clear sign of cancer but is not sure. Please show the spot to a doctor."),
+    "r_benign": ("Model fotoğrafta belirgin bir kanser bulgusu görmüyor. Yine de leke büyürse, rengi ya da şekli değişirse, "
+                 "kanar, kaşınır ya da yara açarsa bir doktora gidin.",
+                 "The model sees no clear sign of cancer in the photo. Still, see a doctor if the spot grows, changes colour "
+                 "or shape, bleeds, itches or becomes a sore."),
+    "unsure_box": ("<b>Model bu fotoğrafta emin değil.</b> En yakın sonuçlar birbirine çok yakın. Sıralamaya güvenmeyin; "
+                   "fotoğrafı daha net çekmeyi deneyin ve bir doktora danışın.",
+                   "<b>The model is not sure about this photo.</b> The closest results are very close to each other. Do not "
+                   "rely on the order; try a sharper photo and ask a doctor."),
+    "btn_followup": ("Bu lekenin kontrolünü başlat", "Start a follow-up of this spot"),
 }
