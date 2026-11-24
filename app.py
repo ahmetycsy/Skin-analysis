@@ -83,8 +83,8 @@ if DARK:
     INK, MUTED, TEAL, BG, LINE = "#E4ECEF", "#9AA8AF", "#0F766E", "#0E1117", "#2B3340"
     SURF, TEAL_TXT, SOFT, SOFT_B = "#161B22", "#3CC2B2", "#10302C", "#1E4A44"
 else:
-    INK, MUTED, TEAL, BG, LINE = "#1F3A44", "#5F747C", "#0F766E", "#F6F8F8", "#DDE6E5"
-    SURF, TEAL_TXT, SOFT, SOFT_B = "#FFFFFF", "#0F766E", "#E7F2F0", "#C5DFDA"
+    INK, MUTED, TEAL, BG, LINE = "#1C2B31", "#55686F", "#0E5E57", "#F7F9F9", "#DCE4E3"
+    SURF, TEAL_TXT, SOFT, SOFT_B = "#FFFFFF", "#0E5E57", "#E6F0EE", "#C3D9D5"
 C_MALIGN = "#A63D57"
 C_PREMALIGN = "#B0701A"
 C_BENIGN = "#2F7F78"
@@ -102,11 +102,12 @@ st.markdown(
     f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
-html, body, .stApp, [class*="css"] {{ font-family:'IBM Plex Sans', system-ui, -apple-system, sans-serif; color:{INK}; }}
+html, body, .stApp, [class*="css"] {{ font-family:'IBM Plex Sans', system-ui, -apple-system, sans-serif; color:{INK}; font-variant-numeric:tabular-nums; }}
 .stApp {{ background:{BG}; }}
 .block-container {{ padding-top:1.6rem; padding-bottom:3rem; max-width:1080px; }}
 header[data-testid="stHeader"] {{ background:transparent; }}
 #MainMenu, footer {{ visibility:hidden; }}
+[data-testid="stToolbar"] {{ display:none !important; }}  /* Fork / GitHub simgeleri ziyaretçiye gerekmez */
 h1, h2, h3 {{ font-family:'IBM Plex Sans', system-ui, sans-serif; color:{INK}; letter-spacing:-0.01em; }}
 
 /* yan menü */
@@ -115,14 +116,14 @@ section[data-testid="stSidebar"] .block-container, section[data-testid="stSideba
 .brand {{ display:flex; align-items:center; gap:.65rem; margin-bottom:1.1rem; }}
 .brand-mark {{ width:2.2rem; height:2.2rem; border-radius:9px; background:{TEAL}; display:flex; align-items:center; justify-content:center; flex:none; }}
 .brand-name {{ font-weight:600; font-size:.98rem; line-height:1.2; }}
-.brand-sub {{ font-size:.72rem; color:{MUTED}; }}
+.brand-sub {{ font-size:.76rem; color:{MUTED}; line-height:1.35; }}
 section[data-testid="stSidebar"] div.stButton > button {{ justify-content:flex-start; border:0; background:transparent; color:{INK};
   font-weight:500; padding:.45rem .7rem; border-radius:8px; }}
 section[data-testid="stSidebar"] div.stButton > button:hover {{ background:{BG}; color:{INK}; }}
-section[data-testid="stSidebar"] div.stButton > button[kind="primary"] {{ background:#E7F2F0; color:{TEAL}; font-weight:600; }}
+section[data-testid="stSidebar"] div.stButton > button[kind="primary"] {{ background:{SOFT}; color:{TEAL}; font-weight:600; }}
 .side-sep {{ border-top:1px solid {LINE}; margin:1rem 0 .8rem; }}
-.side-note {{ font-size:.76rem; color:{MUTED}; line-height:1.5; }}
-.chip {{ display:inline-block; font-size:.72rem; font-weight:500; border-radius:999px; padding:.15rem .55rem; border:1px solid {LINE};
+.side-note {{ font-size:.8rem; color:{MUTED}; line-height:1.5; }}
+.chip {{ display:inline-block; font-size:.76rem; font-weight:500; border-radius:999px; padding:.15rem .55rem; border:1px solid {LINE};
   background:{BG}; color:{MUTED}; white-space:nowrap; margin:0 .25rem .3rem 0; }}
 .chip.demo {{ background:#FBF3E4; border-color:#EBD6AE; color:#875A12; }}
 .chip.live {{ background:#E7F2F0; border-color:#C5DFDA; color:{TEAL}; }}
@@ -145,14 +146,14 @@ section[data-testid="stSidebar"] div.stButton > button[kind="primary"] {{ backgr
 /* kartlar */
 div[data-testid="stVerticalBlockBorderWrapper"] {{ background:#fff; border:1px solid {LINE} !important; border-radius:12px; }}
 .card-title {{ font-weight:600; font-size:1rem; margin:0 0 .2rem; }}
-.card-text {{ color:{MUTED}; font-size:.86rem; line-height:1.5; margin:0 0 .6rem; }}
+.card-text {{ color:{MUTED}; font-size:.92rem; line-height:1.55; margin:0 0 .6rem; }}
 .pill {{ display:inline-block; font-size:.72rem; font-weight:500; color:{TEAL}; background:#E7F2F0; border-radius:999px; padding:.1rem .55rem; }}
 [data-testid="stFileUploaderDropzone"] {{ background:{BG}; border:1.5px dashed #B5CFCB; border-radius:10px; }}
 
 /* düğmeler */
 div.stButton > button, div.stDownloadButton > button, div.stFormSubmitButton > button {{ border-radius:9px; font-weight:500; }}
 div.stButton > button[kind="primary"], div.stFormSubmitButton > button[kind="primary"] {{ background:{TEAL}; border:0; color:#fff; }}
-div.stButton > button[kind="primary"]:hover {{ background:#0B5F58; }}
+div.stButton > button[kind="primary"]:hover {{ background:#0A4B45; }}
 div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff; }}
 
 /* ten rengi örnekleri */
@@ -170,10 +171,10 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 
 /* vaka başlığı */
 .case-head {{ display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; flex-wrap:wrap; }}
-.case-label {{ font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:{MUTED}; }}
+.case-label {{ font-size:.88rem; font-weight:500; color:{MUTED}; }}
 .case-no {{ font-weight:600; font-size:1.45rem; letter-spacing:.03em; font-variant-numeric:tabular-nums; }}
-.case-meta {{ font-size:.82rem; color:{MUTED}; margin-top:.15rem; }}
-.spill {{ display:inline-block; font-size:.74rem; font-weight:600; border-radius:999px; padding:.15rem .6rem; color:#fff; white-space:nowrap; }}
+.case-meta {{ font-size:.88rem; color:{MUTED}; margin-top:.15rem; }}
+.spill {{ display:inline-block; font-size:.8rem; font-weight:600; border-radius:999px; padding:.12rem .6rem; white-space:nowrap; border:1px solid; }}
 .case-hint {{ font-size:.8rem; color:{MUTED}; margin-top:.5rem; }}
 
 /* sonuç */
@@ -190,7 +191,7 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .sym-info {{ background:var(--soft,#E7F2F0); border:1px solid var(--softb,#C5DFDA); border-radius:8px; padding:.6rem .85rem; font-size:.87rem; line-height:1.5; margin:0 0 .8rem; }}
 .rely {{ border:1px solid var(--line,#DDE6E5); border-radius:8px; padding:.65rem .85rem; margin:0 0 .8rem; font-size:.87rem; line-height:1.5; }}
 .rely-t {{ font-weight:600; margin-bottom:.2rem; }} .rely-h {{ color:var(--muted,#5F747C); font-size:.8rem; margin-top:.3rem; }}
-.sec-label {{ font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:{MUTED}; margin:1rem 0 .45rem; }}
+.sec-label {{ font-size:.95rem; font-weight:600; color:{INK}; margin:1.1rem 0 .45rem; }}
 .stack {{ display:flex; height:.6rem; border-radius:999px; overflow:hidden; margin:.2rem 0 .45rem; background:{LINE}; }}
 .legend {{ display:flex; flex-wrap:wrap; gap:.3rem 1.1rem; font-size:.84rem; color:{MUTED}; }}
 .legend b {{ color:{INK}; font-weight:600; font-variant-numeric:tabular-nums; }}
@@ -202,7 +203,7 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .cand-bar {{ grid-column:1 / -1; height:.3rem; border-radius:999px; background:{LINE}; overflow:hidden; }}
 .cand-bar i {{ display:block; height:100%; }}
 .cand-desc {{ grid-column:1 / -1; color:{MUTED}; font-size:.85rem; line-height:1.5; }}
-.cand-meta {{ grid-column:1 / -1; color:#7A8D94; font-size:.75rem; }}
+.cand-meta {{ grid-column:1 / -1; color:{MUTED}; font-size:.8rem; }}
 .kv {{ display:grid; grid-template-columns:auto 1fr; gap:.3rem .9rem; font-size:.88rem; }}
 .kv span {{ color:{MUTED}; }}
 .tl {{ font-size:.84rem; line-height:1.5; }}
@@ -224,12 +225,12 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .mod-sub {{ font-size:.8rem; color:{MUTED}; }}
 .tour-dots {{ display:flex; gap:.35rem; align-items:center; }} .tour-dots i {{ width:.5rem; height:.5rem; border-radius:50%; background:{LINE}; }}
 .tour-dots i.on {{ background:{TEAL}; width:1.3rem; border-radius:999px; }} .tour-dots span {{ font-size:.75rem; color:{MUTED}; margin-left:.4rem; }}
-.ps-note {{ font-size:.8rem; color:{MUTED}; margin-bottom:.2rem; }}
+.ps-note {{ font-size:.85rem; color:{MUTED}; margin-bottom:.2rem; }}
 .empty {{ color:{MUTED}; font-size:.94rem; line-height:1.6; padding:1rem .2rem; }}
 
 /* vaka listesi */
 .row-no {{ font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:.02em; }}
-.row-sub {{ font-size:.8rem; color:{MUTED}; }}
+.row-sub {{ font-size:.85rem; color:{MUTED}; }}
 
 /* model kartı ve kılavuz */
 .lead {{ color:{MUTED}; font-size:.97rem; line-height:1.55; max-width:50rem; margin:.2rem 0 1rem; }}
@@ -251,8 +252,34 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
   .kpi {{ padding:.6rem .7rem; }} .role-card {{ padding:1rem; }} }}
 .chip {{ white-space:normal; max-width:100%; overflow-wrap:anywhere; }}
 .role-card {{ background:var(--surf,#fff); border:1px solid {LINE}; border-radius:12px; padding:1.2rem 1.2rem .9rem; margin-bottom:.5rem; }}
-.role-card .ic {{ font-size:1.8rem; line-height:1; }} .role-card .rt {{ font-weight:600; font-size:1.05rem; margin:.5rem 0 .2rem; }}
+.role-card .ic {{ color:{TEAL_TXT}; line-height:1; }} .role-card .rt {{ font-weight:600; font-size:1.05rem; margin:.5rem 0 .2rem; }}
 .role-card .rd {{ color:{MUTED}; font-size:.9rem; line-height:1.45; }}
+/* yönlendirme cetveli (imza öğe) */
+.ruler {{ margin:.35rem 0 .2rem; }}
+.ruler-bar {{ position:relative; display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; height:.8rem; }}
+.ruler-bar i {{ border-radius:3px; }}
+.ruler-mk {{ position:absolute; top:-.4rem; width:4px; height:1.6rem; background:{INK}; border-radius:2px; transform:translateX(-50%); box-shadow:0 0 0 2px {SURF}; }}
+.ruler-lb {{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; font-size:.84rem; color:{MUTED}; margin-top:.45rem; line-height:1.3; }}
+.ruler-lb span:nth-child(2) {{ text-align:center; }} .ruler-lb span:nth-child(3) {{ text-align:right; }}
+.ruler-lb span.on {{ color:{INK}; font-weight:600; }}
+.ruler-note {{ font-size:.8rem; color:{MUTED}; margin:.25rem 0 0; }}
+.mini-ruler {{ display:inline-grid; grid-template-columns:repeat(3,.9rem); gap:2px; vertical-align:middle; margin-right:.45rem; }}
+.mini-ruler i {{ height:.42rem; border-radius:2px; }}
+.hero {{ background:{SURF}; border:1px solid {LINE}; border-radius:14px; padding:1.1rem 1.2rem .9rem; margin:.4rem 0 .9rem; }}
+.hero .rec {{ border:0; background:transparent; padding:0; margin:0 0 .7rem; }}
+.hero .rec-title {{ font-size:1.32rem; line-height:1.3; }}
+.hero .rec-text {{ font-size:.98rem; max-width:46rem; }}
+.case-top {{ display:flex; justify-content:space-between; align-items:baseline; gap:.4rem 1rem; flex-wrap:wrap; margin:.1rem 0 .2rem; }}
+.mode-line {{ font-size:.95rem; color:{INK}; padding:.35rem 0; }}
+.mode-line b {{ font-weight:600; }}
+.how {{ display:grid; grid-template-columns:repeat(3,1fr); gap:.8rem; margin:1.4rem 0 .6rem; }}
+.how div {{ border-top:2px solid {LINE}; padding-top:.55rem; font-size:.92rem; color:{MUTED}; line-height:1.45; }}
+.how b {{ display:block; color:{INK}; font-weight:600; margin-bottom:.15rem; }}
+.privacy {{ font-size:.88rem; color:{MUTED}; line-height:1.5; max-width:46rem; }}
+.role-card svg {{ display:block; }}
+.summary-line {{ font-size:1rem; line-height:1.6; background:{SURF}; border:1px solid {LINE}; border-radius:10px; padding:.75rem 1rem; margin:.2rem 0 1rem; }}
+.summary-line b {{ font-weight:600; }}
+@media (max-width:640px) {{ .how {{ grid-template-columns:1fr; }} .hero .rec-title {{ font-size:1.15rem; }} }}
 @media (prefers-reduced-motion: reduce) {{ * {{ transition:none !important; animation:none !important; }} }}
 </style>
 """,
@@ -286,6 +313,7 @@ div.stButton > button[kind="primary"]:disabled {{ background:#24403D; color:#8FA
 .ev-best {{ background:{SOFT} !important; border-color:{SOFT_B} !important; color:{INK} !important; }}
 .ev-best-t {{ color:{TEAL_TXT} !important; }} .ev-note {{ color:{MUTED} !important; }}
 a {{ color:{TEAL_TXT}; }}
+.hero, .summary-line {{ background:{SURF}; border-color:{LINE}; }}
 /* hazır koyu temanın kırmızı vurgusu yerine turkuaz */
 button[kind^="primary"] {{ background-color:{TEAL} !important; border-color:{TEAL} !important; color:#fff !important; }}
 button[kind^="primary"]:hover {{ background-color:#13897F !important; border-color:#13897F !important; }}
@@ -637,7 +665,9 @@ def export_csv(cases: dict) -> bytes:
 
 
 def make_pdf(rec: dict) -> bytes:
-    return build_pdf(rec, assess(rec["probs"], rec_mode(rec)), predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS,
+    a = assess(rec["probs"], rec_mode(rec))
+    a["pos"] = ruler_pos(a)  # PDF'te de aynı yönlendirme cetveli
+    return build_pdf(rec, a, predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS,
                      groups_of=GROUPS, group_order=GROUP_ORDER, meta_lines=meta_lines(rec["meta"]) + pdf_extra_lines(rec),
                      physician=physician_lines(rec), qr=qr_png(rec["case"]))
 
@@ -680,16 +710,26 @@ def choose_role(role: str):
     ss.v_patient = role == "patient"
 
 
+ICON_PHONE = ('<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" '
+              'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6.5" y="2.5" width="11" height="19" rx="2.2"/>'
+              '<circle cx="12" cy="11" r="3"/><path d="M10.5 18.5h3"/></svg>')
+ICON_LENS = ('<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" '
+             'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><circle cx="10" cy="10" r="3.2"/>'
+             '<path d="M14.8 14.8l5.7 5.7"/></svg>')
+
+
 def role_screen():
     """Yeni analizin ilk ekranı (oturumda bir kez): kim kullanıyor? Seçime göre doğru akış açılır."""
     st.markdown(f'<p class="lead">{t("role_q")}</p>', unsafe_allow_html=True)
     c1, c2 = st.columns(2, gap="medium")
-    for col, role, ic in ((c1, "patient", "📱"), (c2, "doctor", "🩺")):
+    for col, role, ic in ((c1, "patient", ICON_PHONE), (c2, "doctor", ICON_LENS)):
         with col:
             st.markdown(f'<div class="role-card"><div class="ic">{ic}</div><div class="rt">{t("role_" + role)}</div>'
                         f'<div class="rd">{t("role_" + role + "_d")}</div></div>', unsafe_allow_html=True)
             st.button(t("role_" + role + "_btn"), key=f"role_{role}", type="primary" if role == "patient" else "secondary",
                       width="stretch", on_click=choose_role, args=(role,))
+    steps = "".join(f'<div><b>{i}. {t("how_" + str(i) + "_t")}</b>{t("how_" + str(i))}</div>' for i in (1, 2, 3))
+    st.markdown(f'<div class="how">{steps}</div><p class="privacy">{t("role_privacy")}</p>', unsafe_allow_html=True)
     st.caption(t("role_note"))
 
 
@@ -722,7 +762,40 @@ def patient_short(m: dict) -> str:
 
 def status_pill(status: str) -> str:
     key, color = STATUSES[status]
-    return f'<span class="spill" style="background:{color}">{t(key)}</span>'
+    return f'<span class="spill" style="background:{color}1A;color:{color};border-color:{color}55">{t(key)}</span>'
+
+
+ZONE = {"benign": (C_BENIGN, "#CFE3DF"), "refer": (C_PREMALIGN, "#EEDDBC"), "urgent": (C_MALIGN, "#EDD0D8")}
+if DARK:
+    ZONE = {"benign": (C_BENIGN, "#1E3A37"), "refer": (C_PREMALIGN, "#3A2E1A"), "urgent": (C_MALIGN, "#3A2029")}
+LEVELS = ("benign", "refer", "urgent")
+
+
+def ruler_pos(a: dict) -> float:
+    """Cetvel üzerindeki işaretin yeri (%). Bölge = yönlendirme seviyesi; bölge içindeki yer olasılıklardan yaklaşık hesaplanır."""
+    mal, risk = a["totals"][MALIGN], a["totals"][MALIGN] + a["totals"][PREMALIGN]
+    if a["level"] == "benign":
+        x = min(risk / REFER_MALIGN_OR_PRE, 1) * 33.3
+    elif a["level"] == "refer":
+        x = 33.3 + min(mal / REFER_URGENT_MALIGN, 1) * 33.3
+    else:
+        x = 66.7 + min((mal - REFER_URGENT_MALIGN) / (1 - REFER_URGENT_MALIGN), 1) * 33.3
+    return max(3.0, min(97.0, x))
+
+
+def ruler_html(a: dict, simple: bool) -> str:
+    """Yönlendirme cetveli: üç bölge (rutin / değerlendirme / öncelikli) ve bu vakanın yeri."""
+    lab = [t(("ru_pm_" if simple else "ru_") + k) for k in LEVELS]
+    bar = "".join(f'<i style="background:{ZONE[k][0] if k == a["level"] else ZONE[k][1]}"></i>' for k in LEVELS)
+    lbs = "".join(f'<span class="{"on" if k == a["level"] else ""}">{lab[i]}</span>' for i, k in enumerate(LEVELS))
+    aria = t("ru_aria", z=lab[LEVELS.index(a["level"])])
+    return (f'<div class="ruler" role="img" aria-label="{html.escape(aria)}"><div class="ruler-bar">{bar}'
+            f'<span class="ruler-mk" style="left:{ruler_pos(a):.1f}%"></span></div><div class="ruler-lb">{lbs}</div></div>')
+
+
+def mini_ruler(level: str) -> str:
+    return '<span class="mini-ruler">' + "".join(
+        f'<i style="background:{ZONE[k][0] if k == level else ZONE[k][1]}"></i>' for k in LEVELS) + "</span>"
 
 
 def log(kind: str, case=None, **extra) -> dict:
@@ -1081,9 +1154,10 @@ if ss.pop("tour_cookie", False):
 with st.sidebar:
     st.markdown(
         '<div class="brand"><div class="brand-mark">'
-        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round">'
-        '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2" fill="#fff" stroke="none"/>'
-        '<path d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/></svg></div>'
+        # dermatoskop merceği + içinde üç bölgeli yönlendirme cetveli (sitenin imza öğesi)
+        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">'
+        '<circle cx="12" cy="12" r="9"/><path d="M6.5 13.5h3M10.5 13.5h3M14.5 13.5h3" stroke-width="2.4"/>'
+        '<path d="M12 9.2v5.8" stroke-width="1.6"/></svg></div>'
         f'<div><div class="brand-name">{t("app_name")}</div><div class="brand-sub">{t("app_sub")}</div></div></div>',
         unsafe_allow_html=True,
     )
@@ -1098,6 +1172,12 @@ with st.sidebar:
     for key, label, icon in nav:
         st.button(label, key=f"nav_{key}", icon=icon, width="stretch",
                   type="primary" if ss.page == key else "secondary", on_click=go, args=(key,))
+    if not ss.get("sb_opened"):  # bilgisayarda menü açık başlasın (telefonda kapalı kalır)
+        ss.sb_opened = True
+        components.html(
+            "<script>(function(){const w = window.parent; if (w.innerWidth < 1024) return;"
+            "const b = w.document.querySelector('[data-testid=\"stExpandSidebarButton\"]'); if (b) b.click();})();</script>",
+            height=0)
     if ss.pop("nav_close", False):
         components.html(
             "<script>(function(){const w = window.parent; if (w.innerWidth >= 768) return;"
@@ -1161,7 +1241,7 @@ with st.sidebar:
     if DB is not None and DB.last_error:
         st.warning(t("db_error_detail", e=DB.last_error[:300]))
     status = (f'<span class="chip demo">● {t("chip_demo")}</span>' if predictor.is_mock
-              else f'<span class="chip live">● {html.escape(predictor.name)}</span>')
+              else f'<span class="chip live" title="{html.escape(predictor.name)}">● {t("chip_real")}</span>')
     if DB is not None:
         status += (f'<span class="chip live">● {t("db_on")}</span>' if DB.last_error is None
                    else f'<span class="chip demo" title="{html.escape(DB.last_error)}">● {t("db_err")}</span>')
@@ -1180,89 +1260,54 @@ def render_case(cid: str, where: str):
     i18n.set_pm(rec_mode(rec) == "hasta")
     a = assess(rec["probs"], rec_mode(rec))
 
-    with st.container(border=True):
-        h1, h2 = st.columns([1.6, 1], vertical_alignment="center")
-        with h1:
-            st.markdown(
-                f'<div class="case-label">{t("case_no")}</div><div class="case-no">{cid}</div>'
-                f'<div class="case-meta">{rec["created"]} · {html.escape(rec["model_name"])} &nbsp;{status_pill(rec["status"])}</div>',
-                unsafe_allow_html=True,
-            )
-        with h2:
-            if build_pdf is not None:
-                try:
-                    pdf_bytes = make_pdf(rec)
-                    st.download_button(t("dl_pdf"), data=pdf_bytes, file_name=f"{cid}.pdf", mime="application/pdf",
-                                       icon=":material/download:", width="stretch", type="primary", help=t("dl_pdf_help"),
-                                       key=f"pdf_{cid}_{where}",
-                                       on_click=lambda c=cid: add_event(ss.cases[c], "pdf"))
-                except Exception as exc:  # rapor üretilemezse sonuç ekranı yine çalışsın
-                    st.caption(f"PDF: {exc}")
-            if where == "new":
-                b1, b2 = st.columns(2)
-                b1.button(t("btn_edit"), icon=":material/edit:", width="stretch", on_click=lambda: ss.update(step=2),
-                          key="edit_inputs")
-                b2.button(t("btn_new"), icon=":material/add:", width="stretch", on_click=new_analysis, key="new_from_result")
-            else:
-                c1, c2 = st.columns(2)
-                c1.button(t("btn_back_list"), icon=":material/arrow_back:", width="stretch",
-                          on_click=lambda: ss.update(open_case=None, track_q=""), key="back_list")
-                c2.button(t("cmp_from_case"), icon=":material/compare:", width="stretch", key="cmp_from_case",
-                          on_click=lambda c=cid: ss.update(open_case=None, track_q="", cmp_a=c, cmp_open=True),
-                          disabled=len(ss.cases) < 2)
-            st.button(t("btn_followup"), icon=":material/history:", width="stretch", key=f"fu_start_{cid}_{where}",
-                      on_click=start_followup, args=(cid,), help=t("btn_followup_help"))
-            with st.popover(t("remind_btn"), icon=":material/event:", width="stretch"):
-                st.caption(t("remind_help"))
-                months = st.segmented_control(t("remind_when"), [1, 3, 6], default=1 if a["level"] != "benign" else 3,
-                                              format_func=lambda m: t("remind_m", m=m), key=f"rm_{cid}_{where}")
-                months = months or 3
-                st.download_button(t("remind_dl"), ics_bytes(cid, months, APP_URL), file_name=f"{cid}-kontrol.ics",
-                                   mime="text/calendar", icon=":material/download:", width="stretch", key=f"ics_{cid}_{where}",
-                                   on_click=lambda c=cid: add_event(ss.cases[c], "reminder"))
-        if where == "new":
-            st.markdown(f'<div class="case-hint">{t("case_hint")}</div>', unsafe_allow_html=True)
-        if rec.get("prev"):
-            st.markdown(f'<div class="case-hint">{t("prev_info", c=rec["prev"])}</div>', unsafe_allow_html=True)
-        if predictor.is_mock:
-            st.caption(t("demo_caption"))
-        if rec_mode(rec) == "hasta":
-            st.markdown(f'<div class="banner" style="margin:.6rem 0 0">{t("pm_note")}</div>', unsafe_allow_html=True)
+    simple = rec_mode(rec) == "hasta"
+    # 1) kayıt satırı: numara, tarih, durum (model adı aşağıda, vaka bilgilerinde)
+    st.markdown(f'<div class="case-top"><div><span class="case-label">{t("case_no")}</span> '
+                f'<span class="case-no">{cid}</span></div>'
+                f'<div class="case-meta">{rec["created"]} &nbsp;{status_pill(rec["status"])}</div></div>', unsafe_allow_html=True)
+    # 2) sonuç: sayfanın ilk okunan şeyi (telefonda da)
+    if rec.get("kind") == "rash":
+        st.markdown(f'<div class="sym-warn">{t("kind_rash_result")}</div>', unsafe_allow_html=True)
+    card = (calm_card_html(a["level"], a.get("mel_rule", False)) if simple else
+            f'<div class="rec {a["level"]}"><div class="rec-title">{a["title"]}</div><div class="rec-text">{a["text"]}</div></div>')
+    st.markdown(f'<div class="hero">{card}{ruler_html(a, simple)}<p class="ruler-note">{t("ru_note")}</p></div>',
+                unsafe_allow_html=True)
+    if simple:
+        st.markdown(f'<div class="banner" style="margin:0 0 .8rem">{t("pm_note")}</div>', unsafe_allow_html=True)
+    if predictor.is_mock:
+        st.caption(t("demo_caption"))
+    # 3) işlemler: tek satır, ikincil olanlar "Diğer işlemler" menüsünde
+    _case_actions(rec, a, cid, where, simple)
+    if where == "new":
+        st.markdown(f'<div class="case-hint">{t("case_hint")}</div>', unsafe_allow_html=True)
+    if rec.get("prev"):
+        st.markdown(f'<div class="case-hint">{t("prev_info", c=rec["prev"])}</div>', unsafe_allow_html=True)
 
-    left, right = st.columns([1, 1.45], gap="large")
-    with left:
-        st.markdown(f'<div class="sec-label">{t("pdf_images")}</div>', unsafe_allow_html=True)
+    # 4) ayrıntı (geniş sütun, telefonda önce gelir) + vaka bilgileri
+    main, side = st.columns([1.45, 1], gap="large")
+    with side:
+        st.markdown(f'<div class="sec-label">{t("case_info")}</div>', unsafe_allow_html=True)
         i1, i2 = st.columns(2)
         if rec.get("clin_jpg"):
             i1.image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
             if rec.get("derm_jpg"):
                 i2.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("derm_title"), width="stretch")
-            else:
-                i2.caption(t("mode_hasta"))
         else:
             st.markdown(f'<div class="cam-empty">{t("no_images")}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="sec-label">{t("s2_title")}</div>', unsafe_allow_html=True)
         kv = "".join(f"<span>{k}</span><div>{v}</div>" for k, v in meta_lines(rec["meta"]))
-        st.markdown(f'<div class="kv">{kv}</div>', unsafe_allow_html=True)
+        kv += f'<span>{t("mode_label")}</span><div>{t("mode_hasta") if simple else t("mode_hekim")}</div>'
+        st.markdown(f'<div class="kv" style="margin-top:.4rem">{kv}</div>', unsafe_allow_html=True)
         st.markdown(f'<div class="sec-label">{t("timeline")}</div>', unsafe_allow_html=True)
         tl = "".join(f'<div><b>{ev["time"]}</b><span>{event_text(ev)} <span style="color:{MUTED}">· {actor_label(ev)}</span></span></div>'
                      for ev in rec["events"])
         st.markdown(f'<div class="tl">{tl}</div>', unsafe_allow_html=True)
+        st.caption(t("model_used", m=html.escape(rec["model_name"])))
 
-    with right:
-        simple = rec_mode(rec) == "hasta"
-        if rec.get("kind") == "rash":
-            st.markdown(f'<div class="sym-warn">{t("kind_rash_result")}</div>', unsafe_allow_html=True)
-        if simple:  # hasta modu: eylem odaklı, sakin dil; yüzdeler ayrıntılarda (sağlık kaygısı)
-            st.markdown(calm_card_html(a["level"], a.get("mel_rule", False)), unsafe_allow_html=True)
+    with main:
+        if simple:  # hasta modu: belirti notları ve sonucun anlamı; yüzdeler ayrıntılarda (sağlık kaygısı)
             for kind, txt in symptom_advice(rec.get("symptoms"), a["level"], a["ranked"][0][0]):
                 st.markdown(f'<div class="sym-{kind}">{txt}</div>', unsafe_allow_html=True)
             st.markdown(calm_meaning_html(a["level"]), unsafe_allow_html=True)
-            st.button(t("show_doc"), icon=":material/smartphone:", width="stretch", key=f"showdoc_{cid}_{where}",
-                      on_click=lambda c=cid: ss.update(show_doc=c))
-        else:
-            st.markdown(f'<div class="rec {a["level"]}"><div class="rec-title">{a["title"]}</div>'
-                        f'<div class="rec-text">{a["text"]}</div></div>', unsafe_allow_html=True)
         detail = st.expander(t("details_pm"), icon=":material/tune:") if simple else st.container()
         with detail:
             if simple:
@@ -1272,6 +1317,47 @@ def render_case(cid: str, where: str):
     _case_footer(rec, cid, where)
     if ss.get("show_doc") == cid:
         doctor_card(cid)
+
+
+def _case_actions(rec, a, cid, where, simple):
+    """Sonucun altındaki işlem satırı: PDF (ana), doktora göster, gezinme ve 'Diğer işlemler'."""
+    cols = st.columns([1.25, 1.1, 1, 1] if simple else [1.25, 1, 1], gap="small")
+    with cols[0]:
+        if build_pdf is not None:
+            try:
+                st.download_button(t("dl_pdf"), data=make_pdf(rec), file_name=f"{cid}.pdf", mime="application/pdf",
+                                   icon=":material/download:", width="stretch", type="primary", help=t("dl_pdf_help"),
+                                   key=f"pdf_{cid}_{where}", on_click=lambda c=cid: add_event(ss.cases[c], "pdf"))
+            except Exception as exc:  # rapor üretilemezse sonuç ekranı yine çalışsın
+                st.caption(f"PDF: {exc}")
+    k = 1
+    if simple:
+        cols[1].button(t("show_doc"), icon=":material/smartphone:", width="stretch", key=f"showdoc_{cid}_{where}",
+                       on_click=lambda c=cid: ss.update(show_doc=c))
+        k = 2
+    if where == "new":
+        cols[k].button(t("btn_new"), icon=":material/add:", width="stretch", on_click=new_analysis, key="new_from_result")
+    else:
+        cols[k].button(t("btn_back_short"), icon=":material/arrow_back:", width="stretch",
+                       on_click=lambda: ss.update(open_case=None, track_q=""), key="back_list")
+    with cols[k + 1].popover(t("more_actions"), icon=":material/more_horiz:", width="stretch"):
+        if where == "new":
+            st.button(t("btn_edit"), icon=":material/edit:", width="stretch", on_click=lambda: ss.update(step=2),
+                      key="edit_inputs")
+        else:
+            st.button(t("cmp_from_case"), icon=":material/compare:", width="stretch", key="cmp_from_case",
+                      on_click=lambda c=cid: ss.update(open_case=None, track_q="", cmp_a=c, cmp_open=True),
+                      disabled=len(ss.cases) < 2)
+        st.button(t("btn_followup"), icon=":material/history:", width="stretch", key=f"fu_start_{cid}_{where}",
+                  on_click=start_followup, args=(cid,), help=t("btn_followup_help"))
+        st.markdown(f'<div class="sec-label" style="margin-top:.6rem">{t("remind_btn")}</div>', unsafe_allow_html=True)
+        st.caption(t("remind_help"))
+        months = st.segmented_control(t("remind_when"), [1, 3, 6], default=1 if a["level"] != "benign" else 3,
+                                      format_func=lambda m: t("remind_m", m=m), key=f"rm_{cid}_{where}")
+        months = months or 3
+        st.download_button(t("remind_dl"), ics_bytes(cid, months, APP_URL), file_name=f"{cid}-kontrol.ics",
+                           mime="text/calendar", icon=":material/event:", width="stretch", key=f"ics_{cid}_{where}",
+                           on_click=lambda c=cid: add_event(ss.cases[c], "reminder"))
 
 
 @st.dialog(" ", width="large", on_dismiss=lambda: ss.update(show_doc=None))
@@ -1290,7 +1376,8 @@ def doctor_card(cid: str):
         kv = "".join(f"<span>{k}</span><div>{v}</div>" for k, v in meta_lines(rec["meta"]))
         st.markdown(f'<div class="kv">{kv}</div>', unsafe_allow_html=True)
     with c2:
-        st.markdown(f'<div class="rec {a["level"]}"><div class="rec-title">{a["title"]}</div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="rec {a["level"]}"><div class="rec-title">{a["title"]}</div></div>{ruler_html(a, False)}',
+                    unsafe_allow_html=True)
         rows = "".join(f'<div><b>{i18n.pct(p)}</b> · {i18n.cname(c)} ({c})</div>' for c, p in a["ranked"][:3])
         tot = " · ".join(f"{i18n.group(g)} {i18n.pct(a['totals'][g])}" for g in GROUP_ORDER)
         st.markdown(f'<div class="sec-label">{t("dc_model")}</div><div class="dc-rows">{rows}</div>'
@@ -1522,8 +1609,12 @@ def page_new():
 
 
 def step_images():
-    pm = st.toggle(t("pm_toggle"), value=patient_mode(), key=wkey("pm"), help=t("pm_help"))
+    pm = patient_mode()
     ss.v_patient = pm
+    ml, mb = st.columns([3.2, 1], vertical_alignment="center")
+    ml.markdown(f'<div class="mode-line">{t("mode_line_pm" if pm else "mode_line_dr")}</div>', unsafe_allow_html=True)
+    mb.button(t("mode_switch_dr" if pm else "mode_switch_pm"), key=wkey("pm_switch"), icon=":material/swap_horiz:",
+              width="stretch", help=t("pm_help"), on_click=lambda: ss.update(v_patient=not patient_mode()))
     kind_block = False
     if pm:  # kapsam sorusu: araç benler/lekeler için; yaygın döküntü ve egzama için uygun değil
         kinds = ["spot", "rash", "unsure"]
@@ -1535,19 +1626,20 @@ def step_images():
             ok = st.checkbox(t("kind_rash_ok"), value=bool(ss.get("v_kindok")), key=wkey("kindok"))
             ss.v_kindok = ok
             kind_block = not ok
-    with st.expander(t("photo_tips"), icon=":material/photo_camera:"):
-        render_photo_tips(compact=True)
+    if not pm:
+        with st.expander(t("photo_tips"), icon=":material/photo_camera:"):
+            render_photo_tips(compact=True)
     used = ("clin",) if pm else ("clin", "derm")
     cards = {"clin": ("clin_pill", "clin_title", "clin_text"), "derm": ("derm_pill", "derm_title", "derm_text")}
-    cols = st.columns(2, gap="medium")
-    if pm:
-        with cols[1], st.container(border=True):
-            st.markdown(f'<span class="pill">{t("pm_card_title")}</span><div class="card-title" style="margin-top:.45rem">'
-                        f'{t("derm_title")}</div><p class="card-text">{t("pm_card_text")}</p>', unsafe_allow_html=True)
+    cols = st.columns([1.15, 1] if pm else [1, 1], gap="medium")
+    if pm:  # hasta modunda dermoskopi kartı yok; yerinde fotoğraf ipuçları
+        with cols[1]:
+            st.markdown(f'<div class="card-title" style="margin-top:.2rem">{t("photo_tips")}</div>', unsafe_allow_html=True)
+            render_photo_tips(compact=True)
     for col, which in zip(cols, used):
         pill, title, text = cards[which]
         with col, st.container(border=True):
-            st.markdown(f'<span class="pill">{t(pill)}</span><div class="card-title" style="margin-top:.45rem">{t(title)}</div>'
+            st.markdown(f'<div class="card-title">{t(title)}</div>'
                         f'<p class="card-text">{t(text)}</p>', unsafe_allow_html=True)
             rec = ss.imgs[which]
             if rec is None:
@@ -1610,8 +1702,9 @@ def step_images():
 
         st.button(t("swap_btn"), on_click=_swap, icon=":material/swap_horiz:")
 
-    with st.expander(t("img_help_title")):
-        st.markdown(t("img_help_body"))
+    if not pm:  # iki görüntü arasındaki fark yalnızca hekim modunda anlamlı
+        with st.expander(t("img_help_title")):
+            st.markdown(t("img_help_body"))
 
     st.write("")
     _, nb = st.columns([2, 1])
@@ -1863,7 +1956,6 @@ def page_track():
     if ss.open_case in ss.cases:
         render_case(ss.open_case, "track")
         return
-    page_header(t("track_title"), t("track_lead"))
     missing_case = ss.pop("qr_missing", None)
     if missing_case:
         st.markdown(f'<div class="banner">{t("case_not_here", c=html.escape(missing_case))}</div>', unsafe_allow_html=True)
@@ -1943,7 +2035,7 @@ def page_track():
             k1, k2, k3, k4 = st.columns([1.5, 2.3, 1.2, .7], vertical_alignment="center")
             k1.markdown(f'<div class="{"row-urgent" if urgent else ""}"><div class="row-no">{r["case"]}</div>'
                         f'<div class="row-sub">{r["created"]}</div></div>', unsafe_allow_html=True)
-            k2.markdown(f'<div><span class="dot" style="background:{LEVEL_COLORS[a["level"]]}"></span><b style="font-weight:'
+            k2.markdown(f'<div>{mini_ruler(a["level"])}<b style="font-weight:'
                         f'{600 if urgent else 400}">{t(LEVEL_KEYS[a["level"]])}</b> · {i18n.plain(top_c)} ({i18n.pct(top_p)})</div>'
                         f'<div class="row-sub">{patient_short(r["meta"])}{fu_txt}</div>', unsafe_allow_html=True)
             k3.markdown(status_pill(r["status"]), unsafe_allow_html=True)
@@ -1972,6 +2064,8 @@ if ss.page in OLD_PAGES:  # eski sayfa adları (açık oturumlar)
 if ss.page == "new":
     page_new()
 elif ss.page == "track":
+    if ss.open_case not in ss.cases:
+        page_header(t("track_title"), t("track_lead"))
     view = "cases" if ss.open_case in ss.cases else sub_nav("track", {"cases": t("sub_cases"), "stats": t("tab_stats")})
     if view == "cases":
         page_track()

@@ -952,3 +952,38 @@ PM = {
                    "rely on the order; try a sharper photo and ask a doctor."),
     "btn_followup": ("Bu lekenin kontrolünü başlat", "Start a follow-up of this spot"),
 }
+
+S.update({
+    "mode_line_pm": ("<b>Telefon fotoğrafıyla bakılıyor.</b> Lekenin tek bir fotoğrafı yeterli.",
+                     "<b>Checking with a phone photo.</b> One photo of the spot is enough."),
+    "mode_line_dr": ("<b>İki görüntüyle bakılıyor (hekim modu).</b> Klinik yakın çekim ve dermoskopik görüntü gerekir.",
+                     "<b>Checking with two images (physician mode).</b> A clinical close-up and a dermoscopic image are needed."),
+    "mode_switch_pm": ("Telefon fotoğrafına geç", "Switch to phone photo"),
+    "mode_switch_dr": ("İki görüntüye geç", "Switch to two images"),
+    "how_1_t": ("Fotoğraf", "Photo"),
+    "how_1": ("Lekenin net bir fotoğrafını yükleyin; site netlik ve ışığı kontrol eder.",
+              "Upload a sharp photo of the spot; the site checks sharpness and lighting."),
+    "how_2_t": ("Birkaç bilgi", "A few details"),
+    "how_2": ("Yaş aralığı, cinsiyet, ten rengi ve lekenin yerini seçin.", "Pick age range, sex, skin tone and where the spot is."),
+    "how_3_t": ("Sonuç ve öneri", "Result and advice"),
+    "how_3": ("Lekenin doktora gösterilmesi gerekip gerekmediğini ve nedenini okuyun.",
+              "Read whether the spot should be shown to a doctor, and why."),
+    "role_privacy": ("Fotoğraflar kaydedilmez; ad, kimlik ya da iletişim bilgisi istenmez. İzin verirseniz yalnızca anonim sonuçlar "
+                     "araştırma amacıyla saklanır.",
+                     "Photos are not stored; no name, ID or contact details are asked for. If you allow it, only anonymous results are "
+                     "kept for research."),
+    "ru_benign": ("İyi huylu görünüm", "Benign appearance"),
+    "ru_refer": ("Değerlendirme önerilir", "Review recommended"),
+    "ru_urgent": ("Öncelikli değerlendirme", "Priority review"),
+    "ru_pm_benign": ("Rutin takip", "Routine follow-up"),
+    "ru_pm_refer": ("Doktora gösterin", "Show a doctor"),
+    "ru_pm_urgent": ("Kısa sürede doktora", "See a doctor soon"),
+    "ru_aria": ("Yönlendirme: {z}", "Referral: {z}"),
+    "ru_note": ("Cetvel, bu fotoğraf için önerilen yönlendirmeyi gösterir; tanı değildir.",
+                "The scale shows the recommended referral for this photo; it is not a diagnosis."),
+    "case_info": ("Vaka bilgileri", "Case details"),
+    "model_used": ("Kullanılan model: {m}", "Model used: {m}"),
+    "btn_back_short": ("Vaka listesi", "Case list"),
+    "more_actions": ("Diğer işlemler", "More actions"),
+    "chip_real": ("Gerçek model · v3", "Real model · v3"),
+})

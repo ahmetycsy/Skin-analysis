@@ -11,7 +11,7 @@ import streamlit as st
 import i18n
 from predictor import CLASSES, GROUPS
 
-APP_VERSION = "0.9"
+APP_VERSION = "1.0"
 
 # MILK10k eğitim kümesi (5.240 lezyon) — MILK10k_Training_GroundTruth.csv ve _Metadata.csv'den sayıldı
 CLASS_COUNTS = {"AKIEC": 303, "BCC": 2522, "BEN_OTH": 44, "BKL": 544, "DF": 52, "INF": 50,
@@ -268,27 +268,31 @@ def render_about(part: str = "overview"):
         _render_details()
         return
     st.markdown(f'<p class="lead">{_L(TXT["lead"])}</p>', unsafe_allow_html=True)
-    best = next((m["f1"] for m in MODEL_STATUS if m["status"] == "used"), None)
-    kpis = [(_int(N_LESIONS), _L(TXT["k_lesions"])), (_int(N_LESIONS * 2), _L(TXT["k_images"])),
-            ("11", _L(TXT["k_classes"])), (_num(best) if best else "–", _L(TXT["k_best"]))]
-    for col, (val, lab) in zip(st.columns(4), kpis):
-        col.markdown(f'<div class="kpi"><div class="kpi-v">{val}</div><div class="kpi-l">{lab}</div></div>', unsafe_allow_html=True)
+    # Hedef ile ulaşılan tek satırda (teklifteki hedef Macro F1 ≥ 0,45)
+    st.markdown('<div class="summary-line">' + _L((
+        "Teklifteki hedef <b>Macro F1 ≥ 0,45</b>. Kullanılan sistem kontrol kümesinde <b>0,594</b> "
+        "(yalnız MILK10k ile 0,546), ISIC'in bağımsız gizli testinde <b>0,483</b>. Eğitim verisi "
+        f"{_int(N_LESIONS)} lezyon, her birinde iki görüntü; 11 tür.",
+        "Proposal target <b>Macro F1 ≥ 0.45</b>. The deployed system reaches <b>0.594</b> on the validation set "
+        "(0.546 with MILK10k only) and <b>0.483</b> on ISIC's independent hidden test. Training data: "
+        f"{_int(N_LESIONS)} lesions with two images each; 11 types.")) + "</div>", unsafe_allow_html=True)
 
     a, b = st.columns(2, gap="large")
     with a:
         _h(_L(TXT["h_purpose"]))
         st.markdown(_L(TXT["purpose"]))
+    with b:
         _h(_L(TXT["h_how"]))
         st.markdown(_L(TXT["how"]))
-    with b:
-        _h(_L(TXT["h_status"]))
-        rows = [{
-            _L(TXT["c_comp"]): _L(m["name"]), _L(TXT["c_arch"]): _L(m["arch"]),
-            _L(TXT["c_status"]): _L(STATUS_LABEL[m["status"]]),
-            "Macro F1": _num(m["f1"]) if m["f1"] is not None else "–", _L(TXT["c_note"]): _L(m["note"]),
-        } for m in MODEL_STATUS]
-        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
-        st.caption(_L(TXT["f1_note"]))
+    _h(_L(TXT["h_status"]))
+    rows = [{
+        _L(TXT["c_comp"]): _L(m["name"]), _L(TXT["c_arch"]): _L(m["arch"]),
+        _L(TXT["c_status"]): _L(STATUS_LABEL[m["status"]]),
+        "Macro F1": _num(m["f1"]) if m["f1"] is not None else "–", _L(TXT["c_note"]): _L(m["note"]),
+    } for m in MODEL_STATUS]
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
+                 column_config={_L(TXT["c_note"]): st.column_config.TextColumn(width="large")})
+    st.caption(_L(TXT["f1_note"]))
 
 
 def _render_details():

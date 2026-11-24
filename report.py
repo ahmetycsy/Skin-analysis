@@ -139,6 +139,24 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
     pdf.set_text_color(*INK)
     pdf.multi_cell(W - 6, 4.8, a["text"], align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_y(y0 + box_h + 2)
+    # Yönlendirme cetveli: üç bölge, bu vakanın bölgesi koyu, işaret yaklaşık yeri gösterir (sitedekiyle aynı)
+    if "pos" in a:
+        zones = ("benign", "refer", "urgent")
+        seg_w = (W - 4) / 3
+        ry = pdf.get_y() + 1.5
+        for k, z in enumerate(zones):
+            pdf.set_fill_color(*(GROUP_RGB[z] if z == lvl else GROUP_FILL[z]))
+            pdf.rect(15 + k * (seg_w + 2), ry, seg_w, 3.2, style="F")
+        mx = 15 + (W) * a["pos"] / 100
+        pdf.set_fill_color(*INK)
+        pdf.rect(mx - 0.6, ry - 1.6, 1.2, 6.4, style="F")
+        pdf.set_y(ry + 5)
+        pdf.set_font("DejaVu", "", 8)
+        for k, z in enumerate(zones):
+            pdf.set_text_color(*(INK if z == lvl else MUTED))
+            pdf.set_font("DejaVu", "B" if z == lvl else "", 8)
+            pdf.cell(seg_w + 2, 4.5, t("ru_" + z), align=("L", "C", "R")[k])
+        pdf.ln(6)
     if a["uncertain"]:
         notice(t("pdf_unsure"), (255, 248, 230), (240, 220, 164))
 
