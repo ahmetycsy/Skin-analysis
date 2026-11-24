@@ -299,6 +299,11 @@ Do not use filtered, cropped or colour-corrected images.
         "The model sees features resembling precancerous or malignant growths (combined probability {p}). "
         "A dermatologist should examine the lesion.",
     ),
+    "r_mel_t": ("Dermatolog değerlendirmesi önerilir (melanom dışlanamadı)", "Dermatology review recommended (melanoma not ruled out)"),
+    "r_mel": ("Model lezyonu en çok iyi huylu bir türe benzetiyor, ancak melanom olasılığı ({p}) güvenlik eşiğinin üstünde. "
+              "Kaçırılan melanomların çoğu ben ile karıştırıldığı için lezyonun bir dermatolog tarafından incelenmesi önerilir.",
+              "The model's closest match is a benign type, but the melanoma probability ({p}) is above the safety threshold. "
+              "Because most missed melanomas were mistaken for moles, review by a dermatologist is recommended."),
     "r_unsure_t": ("Model kararsız: hekim değerlendirmesi önerilir", "Model uncertain: physician review recommended"),
     "r_unsure": (
         "Model belirgin bir kötü huylu özellik görmüyor, ancak sonuçtan emin değil. Bu nedenle lezyonun bir hekim tarafından "
@@ -870,6 +875,25 @@ S.update({
                       "Clinical close-up + dermoscopic image (needs a dermatoscope). This mode gives the most reliable result."),
     "role_doctor_btn": ("İki görüntüyle başla", "Start with two images"),
     "show_doc": ("Doktoruma göster", "Show my doctor"),
+    "mel_pdf": ("Melanom güvenlik kuralı", "Melanoma safety rule"),
+    "mel_pdf_v": ("Uygulandı (melanom olasılığı {p})", "Applied (melanoma probability {p})"),
+    "kind_q": ("Neye bakmak istiyorsunuz?", "What would you like to check?"),
+    "kind_spot": ("Bir ben ya da tek bir leke", "A mole or a single spot"),
+    "kind_rash": ("Yaygın kızarıklık, döküntü, kaşıntılı ya da pullanan alanlar", "A widespread rash, itchy or scaly patches"),
+    "kind_unsure": ("Emin değilim", "Not sure"),
+    "kind_rash_warn": ("<b>Bu araç bu tür sorunlar için uygun değil.</b> Benler ve tek tek lekeler için tasarlandı; egzama, sedef, "
+                       "mantar, alerji ya da yayılan döküntüleri tanımak için eğitilmedi ve bu durumlarda yanıltıcı (gereksiz yere "
+                       "korkutucu ya da yanlış rahatlatıcı) sonuç verebilir. Bir doktora ya da eczacıya danışmanız daha doğru olur.",
+                       "<b>This tool is not suitable for this kind of problem.</b> It was designed for moles and single spots; it "
+                       "was not trained to recognise eczema, psoriasis, fungal infections, allergies or spreading rashes, and can "
+                       "give misleading (needlessly alarming or falsely reassuring) results. Please ask a doctor or pharmacist."),
+    "kind_rash_ok": ("Anladım, yine de içindeki tek bir lekeyi analiz etmek istiyorum", "I understand; I still want to analyse a single spot in it"),
+    "kind_block": ("Devam etmek için yukarıdaki uyarıyı onaylayın.", "Confirm the warning above to continue."),
+    "kind_rash_result": ("Bu fotoğrafın yaygın bir döküntü ya da kızarıklıktan olduğunu belirttiniz. Araç bu durumlar için "
+                         "eğitilmediğinden aşağıdaki sonuç <b>güvenilir değildir</b>; bir doktora danışın.",
+                         "You said this photo shows a widespread rash or redness. The tool was not trained for this, so the "
+                         "result below is <b>not reliable</b>; please ask a doctor."),
+    "ev_scope_override": ("Kapsam dışı uyarısı (döküntü) onaylanarak devam edildi", "Continued after the out-of-scope (rash) warning"),
     "details_pm": ("Ayrıntılı sonuçlar (yüzdeler, benzeyen türler)", "Detailed results (percentages, similar types)"),
     "dc_title": ("Cilt lekesi ön değerlendirme özeti · tanı değildir", "Skin spot pre-assessment summary · not a diagnosis"),
     "dc_model": ("Model sonucu (en olası 3 tür)", "Model output (top 3 types)"),

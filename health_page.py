@@ -124,9 +124,11 @@ def render_skin_health():
 
     _h(L("Telefonla iyi fotoğraf çekmek", "Taking a good phone photo"))
     render_photo_tips()
-    note = L("Bu sayfa genel bilgi içindir; tanı ya da tedavi önerisi değildir. Şüpheli bir değişiklikte dermatoloğa başvurun.",
+    note = L("Bu sayfa genel bilgi içindir; tanı ya da tedavi önerisi değildir. Şüpheli bir değişiklikte dermatoloğa başvurun. "
+             "Sitedeki analiz aracı benler ve lekeler içindir; egzama, sedef, mantar ya da döküntüler için uygun değildir.",
              "This page is general information, not a diagnosis or treatment advice. See a dermatologist about any "
-             "suspicious change.")
+             "suspicious change. The analysis tool on this site is for moles and spots; it is not suitable for eczema, "
+             "psoriasis, fungal infections or rashes.")
     st.markdown(f'<div class="banner" style="margin-top:1rem">{note}</div>', unsafe_allow_html=True)
 
 

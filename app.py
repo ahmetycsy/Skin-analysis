@@ -25,6 +25,7 @@ from predictor import (
     GROUP_ORDER,
     GROUPS,
     MALIGN,
+    MEL_SAFETY,
     PREMALIGN,
     REFER_MALIGN_OR_PRE,
     REFER_URGENT_MALIGN,
@@ -322,7 +323,7 @@ ss.setdefault("audit", [])        # denetim kaydı: yalnızca eklenir, değişti
 ss.setdefault("dirty", [])        # veritabanına yazılacak vakalar
 ss.setdefault("pending_audit", [])  # veritabanına yazılacak denetim satırları
 ss.setdefault("db_synced", 0.0)   # vakaların veritabanından en son çekildiği an
-INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm", "patient", "prev", "symp")
+INPUTS = ("age", "sex", "skin", "site", "crop_clin", "crop_derm", "patient", "prev", "symp", "kind", "kindok")
 
 
 def go(page: str):
@@ -516,22 +517,28 @@ def new_case_id(seed: str) -> str:
             return cid
 
 
-def assess(probs: dict) -> dict:
-    """Olasılıklardan genel değerlendirme, yönlendirme metni ve kararsızlık durumunu çıkarır."""
+def assess(probs: dict, mode: str = "hekim") -> dict:
+    """Olasılıklardan genel değerlendirme, yönlendirme metni ve kararsızlık durumunu çıkarır.
+    mode: "hekim" ya da "hasta" (melanom güvenlik eşiği moda göre farklıdır)."""
     pct = i18n.pct
     totals = {g: sum(p for c, p in probs.items() if GROUPS[c] == g) for g in GROUP_ORDER}
     ranked = sorted(probs.items(), key=lambda kv: kv[1], reverse=True)
     top_p, second_p = ranked[0][1], ranked[1][1]
     uncertain = top_p < UNCERTAIN_TOP or (top_p - second_p) < UNCERTAIN_GAP
+    mel_rule = False
     if totals[MALIGN] >= REFER_URGENT_MALIGN:
         level, title, text = "urgent", t("r_urgent_t"), t("r_urgent", p=pct(totals[MALIGN]))
     elif totals[MALIGN] + totals[PREMALIGN] >= REFER_MALIGN_OR_PRE:
         level, title, text = "refer", t("r_refer_t"), t("r_refer", p=pct(totals[MALIGN] + totals[PREMALIGN]))
+    elif probs.get("MEL", 0.0) >= MEL_SAFETY[mode if mode in MEL_SAFETY else "hekim"]:
+        # melanom güvenlik kuralı: kaçırılan melanomların çoğu "ben" sanılıyordu (bkz. predictor.MEL_SAFETY)
+        level, title, text, mel_rule = "refer", t("r_mel_t"), t("r_mel", p=pct(probs["MEL"])), True
     elif uncertain:
         level, title, text = "refer", t("r_unsure_t"), t("r_unsure")
     else:
         level, title, text = "benign", t("r_benign_t"), t("r_benign")
-    return {"totals": totals, "ranked": ranked, "uncertain": uncertain, "level": level, "title": title, "text": text}
+    return {"totals": totals, "ranked": ranked, "uncertain": uncertain, "level": level, "title": title, "text": text,
+            "mel_rule": mel_rule}
 
 
 AGREE = {"yes": "fb_yes", "partial": "fb_partial", "no": "fb_no"}
@@ -582,9 +589,9 @@ def abcde_conflict(rec: dict) -> bool:
     fb = rec.get("feedback") or {}
     if fb.get("abcde") is None:
         return False
-    lvl = assess(rec["probs"])["level"]
+    lvl = assess(rec["probs"], rec_mode(rec))["level"]
     return (len(fb["abcde"]) >= 3 and lvl == "benign") or (len(fb["abcde"]) == 0 and lvl == "urgent" and
-                                                             assess(rec["probs"])["ranked"][0][0] == "MEL")
+                                                             assess(rec["probs"], rec_mode(rec))["ranked"][0][0] == "MEL")
 
 
 def qr_png(cid: str):
@@ -597,7 +604,7 @@ def qr_png(cid: str):
 
 def priority_key(rec: dict):
     """İş listesi sırası: açık vakalar önce; içinde gecikmiş kontrol, sonra öncelik seviyesi, sonra en yeni."""
-    a = assess(rec["probs"])
+    a = assess(rec["probs"], rec_mode(rec))
     fu = (rec.get("feedback") or {}).get("followup")
     overdue = bool(fu) and fu < now_tr().date().isoformat() and rec["status"] != "closed"
     return (rec["status"] == "closed", not overdue, LEVEL_RANK[a["level"]], -rec["ts"])
@@ -607,7 +614,7 @@ def export_csv(cases: dict) -> bytes:
     """Bütün vakalar tek tablo. Türkçede Excel'in beklediği noktalı virgül ve ondalık virgül kullanılır."""
     rows = []
     for r in cases.values():
-        a = assess(r["probs"])
+        a = assess(r["probs"], rec_mode(r))
         fb, fin = r.get("feedback") or {}, r.get("final") or {}
         row = {
             "case_no": r["case"], "date": r["created"],
@@ -630,7 +637,7 @@ def export_csv(cases: dict) -> bytes:
 
 
 def make_pdf(rec: dict) -> bytes:
-    return build_pdf(rec, assess(rec["probs"]), predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS,
+    return build_pdf(rec, assess(rec["probs"], rec_mode(rec)), predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS,
                      groups_of=GROUPS, group_order=GROUP_ORDER, meta_lines=meta_lines(rec["meta"]) + pdf_extra_lines(rec),
                      physician=physician_lines(rec), qr=qr_png(rec["case"]))
 
@@ -655,6 +662,10 @@ def pdf_extra_lines(rec: dict):
         rows.append((t("ps_title"), ", ".join(i18n.plain(c) for c in ps)))
     if modality_disagree(rec.get("parts")):
         rows.append((t("mod_pdf"), t("mod_pdf_v")))
+    if rec.get("kind"):
+        rows.append((t("kind_q"), t("kind_" + rec["kind"])))
+    if assess(rec["probs"], rec_mode(rec)).get("mel_rule"):
+        rows.append((t("mel_pdf"), t("mel_pdf_v", p=i18n.pct(rec["probs"]["MEL"]))))
     rows += symptom_lines(rec.get("symptoms"))
     return rows
 
@@ -744,7 +755,7 @@ def add_event(rec: dict, kind: str, **extra):
 def case_row(rec: dict) -> dict:
     """Veritabanına giden satır: görüntü ve kişisel bilgi YOK."""
     ranked = sorted(rec["probs"].items(), key=lambda kv: kv[1], reverse=True)
-    level = assess(rec["probs"])["level"]
+    level = assess(rec["probs"], rec_mode(rec))["level"]
     return {
         "case_no": rec["case"], "created_at": rec["created_iso"], "updated_at": now_tr().isoformat(),
         "app_version": APP_VERSION, "model_name": rec["model_name"],
@@ -834,7 +845,8 @@ def event_text(ev: dict) -> str:
     if ev["kind"] == "sus":
         return t("ev_sus", s=ev.get("score", ""))
     simple = {"pdf": "ev_pdf", "login": "ev_login", "logout": "ev_logout", "login_fail": "ev_login_fail",
-              "consent": "ev_consent", "skin_override": "ev_skin_override", "reminder": "ev_reminder"}
+              "consent": "ev_consent", "skin_override": "ev_skin_override", "reminder": "ev_reminder",
+              "scope_override": "ev_scope_override"}
     if ev["kind"] in simple:
         return t(simple[ev["kind"]])
     if ev["kind"] == "closed":
@@ -913,7 +925,7 @@ def lesion_timeline(cid: str):
     recs = []
     for c in chain:
         r = ss.cases[c]
-        a = assess(r["probs"])
+        a = assess(r["probs"], rec_mode(r))
         when = datetime.fromtimestamp(r["ts"], TZ).replace(tzinfo=None)
         for g, key in ((MALIGN, "lt_mal"), ("risk", "lt_risk")):
             v = a["totals"][MALIGN] + (a["totals"][PREMALIGN] if g == "risk" else 0)
@@ -933,7 +945,7 @@ def lesion_timeline(cid: str):
     me = base.transform_filter(alt.datum.me).mark_point(size=230, filled=False, strokeWidth=2)
     st.altair_chart((line + me).properties(height=280).configure_view(strokeWidth=0), use_container_width=True)
     first, last = ss.cases[chain[0]], ss.cases[chain[-1]]
-    d = assess(last["probs"])["totals"][MALIGN] - assess(first["probs"])["totals"][MALIGN]
+    d = assess(last["probs"], rec_mode(last))["totals"][MALIGN] - assess(first["probs"], rec_mode(first))["totals"][MALIGN]
     trend = ("lt_up" if d > 0.05 else "lt_down" if d < -0.05 else "lt_flat")
     st.caption(t("lt_note", n=len(chain), a=first["created"][:10], b=last["created"][:10], trend=t(trend),
                  d=f"{d * 100:+.1f}".replace(".", "," if ss.lang == "tr" else ".")))
@@ -1166,7 +1178,7 @@ def render_case(cid: str, where: str):
     rec = ss.cases[cid]
     load_events(rec)
     i18n.set_pm(rec_mode(rec) == "hasta")
-    a = assess(rec["probs"])
+    a = assess(rec["probs"], rec_mode(rec))
 
     with st.container(border=True):
         h1, h2 = st.columns([1.6, 1], vertical_alignment="center")
@@ -1239,8 +1251,10 @@ def render_case(cid: str, where: str):
 
     with right:
         simple = rec_mode(rec) == "hasta"
+        if rec.get("kind") == "rash":
+            st.markdown(f'<div class="sym-warn">{t("kind_rash_result")}</div>', unsafe_allow_html=True)
         if simple:  # hasta modu: eylem odaklı, sakin dil; yüzdeler ayrıntılarda (sağlık kaygısı)
-            st.markdown(calm_card_html(a["level"]), unsafe_allow_html=True)
+            st.markdown(calm_card_html(a["level"], a.get("mel_rule", False)), unsafe_allow_html=True)
             for kind, txt in symptom_advice(rec.get("symptoms"), a["level"], a["ranked"][0][0]):
                 st.markdown(f'<div class="sym-{kind}">{txt}</div>', unsafe_allow_html=True)
             st.markdown(calm_meaning_html(a["level"]), unsafe_allow_html=True)
@@ -1265,7 +1279,7 @@ def doctor_card(cid: str):
     """Hastanın telefonu doktora uzatabileceği sade özet (tanı değildir). Doktor okuyacağı için tıbbi adlar da gösterilir."""
     rec = ss.cases[cid]
     i18n.set_pm(False)
-    a = assess(rec["probs"])
+    a = assess(rec["probs"], rec_mode(rec))
     st.markdown(f'<div class="case-label">{t("dc_title")}</div><div class="case-no">{cid}</div>'
                 f'<div class="case-meta">{rec["created"]} · {t("mode_hasta") if rec_mode(rec) == "hasta" else t("mode_hekim")}</div>',
                 unsafe_allow_html=True)
@@ -1416,7 +1430,7 @@ def _case_footer(rec, cid, where):
                              on_change=_status_changed)
             # kesin tanı ve kapatma
             if fin:
-                top3 = [c for c, _ in assess(rec["probs"])["ranked"][:3]]
+                top3 = [c for c, _ in assess(rec["probs"], rec_mode(rec))["ranked"][:3]]
                 verdict = ("model_right" if fin["dx"] == top3[0] else "model_top3" if fin["dx"] in top3 else "model_wrong")
                 st.markdown(f'<div class="final">{t("closed_info", dx=dx_label(fin["dx"]), m=t(METHODS[fin["method"]]))}'
                             f'<br><span style="color:{MUTED}">{t(verdict)}</span></div>', unsafe_allow_html=True)
@@ -1510,6 +1524,17 @@ def page_new():
 def step_images():
     pm = st.toggle(t("pm_toggle"), value=patient_mode(), key=wkey("pm"), help=t("pm_help"))
     ss.v_patient = pm
+    kind_block = False
+    if pm:  # kapsam sorusu: araç benler/lekeler için; yaygın döküntü ve egzama için uygun değil
+        kinds = ["spot", "rash", "unsure"]
+        kind = st.radio(t("kind_q"), kinds, index=kinds.index(ss.v_kind) if ss.get("v_kind") in kinds else None,
+                        format_func=lambda k: t("kind_" + k), horizontal=True, key=wkey("kind"))
+        ss.v_kind = kind
+        if kind == "rash":
+            st.markdown(f'<div class="sym-warn">{t("kind_rash_warn")}</div>', unsafe_allow_html=True)
+            ok = st.checkbox(t("kind_rash_ok"), value=bool(ss.get("v_kindok")), key=wkey("kindok"))
+            ss.v_kindok = ok
+            kind_block = not ok
     with st.expander(t("photo_tips"), icon=":material/photo_camera:"):
         render_photo_tips(compact=True)
     used = ("clin",) if pm else ("clin", "derm")
@@ -1571,6 +1596,7 @@ def step_images():
 
     ready = all(ss.imgs[w] is not None for w in used)
     blocked = ready and any(not skin_like(get_image(w)) and not ss.get(f"v_skinok_{ss.imgs[w]['id']}") for w in used)
+    blocked = blocked or kind_block
     both = not pm and ss.imgs["clin"] is not None and ss.imgs["derm"] is not None
     if both:
         if looks_dermoscopic(open_bytes(ss.imgs["clin"]["bytes"])) and not looks_dermoscopic(open_bytes(ss.imgs["derm"]["bytes"])):
@@ -1594,6 +1620,8 @@ def step_images():
                   on_click=lambda: ss.update(step=2), key="to_step2")
         if not ready:
             st.caption(t("need_clin") if pm else t("need_both"))
+        elif kind_block:
+            st.caption(t("kind_block"))
         elif blocked:
             st.caption(t("skin_block"))
 
@@ -1645,7 +1673,7 @@ def step_patient():
     if prev_txt:
         prev_ok = find_case(prev_txt)
         if prev_ok:
-            pa = assess(ss.cases[prev_ok]["probs"])
+            pa = assess(ss.cases[prev_ok]["probs"], rec_mode(ss.cases[prev_ok]))
             st.caption(t("prev_found", d=ss.cases[prev_ok]["created"], top=i18n.plain(pa["ranked"][0][0])))
         else:
             st.warning(t("prev_missing", c=html.escape(prev_txt)))
@@ -1713,12 +1741,15 @@ def step_patient():
             "events": [],
             "prev": prev_ok,
             "symptoms": (ss.get("v_symp") or None) if pm else None,  # yalnızca bellekte ve PDF'te
+            "kind": ss.get("v_kind") if pm else None,  # kullanıcının beyanı: spot / rash / unsure
         }
         add_event(rec, "created")
         if prev_ok:
             add_event(rec, "linked", prev=prev_ok)
         if any(not skin_like(get_image(w)) for w in (("clin",) if pm else ("clin", "derm"))):
             add_event(rec, "skin_override")
+        if pm and ss.get("v_kind") == "rash":
+            add_event(rec, "scope_override")
         ss.cases = {cid: rec, **ss.cases}  # en yeni vaka en üstte
         ss.current = cid
         ss.step = 3
@@ -1752,7 +1783,7 @@ def followup_panel():
 
 
 def case_column(rec: dict):
-    a = assess(rec["probs"])
+    a = assess(rec["probs"], rec_mode(rec))
     st.markdown(f'<div class="row-no">{rec["case"]}</div><div class="row-sub">{rec["created"]} · {patient_short(rec["meta"])}</div>',
                 unsafe_allow_html=True)
     if rec.get("clin_jpg"):
@@ -1776,7 +1807,7 @@ def case_column(rec: dict):
 
 def render_compare(a_id: str, b_id: str):
     ra, rb = ss.cases[a_id], ss.cases[b_id]
-    aa, ab = assess(ra["probs"]), assess(rb["probs"])
+    aa, ab = assess(ra["probs"], rec_mode(ra)), assess(rb["probs"], rec_mode(rb))
     d = ab["totals"][MALIGN] - aa["totals"][MALIGN]
     if abs(d) < 0.05:
         arrow = f'<span class="arrow-flat">→ {t("cmp_flat")}</span>'
@@ -1899,7 +1930,7 @@ def page_track():
         st.info(t("track_none"))
     today = now_tr().date().isoformat()
     for r in rows:
-        a = assess(r["probs"])
+        a = assess(r["probs"], rec_mode(r))
         top_c, top_p = a["ranked"][0]
         fu = (r.get("feedback") or {}).get("followup")
         fu_txt = ""
@@ -1946,11 +1977,11 @@ elif ss.page == "track":
         page_track()
     else:
         sync_from_db()
-        history = [{"case": r["case"], "time": r["time"], "meta": r["meta"], "top": assess(r["probs"])["ranked"][0],
-                    "level": assess(r["probs"])["level"], "elapsed": r["elapsed"]} for r in ss.cases.values()]
+        history = [{"case": r["case"], "time": r["time"], "meta": r["meta"], "top": assess(r["probs"], rec_mode(r))["ranked"][0],
+                    "level": assess(r["probs"], rec_mode(r))["level"], "elapsed": r["elapsed"]} for r in ss.cases.values()]
         feedback = {cid: r["feedback"] for cid, r in ss.cases.items() if r["feedback"]}
-        finals = [{"case": cid, "final": r["final"]["dx"], "ranked": [c for c, _ in assess(r["probs"])["ranked"]],
-                   "level": assess(r["probs"])["level"]} for cid, r in ss.cases.items() if r.get("final")]
+        finals = [{"case": cid, "final": r["final"]["dx"], "ranked": [c for c, _ in assess(r["probs"], rec_mode(r))["ranked"]],
+                   "level": assess(r["probs"], rec_mode(r))["level"]} for cid, r in ss.cases.items() if r.get("final")]
         render_stats(history, feedback, predictor.is_mock, GROUP_COLORS, finals, db_on=DB is not None)
 elif ss.page == "health":
     page_header(t("nav_health"), t("health_sub"))

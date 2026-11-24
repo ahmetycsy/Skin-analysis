@@ -156,7 +156,12 @@ TXT = {
         "- **Yaş aralığı:** Veri setinde yaş 5–85 arasındadır; bu aralığın dışındaki hastalarda sonuç daha belirsizdir.\n"
         "- **Çekim koşulları:** Klinik modeller MILK10k'e ek olarak PAD-UFES-20 telefon fotoğraflarıyla eğitildi; telefon testinde "
         "doğruluk %46'dan %78'e çıktı. Yine de bu fotoğraflar tek bir ülkeden (Brezilya), çoğunlukla açık tenli hastalardandır. Dermoskopik modeller ISIC 2019 ile de eğitildi; bu veri de çoğunlukla açık tenlidir.\n"
-        "- **En nadir tür:** “Diğer kötü huylu oluşumlar” (9 lezyon) hiçbir modelde öğrenilemedi.",
+        "- **En nadir tür:** “Diğer kötü huylu oluşumlar” (9 lezyon) hiçbir modelde öğrenilemedi.\n"
+        "- **Kapsam:** Sistem benler ve tek tek lekeler için tasarlandı. Egzama, sedef, mantar ya da yaygın döküntüleri "
+        "tanımak için eğitilmedi (iltihaplı lezyonlar verinin yalnızca %1'i); hasta modunda kullanıcıya bu sorulur ve uyarılır.\n"
+        "- **Melanom güvenlik kuralı:** Kaçırılan melanomların çoğu ben sanıldığından, melanom olasılığı hekim modunda %10, "
+        "hasta modunda %15'in üstündeyse lezyon yine de dermatoloğa yönlendirilir. Model analizi sayfasındaki eşik "
+        "simülatörü bu kuralı içermez.",
         "- **Class imbalance:** performance is low for rare types (e.g. other malignant growths, 9 lesions).\n"
         "- **Skin-tone representation:** most training data is medium or light skin; performance on dark skin must be "
         "measured separately.\n"
@@ -167,7 +172,13 @@ TXT = {
         "- **Age range:** ages in the dataset range from 5 to 85; results are less certain outside this range.\n"
         "- **Capture conditions:** the clinical models were trained on PAD-UFES-20 phone photos in addition to MILK10k; on the "
         "phone test accuracy rose from 46% to 78%. These photos still come from one country (Brazil), mostly light-skinned patients. The dermoscopic models were also trained on ISIC 2019, likewise mostly light skin.\n"
-        "- **Rarest type:** “other malignant growths” (9 lesions) could not be learned by any model.",
+        "- **Rarest type:** “other malignant growths” (9 lesions) could not be learned by any model.\n"
+        "- **Scope:** the system was designed for moles and single spots. It was not trained to recognise eczema, "
+        "psoriasis, fungal infections or widespread rashes (inflammatory lesions are only 1% of the data); in patient mode "
+        "users are asked about this and warned.\n"
+        "- **Melanoma safety rule:** because most missed melanomas were mistaken for moles, a lesion is still referred when "
+        "the melanoma probability exceeds 10% (physician mode) or 15% (patient mode). The threshold simulator on the Model "
+        "analysis page does not include this rule.",
     ),
     "h_ethics": ("Etik, gizlilik ve güvenlik", "Ethics, privacy and safety"),
     "ethics": (

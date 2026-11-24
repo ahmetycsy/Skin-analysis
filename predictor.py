@@ -94,6 +94,12 @@ REFER_URGENT_MALIGN = 0.30      # kötü huylu toplamı bunun üstündeyse: önc
 REFER_MALIGN_OR_PRE = 0.20      # kötü huylu + kansere dönüşebilir toplamı bunun üstündeyse: değerlendirme önerilir
 UNCERTAIN_TOP = 0.40            # en yüksek olasılık bunun altındaysa: kararsız
 UNCERTAIN_GAP = 0.10            # ilk iki sonuç arasındaki fark bunun altındaysa: kararsız
+# Melanom güvenlik kuralı (24 Kasım 2026, danışman görüşmesi sonrası): diğer eşiklerle "iyi huylu görünüm" alan bir lezyonda
+# melanom olasılığı bu değerin üstündeyse yine de dermatolog değerlendirmesi önerilir. Kaçırılan melanomların hepsi "ben"
+# sanılıyordu. 1.048 kontrol lezyonunda (aynı kümede seçildi, biraz iyimser):
+#   hekim %10: kaçırılan melanom 12→7 (90'da), kaçırılan kötü huylu 14→9, iyi huylu sevk %44,6→%51,0
+#   hasta %15: kaçırılan melanom 13→11, kaçırılan kötü huylu 20→18, iyi huylu sevk %58,1→%59,5 (sağlık kaygısı için temkinli)
+MEL_SAFETY = {"hekim": 0.10, "hasta": 0.15}
 
 # Modele giden değer (MILK10k'taki yazım) -> ekranda görünen Türkçe ad
 SITES = {

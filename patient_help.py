@@ -193,8 +193,13 @@ CALM = {
 }
 
 
-def calm_card_html(level: str) -> str:
+def calm_card_html(level: str, mel_rule: bool = False) -> str:
     tr_t, en_t, tr_b, en_b = CALM[level]
+    if mel_rule:  # melanom güvenlik kuralıyla yönlendirildi
+        tr_b = ("Leke büyük ihtimalle zararsız bir bene benziyor; ancak model melanomu (ben kanseri) tamamen dışlayamadı. "
+                "Güvenlik için ilk uygun randevuda bir dermatoloğa gösterin.")
+        en_b = ("The spot most likely looks like a harmless mole, but the model could not fully rule out melanoma. To be safe, "
+                "show it to a dermatologist at the next convenient appointment.")
     cls = "benign" if level == "benign" else "refer"  # hasta modunda kırmızı yerine daha sakin renk
     ic = "✓" if level == "benign" else "→"
     return (f'<div class="rec {cls}"><div class="rec-title"><span class="rec-ic">{ic}</span>{L(tr_t, en_t)}</div>'
