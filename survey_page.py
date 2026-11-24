@@ -61,6 +61,20 @@ def _form(db, version: str, log):
     lg = i18n.get_lang()
     with st.form(key=f"sus_form_{ss.get('sus_round', 0)}_{lg}", border=True):
         st.markdown(f'<div class="card-title">{L("Anket", "Survey")}</div>', unsafe_allow_html=True)
+        consent_txt = L(
+            "**Bilgilendirilmiş onam.** Bu anket, BAU Endüstri Mühendisliği bitirme projesi kapsamında sistemin kullanılabilirliğini "
+            "ölçmek için yapılmaktadır. Katılım gönüllüdür; istediğiniz an bırakabilirsiniz ve bırakmanızın hiçbir sonucu yoktur. "
+            "Ad, e-posta, IP adresi ya da sağlık bilgisi toplanmaz; yalnızca rolünüz, yanıtlarınız ve isteğe bağlı yorumunuz anonim "
+            "olarak saklanır ve yalnızca toplu sonuçlar proje raporunda kullanılır. Gönderilen yanıtlar kimlikle eşleştirilemediği "
+            "için sonradan geri alınamaz. Sorularınız için proje danışmanına ya da ekibe başvurabilirsiniz.",
+            "**Informed consent.** This survey measures the usability of the system as part of a BAU Industrial Engineering "
+            "capstone project. Participation is voluntary; you may stop at any time without any consequence. No name, e-mail, IP "
+            "address or health information is collected; only your role, answers and optional comment are stored anonymously, and "
+            "only aggregate results are used in the project report. Because answers cannot be linked to you, they cannot be "
+            "withdrawn after submission. Questions can be directed to the project advisor or team.")
+        st.info(consent_txt, icon=":material/verified_user:")
+        agree = st.checkbox(L("Yukarıdaki bilgileri okudum ve ankete gönüllü olarak katılmayı kabul ediyorum.",
+                              "I have read the information above and agree to take part voluntarily."))
         st.caption(L("1 = Kesinlikle katılmıyorum · 5 = Kesinlikle katılıyorum. Her maddeyi işaretleyin; çok düşünmeden, "
                      "ilk aklınıza gelen yanıtı verin.",
                      "1 = Strongly disagree · 5 = Strongly agree. Answer every item; go with your first impression."))
@@ -76,13 +90,17 @@ def _form(db, version: str, log):
         sent = st.form_submit_button(L("Gönder", "Submit"), type="primary", icon=":material/send:")
     if not sent:
         return
+    if not agree:
+        st.warning(L("Göndermek için onam kutusunu işaretleyin.", "Please tick the consent box to submit."))
+        return
     if role is None or any(a is None for a in answers):
         empty = [str(i) for i, a in enumerate(answers, 1) if a is None]
         st.warning(L("Lütfen rolünüzü ve tüm maddeleri işaretleyin.", "Please choose your role and answer every item.")
                    + (f" ({L('boş maddeler', 'unanswered')}: {', '.join(empty)})" if empty else ""))
         return
     score = sus_score(answers)
-    row = {"role": role, "lang": lg, "app_version": version, "answers": {"items": answers, "comment": comment.strip()},
+    row = {"role": role, "lang": lg, "app_version": version,
+           "answers": {"items": answers, "comment": comment.strip(), "consent": True},
            "score": score}
     ok = db.add_sus(row) if db is not None else False
     if not ok:
