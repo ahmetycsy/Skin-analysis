@@ -290,8 +290,7 @@ def render_about(part: str = "overview"):
         _L(TXT["c_status"]): _L(STATUS_LABEL[m["status"]]),
         "Macro F1": _num(m["f1"]) if m["f1"] is not None else "–", _L(TXT["c_note"]): _L(m["note"]),
     } for m in MODEL_STATUS]
-    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch",
-                 column_config={_L(TXT["c_note"]): st.column_config.TextColumn(width="large")})
+    st.table(pd.DataFrame(rows).set_index(_L(TXT["c_comp"])))  # st.table metni satıra kırar, sütun kırpılmaz
     st.caption(_L(TXT["f1_note"]))
 
 

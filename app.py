@@ -107,7 +107,7 @@ html, body, .stApp, [class*="css"] {{ font-family:'IBM Plex Sans', system-ui, -a
 .block-container {{ padding-top:1.6rem; padding-bottom:3rem; max-width:1080px; }}
 header[data-testid="stHeader"] {{ background:transparent; }}
 #MainMenu, footer {{ visibility:hidden; }}
-[data-testid="stToolbar"] {{ display:none !important; }}  /* Fork / GitHub simgeleri ziyaretçiye gerekmez */
+[data-testid="stToolbarActions"] {{ display:none !important; }}  /* Fork / GitHub gizli; menü düğmesi (stExpandSidebarButton) aynı araç çubuğunda, görünür kalmalı */
 h1, h2, h3 {{ font-family:'IBM Plex Sans', system-ui, sans-serif; color:{INK}; letter-spacing:-0.01em; }}
 
 /* yan menü */
@@ -729,7 +729,7 @@ def role_screen():
             st.button(t("role_" + role + "_btn"), key=f"role_{role}", type="primary" if role == "patient" else "secondary",
                       width="stretch", on_click=choose_role, args=(role,))
     steps = "".join(f'<div><b>{i}. {t("how_" + str(i) + "_t")}</b>{t("how_" + str(i))}</div>' for i in (1, 2, 3))
-    st.markdown(f'<div class="how">{steps}</div><p class="privacy">{t("role_privacy")}</p>', unsafe_allow_html=True)
+    st.markdown(f'<div class="how">{steps}</div><div class="privacy">{t("role_privacy")}</div>', unsafe_allow_html=True)
     st.caption(t("role_note"))
 
 
@@ -1270,7 +1270,7 @@ def render_case(cid: str, where: str):
         st.markdown(f'<div class="sym-warn">{t("kind_rash_result")}</div>', unsafe_allow_html=True)
     card = (calm_card_html(a["level"], a.get("mel_rule", False)) if simple else
             f'<div class="rec {a["level"]}"><div class="rec-title">{a["title"]}</div><div class="rec-text">{a["text"]}</div></div>')
-    st.markdown(f'<div class="hero">{card}{ruler_html(a, simple)}<p class="ruler-note">{t("ru_note")}</p></div>',
+    st.markdown(f'<div class="hero">{card}{ruler_html(a, simple)}<div class="ruler-note">{t("ru_note")}</div></div>',
                 unsafe_allow_html=True)
     if simple:
         st.markdown(f'<div class="banner" style="margin:0 0 .8rem">{t("pm_note")}</div>', unsafe_allow_html=True)
