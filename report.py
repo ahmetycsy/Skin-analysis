@@ -12,22 +12,29 @@ from i18n import t
 
 FONT_DIR = os.path.join(os.path.dirname(__file__), "assets", "fonts")
 
-INK = (31, 58, 68)
-MUTED = (96, 116, 124)
-TEAL = (15, 118, 110)
-LINE = (214, 226, 224)
-SOFT = (244, 247, 247)
+LOGO = os.path.join(os.path.dirname(__file__), "assets", "bau_logo.png")
+
+# sitedeki renklerle aynı (app.py: INK, MUTED, TEAL, LINE, BG)
+INK = (28, 43, 49)
+MUTED = (85, 104, 111)
+TEAL = (14, 94, 87)
+LINE = (220, 228, 227)
+SOFT = (245, 248, 248)
 GROUP_RGB = {"urgent": (166, 61, 87), "refer": (176, 112, 26), "benign": (47, 127, 120)}
 GROUP_FILL = {"urgent": (250, 238, 241), "refer": (251, 244, 231), "benign": (234, 244, 242)}
 
 
 class _PDF(FPDF):
     def footer(self):
-        self.set_y(-13)
-        self.set_font("DejaVu", "", 7.5)
+        # ince çizgi + iki satır: proje kimliği / veri lisansı solda, sayfa no sağda
+        self.set_draw_color(*LINE)
+        self.line(15, self.h - 15.5, self.w - 15, self.h - 15.5)
+        self.set_y(-14)
+        self.set_font("DejaVu", "", 7)
         self.set_text_color(*MUTED)
-        self.cell(0, 5, t("pdf_footer"), align="L")
-        self.cell(0, 5, f"{self.page_no()}/{{nb}}", align="R")
+        self.cell(self.w - 45, 3.6, t("pdf_footer_1"), align="L")
+        self.cell(15, 3.6, f"{self.page_no()} / {{nb}}", align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        self.cell(self.w - 30, 3.6, t("pdf_footer"), align="L")
 
 
 def _hex(c: str):
@@ -45,33 +52,56 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
     pdf.add_page()
     W = pdf.w - 30
 
-    # Başlık bandı
-    pdf.set_fill_color(*TEAL)
-    pdf.rect(0, 0, pdf.w, 24, style="F")
-    pdf.set_xy(15, 6.5)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("DejaVu", "B", 15)
-    pdf.cell(W, 7, t("pdf_title"), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.set_font("DejaVu", "", 8.5)
-    pdf.cell(W, 5, f"{t('app_name')} · {t('app_sub')}", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    if qr:  # vaka numarasının QR kodu (beyaz zemin, bandın sağında)
-        pdf.set_fill_color(255, 255, 255)
-        pdf.rect(pdf.w - 15 - 19, 2.5, 19, 19, style="F")
-        pdf.image(io.BytesIO(qr), x=pdf.w - 15 - 18, y=3, w=17, h=17)
-
-    pdf.set_y(29)
+    # Başlık: solda BAU logosu, sağda rapor adı ve proje bilgisi, en sağda vaka QR'ı; altında ince ayraç
+    top_y = 12
+    logo_h = 11
+    if os.path.exists(LOGO):
+        pdf.image(LOGO, x=15, y=top_y, h=logo_h)
+    right = pdf.w - 15 - (22 if qr else 0)
+    tx = 15 + 66
+    pdf.set_xy(tx, top_y - 0.5)
+    pdf.set_text_color(*INK)
+    pdf.set_font("DejaVu", "B", 14)
+    pdf.cell(right - tx, 6.5, t("pdf_title"), align="R", new_x=XPos.LEFT, new_y=YPos.NEXT)
+    pdf.set_font("DejaVu", "", 8)
     pdf.set_text_color(*MUTED)
-    pdf.set_font("DejaVu", "", 8.5)
-    pdf.cell(W, 5, t("pdf_meta", case=res["case"], date=res["created"], model=res["model_name"], v=version),
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.ln(2)
+    pdf.cell(right - tx, 4.2, t("pdf_org"), align="R", new_x=XPos.LEFT, new_y=YPos.NEXT)
+    pdf.cell(right - tx, 4.2, t("pdf_proto"), align="R")
+    if qr:  # vaka numarasının QR kodu
+        pdf.image(io.BytesIO(qr), x=pdf.w - 15 - 19, y=top_y - 2.5, w=19, h=19)
+    pdf.set_draw_color(*TEAL)
+    pdf.set_line_width(0.6)
+    pdf.line(15, top_y + 19, 15 + W, top_y + 19)
+    pdf.set_line_width(0.2)
+
+    # Vaka şeridi: dört alan, küçük etiket üstte, değer altta
+    sy = top_y + 23
+    fields = [(t("pdf_f_case"), res["case"]), (t("pdf_f_date"), res["created"]),
+              (t("pdf_f_model"), res["model_name"]), (t("pdf_f_version"), version)]
+    widths = [40, 37, W - 40 - 37 - 18, 18]
+    pdf.set_fill_color(*SOFT)
+    pdf.rect(15, sy, W, 12.5, style="F")
+    x = 15
+    for (lab, val), w in zip(fields, widths):
+        pdf.set_xy(x + 3, sy + 1.8)
+        pdf.set_font("DejaVu", "", 6.8)
+        pdf.set_text_color(*MUTED)
+        pdf.cell(w - 4, 3.5, lab, new_x=XPos.LEFT, new_y=YPos.NEXT)
+        pdf.set_font("DejaVu", "B", 9)
+        pdf.set_text_color(*INK)
+        txt = str(val)
+        while txt and pdf.get_string_width(txt) > w - 5:
+            txt = txt[:-1]
+        pdf.cell(w - 4, 5, txt if txt == str(val) else txt.rstrip() + "…")
+        x += w
+    pdf.set_y(sy + 12.5 + 3)
 
     def notice(text, fill, border):
         pdf.set_fill_color(*fill)
         pdf.set_draw_color(*border)
         pdf.set_text_color(*INK)
-        pdf.set_font("DejaVu", "", 8.5)
-        pdf.multi_cell(W, 4.4, text, border=1, fill=True, padding=1.8, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.set_font("DejaVu", "", 8)
+        pdf.multi_cell(W, 4.2, text, border=1, fill=True, padding=1.8, align="L", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(1.2)
 
     notice(t("pdf_nodx"), (255, 248, 230), (240, 220, 164))
@@ -94,16 +124,16 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
     lab_w = max(pdf.get_string_width(lab) for lab, _ in meta_lines) + 5
     for lab, val in meta_lines:
         pdf.set_text_color(*MUTED)
-        pdf.cell(lab_w, 6, lab)
+        pdf.cell(lab_w, 5.6, lab)
         pdf.set_text_color(*INK)
-        pdf.cell(90 - lab_w, 6, val, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(90 - lab_w, 5.6, val, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     left_end = pdf.get_y()
 
     pairs = [(res.get("clin_jpg"), t("m_clin")), (res.get("derm_jpg"), t("m_derm")), (res.get("cam_jpg"), "Grad-CAM")]
     pairs = [(i, c) for i, c in pairs if i]
     imgs = [i for i, _ in pairs]
     if imgs:
-        size = 30 if len(imgs) <= 2 else 24
+        size = 27 if len(imgs) <= 2 else 23
         x = 15 + W - len(imgs) * (size + 3) + 3
         pdf.set_xy(x, top + 1.5)
         pdf.set_font("DejaVu", "B", 10.5)
@@ -155,7 +185,7 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
         for k, z in enumerate(zones):
             pdf.set_text_color(*(INK if z == lvl else MUTED))
             pdf.set_font("DejaVu", "B" if z == lvl else "", 8)
-            pdf.cell(seg_w + 2, 4.5, t("ru_" + z), align=("L", "C", "R")[k])
+            pdf.cell(W / 3, 4.5, t("ru_" + z), align=("L", "C", "R")[k])
         pdf.ln(6)
     if a["uncertain"]:
         notice(t("pdf_unsure"), (255, 248, 230), (240, 220, 164))
@@ -198,23 +228,23 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
     for i, (c, p) in enumerate(a["ranked"]):
         if i % 2 == 0:
             pdf.set_fill_color(*SOFT)
-            pdf.rect(15, pdf.get_y(), W, 5.2, style="F")
+            pdf.rect(15, pdf.get_y(), W, 4.9, style="F")
         pdf.set_font("DejaVu", "B" if i < 3 else "", 8.5)
         pdf.set_text_color(*INK)
-        pdf.cell(56, 5.2, fit(i18n.plain(c), 56), new_x=XPos.RIGHT)
+        pdf.cell(56, 4.9, fit(i18n.plain(c), 56), new_x=XPos.RIGHT)
         pdf.set_font("DejaVu", "", 7.5)
         pdf.set_text_color(*MUTED)
-        pdf.cell(77, 5.2, fit(f"{i18n.cname(c)} ({c})", 77))
+        pdf.cell(77, 4.9, fit(f"{i18n.cname(c)} ({c})", 77))
         pdf.set_font("DejaVu", "", 8)
         pdf.set_text_color(*_hex(group_colors[groups_of[c]]))
-        pdf.cell(33, 5.2, fit(i18n.group(groups_of[c]), 33))
+        pdf.cell(33, 4.9, fit(i18n.group(groups_of[c]), 33))
         pdf.set_font("DejaVu", "B" if i < 3 else "", 8.5)
         pdf.set_text_color(*INK)
-        pdf.cell(W - 166, 5.2, i18n.pct(p), align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.cell(W - 166, 4.9, i18n.pct(p), align="R", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     # Hekim değerlendirmesi: girildiyse yazılır, girilmediyse elle doldurulacak boş alan bırakılır
     pdf.ln(1)
-    need = 10 + (len(physician) * 5.2 if physician else 5 + 3 * 7.2) + 9
+    need = 9 + (len(physician) * 5.2 if physician else 5 + 3 * 6.6) + 8
     if pdf.get_y() + need > pdf.h - 18:  # sığmazsa yeni sayfaya geç
         pdf.add_page()
     heading(t("pdf_physician"))
@@ -233,7 +263,7 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
         pdf.set_font("DejaVu", "", 9)
         pdf.set_draw_color(*LINE)
         for lab in (t("fb_dx"), t("fb_action"), t("fb_note")):
-            pdf.ln(1.2)
+            pdf.ln(0.6)
             pdf.cell(62, 6, lab)
             y = pdf.get_y() + 5.2
             pdf.line(15 + 62, y, 15 + W, y)
@@ -241,10 +271,11 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
     pdf.ln(2)
     pdf.set_text_color(*MUTED)
     pdf.set_font("DejaVu", "", 8.5)
-    pdf.cell(W / 2, 6, f"{t('pdf_signature')}:")
+    sig = f"{t('pdf_signature')}:"
+    pdf.cell(W / 2, 6, sig)
     pdf.set_draw_color(*LINE)
     y = pdf.get_y() + 5.2
-    pdf.line(15 + 30, y, 15 + W / 2 - 5, y)
+    pdf.line(15 + pdf.get_string_width(sig) + 3, y, 15 + W / 2 + 10, y)
 
     pdf.alias_nb_pages()
     return bytes(pdf.output())

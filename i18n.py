@@ -882,8 +882,16 @@ Do not use filtered, cropped or colour-corrected images.
     "pdf_unsure": ("Model kararsız: en olası sonuçlar birbirine yakın veya düşük olasılıklı. Bu sıralamaya güvenilmemelidir.",
                    "Model uncertain: the top results are close or have low probability. This ranking should not be relied upon."),
     "pdf_all": ("Tüm türler", "All types"),
-    "pdf_footer": ("MILK10k (ISIC Archive), CC-BY-NC 4.0 · Bu uygulama bir tıbbi cihaz değildir.",
-                   "MILK10k (ISIC Archive), CC-BY-NC 4.0 · This application is not a medical device."),
+    "pdf_footer": ("Eğitim verisi: MILK10k ve ISIC 2019 (CC BY-NC 4.0), PAD-UFES-20 (CC BY 4.0). Bu uygulama bir tıbbi cihaz değildir.",
+                   "Training data: MILK10k and ISIC 2019 (CC BY-NC 4.0), PAD-UFES-20 (CC BY 4.0). This application is not a medical device."),
+    "pdf_footer_1": ("Bahçeşehir Üniversitesi Endüstri Mühendisliği bitirme projesi prototipi · Resmî tıbbi belge değildir",
+                     "Bahçeşehir University Industrial Engineering capstone prototype · Not an official medical document"),
+    "pdf_org": ("Endüstri Mühendisliği Bölümü · Bitirme Projesi", "Department of Industrial Engineering · Capstone Project"),
+    "pdf_proto": ("Klinik karar destek prototipi · tanı koymaz", "Clinical decision-support prototype · not a diagnosis"),
+    "pdf_f_case": ("Vaka no", "Case no"),
+    "pdf_f_date": ("Tarih", "Date"),
+    "pdf_f_model": ("Model", "Model"),
+    "pdf_f_version": ("Sürüm", "Version"),
 }
 
 
