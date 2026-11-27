@@ -37,10 +37,8 @@ PHOTO_TIPS = [
      "Telefonu cilde paralel tutun; elinizin ya da telefonun gölgesi düşmesin.",
      "Hold the phone parallel to the skin; avoid shadows from your hand or the phone."),
     ("Sade arka plan", "Plain background",
-     "Leke karenin ortasında ve büyükçe görünsün; kumaş, desenli giysi, takı ya da başka nesneler kareye girmesin. "
-     "Uzaktan çekilen fotoğrafta model arka plana bakabiliyor.",
-     "Keep the spot centred and reasonably large in the frame; no fabric, patterned clothing, jewellery or other objects. "
-     "In photos taken from far away the model may look at the background."),
+     "Kumaş, giysi ya da takı kareye girmesin; uzak çekimde model arka plana bakabilir.",
+     "No fabric, clothing or jewellery in the frame; in distant shots the model may look at the background."),
     ("Temiz cilt", "Clean skin",
      "Krem, makyaj, kıl ya da bant lezyonu örtmesin. Yakınlaştırma (zoom) yerine yaklaşın.",
      "No cream, make-up, hair or plaster over the lesion. Move closer instead of zooming."),
@@ -52,10 +50,10 @@ def render_photo_tips(compact: bool = False):
     if compact:
         st.markdown("\n".join(f"- **{L(a, b)}** — {L(c, d)}" for a, b, c, d in PHOTO_TIPS))
         return
-    cols = st.columns(len(PHOTO_TIPS), gap="small")
-    for i, (col, (a, b, c, d)) in enumerate(zip(cols, PHOTO_TIPS), 1):
-        col.markdown(f'<div class="guide"><span class="step-no">{i}</span><div class="card-title">{L(a, b)}</div>'
-                     f'<p class="card-text">{L(c, d)}</p></div>', unsafe_allow_html=True)
+    # tek ızgara: bütün kartlar aynı genişlik ve aynı yükseklik (bilgisayarda 3×2, telefonda 2 ya da 1 sütun)
+    cards = "".join(f'<div class="guide"><span class="step-no">{i}</span><div class="card-title">{L(a, b)}</div>'
+                    f'<div class="card-text">{L(c, d)}</div></div>' for i, (a, b, c, d) in enumerate(PHOTO_TIPS, 1))
+    st.markdown(f'<div class="tips-grid">{cards}</div>', unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------- cilt sağlığı sayfası

@@ -4,6 +4,7 @@ Buradaki sayılar gerçektir: veri dağılımı MILK10k eğitim dosyalarından, 
 çıktısından alınmıştır. Yeni model sonuçları gelince yalnızca MODEL_STATUS listesini güncelleyin.
 """
 from __future__ import annotations
+import html
 
 import pandas as pd
 import streamlit as st
@@ -332,12 +333,16 @@ def render_about(part: str = "overview"):
         _h(_L(TXT["h_how"]))
         st.markdown(_L(TXT["how"]))
     _h(_L(TXT["h_status"]))
-    rows = [{
-        _L(TXT["c_comp"]): _L(m["name"]), _L(TXT["c_arch"]): _L(m["arch"]),
-        _L(TXT["c_status"]): _L(STATUS_LABEL[m["status"]]),
-        "Macro F1": _num(m["f1"]) if m["f1"] is not None else "–", _L(TXT["c_note"]): _L(m["note"]),
-    } for m in MODEL_STATUS]
-    st.table(pd.DataFrame(rows).set_index(_L(TXT["c_comp"])))  # st.table metni satıra kırar, sütun kırpılmaz
+    # HTML tablo: kısa sütunlar (durum, F1) kırılmaz, uzun metin "Not" sütununda satıra geçer; telefonda yatay kaydırılır
+    head = "".join(f"<th>{html.escape(h)}</th>" for h in
+                   (_L(TXT["c_comp"]), _L(TXT["c_arch"]), _L(TXT["c_status"]), "Macro F1", _L(TXT["c_note"])))
+    body = "".join(
+        f'<tr><td class="mt-name">{html.escape(_L(m["name"]))}</td><td>{html.escape(_L(m["arch"]))}</td>'
+        f'<td class="mt-nw">{html.escape(_L(STATUS_LABEL[m["status"]]))}</td>'
+        f'<td class="mt-nw mt-num">{_num(m["f1"]) if m["f1"] is not None else "–"}</td>'
+        f'<td class="mt-note">{html.escape(_L(m["note"]))}</td></tr>' for m in MODEL_STATUS)
+    st.markdown(f'<div class="mtable-wrap"><table class="mtable"><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>',
+                unsafe_allow_html=True)
     st.caption(_L(TXT["f1_note"]))
 
 

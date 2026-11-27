@@ -238,6 +238,25 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .kpi-v {{ font-weight:600; font-size:1.45rem; color:{INK}; font-variant-numeric:tabular-nums; }}
 .kpi-l {{ font-size:.8rem; color:{MUTED}; }}
 .guide {{ background:#fff; border:1px solid {LINE}; border-radius:10px; padding:.95rem; height:100%; }}
+.peek-line {{ border-top:1px dashed {LINE}; margin:.2rem 0 .3rem; }}
+.peek-h {{ font-size:.82rem; color:{MUTED}; margin-bottom:.2rem; }}
+.peek-kv {{ display:flex; justify-content:space-between; gap:.8rem; font-size:.9rem; padding:.12rem 0; }}
+.peek-kv b {{ font-weight:600; font-variant-numeric:tabular-nums; }}
+.peek-kv2 {{ font-size:.86rem; margin-bottom:.35rem; line-height:1.4; }}
+.peek-kv2 span {{ display:block; color:{MUTED}; font-size:.78rem; }}
+.tips-grid {{ display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); grid-auto-rows:1fr; gap:.75rem; margin:.3rem 0 .6rem; }}
+.tips-grid .guide {{ height:auto; }}
+@media (max-width:900px) {{ .tips-grid {{ grid-template-columns:repeat(2, minmax(0, 1fr)); }} }}
+@media (max-width:480px) {{ .tips-grid {{ grid-template-columns:1fr; grid-auto-rows:auto; }} }}
+.mtable-wrap {{ overflow-x:auto; border:1px solid {LINE}; border-radius:10px; margin:.3rem 0 .5rem; }}
+.mtable {{ width:100%; border-collapse:collapse; font-size:.86rem; line-height:1.45; }}
+.mtable th {{ text-align:left; font-weight:600; color:{MUTED}; padding:.55rem .7rem; border-bottom:1px solid {LINE}; white-space:nowrap; }}
+.mtable td {{ padding:.55rem .7rem; border-bottom:1px solid {LINE}; vertical-align:top; color:{INK}; }}
+.mtable tr:last-child td {{ border-bottom:none; }}
+.mtable .mt-name {{ font-weight:500; min-width:12rem; }}
+.mtable .mt-nw {{ white-space:nowrap; }}
+.mtable .mt-num {{ text-align:right; font-variant-numeric:tabular-nums; }}
+.mtable .mt-note {{ color:{MUTED}; min-width:16rem; }}
 .guide .step-no {{ font-weight:600; font-size:.8rem; color:#fff; background:{TEAL}; border-radius:50%; width:1.5rem; height:1.5rem;
   display:inline-flex; align-items:center; justify-content:center; margin-bottom:.55rem; }}
 .legend-big div {{ margin:.3rem 0; font-size:.9rem; line-height:1.5; }}
@@ -347,6 +366,7 @@ ss.setdefault("boxes", {"clin": None, "derm": None})  # kırpma kutuları
 ss.setdefault("cases", {})        # vaka no -> kayıt (yalnızca bellekte; veritabanı sonra)
 ss.setdefault("current", None)    # yeni analizde gösterilen vaka
 ss.setdefault("open_case", None)  # vaka takibinde açık vaka
+ss.setdefault("peek", set())  # vaka listesinde ayrıntısı açılan satırlar
 ss.setdefault("consent", False)   # kullanım koşulları onaylandı mı
 ss.setdefault("doctor", None)     # hekim modu: baş harfler (None = giriş yok)
 ss.setdefault("pin_fails", 0)
@@ -1982,6 +2002,40 @@ def audit_panel():
                            icon=":material/download:", key="audit_dl")
 
 
+def case_peek(r: dict, a: dict):
+    """Vaka listesinde satırın altında açılan kısa özet (fotoğrafsız); ayrıntı için vakanın kendisi açılır."""
+    st.markdown('<div class="peek-line"></div>', unsafe_allow_html=True)
+    # gizlilik: listede fotoğraf gösterilmez (ekranda birden çok vaka açık olabilir); fotoğraf yalnız vaka ekranında
+    p2, p3 = st.columns(2, gap="large")
+    tot = a["totals"]
+    top3 = "".join(f'<div class="peek-kv"><span>{i18n.plain(c)}</span><b>{i18n.pct(p)}</b></div>' for c, p in a["ranked"][:3])
+    flags = []
+    if a.get("mel_rule"):
+        flags.append(t("r_mel_t"))
+    if a.get("borderline"):
+        flags.append(t("border_pdf"))
+    p2.markdown(f'<div class="peek-h">{t("top3")}</div>{top3}'
+                f'<div class="row-sub" style="margin-top:.35rem">{i18n.group(MALIGN)} {i18n.pct(tot[MALIGN])} · '
+                f'{i18n.group(PREMALIGN)} {i18n.pct(tot[PREMALIGN])}</div>'
+                + (f'<div class="row-sub" style="color:{C_PREMALIGN}">{" · ".join(flags)}</div>' if flags else ""),
+                unsafe_allow_html=True)
+    fb = r.get("feedback")
+    rows = [(t("mode_label"), t("mode_hasta") if rec_mode(r) == "hasta" else t("mode_hekim")),
+            (t("peek_fb"), fb_summary(fb) if fb and fb.get("dx") else t("peek_fb_none"))]
+    if fb and fb.get("followup"):
+        rows.append((t("fu_label"), fmt_date(fb["followup"])))
+    if r.get("prev"):
+        rows.append((t("peek_prev"), r["prev"]))
+    if r.get("events"):
+        ev = r["events"][-1]
+        rows.append((t("peek_last"), f'{event_text(ev)} ({ev.get("time", "")})'))
+    p3.markdown("".join(f'<div class="peek-kv2"><span>{html.escape(k)}</span><div>{html.escape(str(v))}</div></div>' for k, v in rows),
+                unsafe_allow_html=True)
+    _, ob = st.columns([3, 1])
+    ob.button(t("peek_open"), key=f"open_{r['case']}", type="primary", icon=":material/open_in_new:", width="stretch",
+              on_click=lambda c=r["case"]: ss.update(open_case=c))
+
+
 def page_track():
     sync_from_db()
     if ss.open_case in ss.cases:
@@ -2070,7 +2124,12 @@ def page_track():
                         f'{600 if urgent else 400}">{t(LEVEL_KEYS[a["level"]])}</b> · {i18n.plain(top_c)} ({i18n.pct(top_p)})</div>'
                         f'<div class="row-sub">{patient_short(r["meta"])}{fu_txt}</div>', unsafe_allow_html=True)
             k3.markdown(status_pill(r["status"]), unsafe_allow_html=True)
-            k4.button(t("btn_open"), key=f"open_{r['case']}", on_click=lambda c=r["case"]: ss.update(open_case=c), width="stretch")
+            shown = r["case"] in ss.peek
+            k4.button(t("btn_peek_hide" if shown else "btn_peek"), key=f"peek_{r['case']}", width="stretch",
+                      icon=":material/expand_less:" if shown else ":material/expand_more:",
+                      on_click=lambda c=r["case"]: ss.peek.symmetric_difference_update({c}))
+            if shown:
+                case_peek(r, a)
     st.caption(t("track_note_db" if DB is not None else "track_note"))
     audit_panel()
 
