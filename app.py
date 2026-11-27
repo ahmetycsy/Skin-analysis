@@ -263,6 +263,9 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .ruler-lb span:nth-child(2) {{ text-align:center; }} .ruler-lb span:nth-child(3) {{ text-align:right; }}
 .ruler-lb span.on {{ color:{INK}; font-weight:600; }}
 .ruler-note {{ font-size:.8rem; color:{MUTED}; margin:.25rem 0 0; }}
+.border-note {{ border-left:3px solid {C_PREMALIGN}; background:{C_PREMALIGN}14; color:{INK}; padding:.55rem .8rem;
+  border-radius:6px; font-size:.9rem; line-height:1.5; margin:0 0 .8rem; }}
+.crop-guide {{ font-size:.88rem; color:{INK}; line-height:1.5; margin:.1rem 0 .45rem; }}
 .mini-ruler {{ display:inline-grid; grid-template-columns:repeat(3,.9rem); gap:2px; vertical-align:middle; margin-right:.45rem; }}
 .mini-ruler i {{ height:.42rem; border-radius:2px; }}
 .hero {{ background:{SURF}; border:1px solid {LINE}; border-radius:14px; padding:1.1rem 1.2rem .9rem; margin:.4rem 0 .9rem; }}
@@ -511,26 +514,40 @@ def show_quality(img: Image.Image, warn: bool = True):
         st.warning(t("q_warn") + " " + " · ".join(bad))
 
 
-def crop_tool(img: Image.Image, which: str):
-    """İsteğe bağlı kırpma. Seçilen kutu ss.boxes içinde saklanır."""
+def crop_tool(img: Image.Image, which: str, required: bool = False):
+    """Kare kırpma (model görüntünün ortasından kare keser, bu yüzden kutu karedir). Kutu ss.boxes içinde saklanır.
+    required=True (hasta modu): kırpma her zaman açık ve kullanıcı kutuyu onaylamadan ileri geçilmez.
+    Neden: Tuğalp'in PAD testinde lezyon karede küçük ve arkada kumaş varken tahmin vakaların %47–67'sinde değişti."""
     if st_cropper is None:
         return
-    on = st.toggle(t("crop_toggle"), value=ss.get(f"v_crop_{which}", False), key=wkey(f"crop_on_{which}"),
-                   help=t("crop_help"))
+    if required:
+        on = True
+    else:
+        on = st.toggle(t("crop_toggle"), value=ss.get(f"v_crop_{which}", False), key=wkey(f"crop_on_{which}"),
+                       help=t("crop_help"))
     ss[f"v_crop_{which}"] = on
     if not on:
         return
-    st.caption(t("crop_hint"))
+    st.markdown(f'<div class="crop-guide">{t("crop_guide_pm" if required else "crop_hint")}</div>', unsafe_allow_html=True)
     # Kırpma ekranı karta sığsın diye küçük bir kopya gösterilir; seçilen kutu orijinal boyuta geri çevrilir.
     disp = img.copy()
     disp.thumbnail((360, 360))
     scale = img.width / disp.width
-    box = st_cropper(disp, realtime_update=True, box_color=TEAL, aspect_ratio=None, return_type="box",
+    side = int(min(disp.width, disp.height) * 0.6)  # başlangıç: ortada, kısa kenarın %60'ı kadar kare
+    l0, t0 = (disp.width - side) // 2, (disp.height - side) // 2
+    box = st_cropper(disp, realtime_update=True, box_color=TEAL, aspect_ratio=(1, 1), return_type="box",
+                     default_coords=(l0, l0 + side, t0, t0 + side),
                      key=f"cropper_{which}_{ss.imgs[which]['id']}", stroke_width=2, should_resize_image=False)
     left, top = max(0, int(box["left"] * scale)), max(0, int(box["top"] * scale))
     right = min(img.width, int((box["left"] + box["width"]) * scale))
     bottom = min(img.height, int((box["top"] + box["height"]) * scale))
     ss.boxes[which] = (left, top, right, bottom) if right - left >= 32 and bottom - top >= 32 else None
+    if required and ss.boxes[which] is not None:
+        pc, tc = st.columns([1, 2.2], vertical_alignment="center")
+        pc.image(img.crop(ss.boxes[which]), width=110)
+        key = f"v_cropok_{ss.imgs[which]['id']}"
+        ok = tc.checkbox(t("crop_confirm"), value=bool(ss.get(key)), key=f"cropok_{which}_{ss.imgs[which]['id']}_{ss.lang}")
+        ss[key] = ok
 
 
 # ---------------------------------------------------------------- sonuç yardımcıları
@@ -543,6 +560,9 @@ def new_case_id(seed: str) -> str:
         cid = f"LZ-{now_tr():%y%m%d}-{code}"
         if cid not in ss.cases:
             return cid
+
+
+BORDER_MARGIN = 0.05  # Tuğalp'in önerisi: eşiğe bu kadar yakın sonuçta "sınırda" uyarısı (yönlendirmeyi değiştirmez)
 
 
 def assess(probs: dict, mode: str = "hekim") -> dict:
@@ -565,8 +585,11 @@ def assess(probs: dict, mode: str = "hekim") -> dict:
         level, title, text = "refer", t("r_unsure_t"), t("r_unsure")
     else:
         level, title, text = "benign", t("r_benign_t"), t("r_benign")
+    # sınırda sonuç: belirleyici toplam eşiğe BORDER_MARGIN'den yakın (doğrulamada hekim %7,6, hasta %9,9 vaka; sezgisel)
+    risk = totals[MALIGN] + totals[PREMALIGN]
+    borderline = (abs(risk - REFER_MALIGN_OR_PRE) < BORDER_MARGIN or abs(totals[MALIGN] - REFER_URGENT_MALIGN) < BORDER_MARGIN)
     return {"totals": totals, "ranked": ranked, "uncertain": uncertain, "level": level, "title": title, "text": text,
-            "mel_rule": mel_rule}
+            "mel_rule": mel_rule, "borderline": borderline}
 
 
 AGREE = {"yes": "fb_yes", "partial": "fb_partial", "no": "fb_no"}
@@ -694,8 +717,11 @@ def pdf_extra_lines(rec: dict):
         rows.append((t("mod_pdf"), t("mod_pdf_v")))
     if rec.get("kind"):
         rows.append((t("kind_q"), t("kind_" + rec["kind"])))
-    if assess(rec["probs"], rec_mode(rec)).get("mel_rule"):
+    _a = assess(rec["probs"], rec_mode(rec))
+    if _a.get("mel_rule"):
         rows.append((t("mel_pdf"), t("mel_pdf_v", p=i18n.pct(rec["probs"]["MEL"]))))
+    if _a.get("borderline"):
+        rows.append((t("border_pdf"), t("border_pdf_v")))
     rows += symptom_lines(rec.get("symptoms"))
     return rows
 
@@ -1272,6 +1298,8 @@ def render_case(cid: str, where: str):
             f'<div class="rec {a["level"]}"><div class="rec-title">{a["title"]}</div><div class="rec-text">{a["text"]}</div></div>')
     st.markdown(f'<div class="hero">{card}{ruler_html(a, simple)}<div class="ruler-note">{t("ru_note")}</div></div>',
                 unsafe_allow_html=True)
+    if a.get("borderline"):
+        st.markdown(f'<div class="border-note">{t("border_pm" if simple else "border_dr")}</div>', unsafe_allow_html=True)
     if simple:
         st.markdown(f'<div class="banner" style="margin:0 0 .8rem">{t("pm_note")}</div>', unsafe_allow_html=True)
     if predictor.is_mock:
@@ -1654,7 +1682,7 @@ def step_images():
                         st.rerun()
             else:
                 img = open_bytes(rec["bytes"])
-                crop_tool(img, which)
+                crop_tool(img, which, required=pm)
                 if not ss.get(f"v_crop_{which}"):
                     st.image(img if which == "clin" else lens_preview(img), width=300,
                              caption=None if which == "clin" else t("lens_caption"))
@@ -1662,7 +1690,7 @@ def step_images():
                 if not skin_like(get_image(which)):
                     st.warning(t("skin_warn"))
                     ck = st.checkbox(t("skin_confirm"), value=ss.get(f"v_skinok_{rec['id']}", False),
-                                     key=f"skinok_{rec['id']}_{ss.lang}")
+                                     key=f"skinok_{which}_{rec['id']}_{ss.lang}")
                     ss[f"v_skinok_{rec['id']}"] = ck
                 st.caption(html.escape(rec["name"]))
 
@@ -1689,6 +1717,7 @@ def step_images():
     ready = all(ss.imgs[w] is not None for w in used)
     blocked = ready and any(not skin_like(get_image(w)) and not ss.get(f"v_skinok_{ss.imgs[w]['id']}") for w in used)
     blocked = blocked or kind_block
+    crop_block = pm and ready and st_cropper is not None and not ss.get(f"v_cropok_{ss.imgs['clin']['id']}")
     both = not pm and ss.imgs["clin"] is not None and ss.imgs["derm"] is not None
     if both:
         if looks_dermoscopic(open_bytes(ss.imgs["clin"]["bytes"])) and not looks_dermoscopic(open_bytes(ss.imgs["derm"]["bytes"])):
@@ -1709,7 +1738,7 @@ def step_images():
     st.write("")
     _, nb = st.columns([2, 1])
     with nb:
-        st.button(t("btn_next"), type="primary", width="stretch", disabled=not ready or blocked, icon=":material/arrow_forward:",
+        st.button(t("btn_next"), type="primary", width="stretch", disabled=not ready or blocked or crop_block, icon=":material/arrow_forward:",
                   on_click=lambda: ss.update(step=2), key="to_step2")
         if not ready:
             st.caption(t("need_clin") if pm else t("need_both"))
@@ -1717,6 +1746,8 @@ def step_images():
             st.caption(t("kind_block"))
         elif blocked:
             st.caption(t("skin_block"))
+        elif crop_block:
+            st.caption(t("crop_block"))
 
 
 def step_patient():

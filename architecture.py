@@ -100,12 +100,12 @@ def svg() -> str:
     parts.append(_box(20, 524, 200, 96, L("MILK10k + ek veri", "MILK10k + extra data"), [L("5.240 lezyon, 11 tür", "5,240 lesions, 11 classes"),
                                                                  L("+ PAD-UFES-20, ISIC 2019", "+ PAD-UFES-20, ISIC 2019")], kind="off"))
     parts.append(_box(262, 524, 240, 96, L("Eğitim (Kaggle GPU)", "Training (Kaggle GPU)"),
-                      [L("5 katlı CV · Macro F1 0,542", "5-fold CV · Macro F1 0.542"),
+                      [L("v3 · kontrol kümesi Macro F1 0,594", "v3 · validation Macro F1 0.594"),
                        L("Klinik + PAD-UFES-20 · dermoskopik + ISIC 2019", "Clinical + PAD-UFES-20 · dermoscopic + ISIC 2019")],
                       kind="off"))
     parts.append(_box(544, 524, 418, 96, L("Değerlendirme", "Evaluation"),
                       [L("1.048 lezyonluk doğrulama → Model analizi sayfası", "1,048-lesion validation → Model analysis page"),
-                       L("ISIC gizli test seti: Macro F1 0,485", "ISIC hidden test set: Macro F1 0.485")], kind="off"))
+                       L("ISIC gizli test seti (v3): Macro F1 0,483", "ISIC hidden test set (v3): Macro F1 0.483")], kind="off"))
 
     # oklar
     parts.append(_arrow("M180,263 L238,99", both=True))

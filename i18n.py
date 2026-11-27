@@ -227,6 +227,29 @@ Do not use filtered, cropped or colour-corrected images.
     "crop_toggle": ("Kırp", "Crop"),
     "crop_help": ("Görüntüde yalnızca lezyonun bulunduğu bölgeyi seçmek için açın. Kapatınca görüntünün tamamı kullanılır.",
                   "Turn on to keep only the area around the lesion. Turn off to use the whole image."),
+    "crop_guide_pm": ("<b>Kutuyu lekenin üstüne getirin:</b> leke kutunun <b>ortasında</b> olsun ve kutunun yaklaşık "
+                      "<b>üçte birini</b> doldursun. Arkadaki kumaş, takı ya da başka nesneler kutunun dışında kalsın. "
+                      "Analizde yalnızca kutunun içi kullanılır.",
+                      "<b>Place the box over the spot:</b> the spot should be in the <b>centre</b> and fill about "
+                      "<b>one third</b> of the box. Keep fabric, jewellery and other objects outside the box. Only the "
+                      "area inside the box is analysed."),
+    "crop_confirm": ("Leke kutunun ortasında ve kutunun yaklaşık üçte birini dolduruyor",
+                     "The spot is in the centre and fills about one third of the box"),
+    "crop_block": ("İleri geçmek için kutuyu ayarlayıp onaylayın.", "Adjust the box and confirm it to continue."),
+    "border_pm": ("<b>Sonuç sınırda.</b> Değerlendirme eşiğe çok yakın çıktı; küçük bir fotoğraf farkı sonucu "
+                  "değiştirebilir. Fotoğraf uzaktan çekildiyse ya da arkada kumaş veya başka nesneler varsa, lekeyi "
+                  "ortalayıp yakından, gün ışığında <b>bir kez</b> yeni fotoğrafla deneyin. İki sonuç farklı çıkarsa "
+                  "<b>daha temkinli olanı</b> esas alın. Endişeniz varsa doktora başvurun.",
+                  "<b>Borderline result.</b> The assessment is very close to a threshold, so a small difference in the "
+                  "photo could change it. If the photo was taken from far away or shows fabric or other objects, try "
+                  "<b>once</b> more with a close, centred photo in daylight. If the two results differ, go by the "
+                  "<b>more cautious</b> one. If you are worried, see a doctor."),
+    "border_dr": ("<b>Sınırda sonuç:</b> kötü huylu ya da riskli toplam, yönlendirme eşiğine 5 puandan yakın. "
+                  "Yönlendirme değişmedi; klinik değerlendirme ve gerekirse ikinci bir görüntü önerilir.",
+                  "<b>Borderline result:</b> the malignant or at-risk total is within 5 points of a referral "
+                  "threshold. The referral is unchanged; clinical judgement and, if needed, a second image are advised."),
+    "border_pdf": ("Sınırda sonuç", "Borderline result"),
+    "border_pdf_v": ("Toplam, yönlendirme eşiğine 5 puandan yakın", "Total within 5 points of a referral threshold"),
     "crop_hint": ("Kutuyu sürükleyip köşelerinden boyutlandırın. Analizde yalnızca kutunun içi kullanılır.",
                   "Drag the box and resize it by its corners. Only the area inside the box is analysed."),
 

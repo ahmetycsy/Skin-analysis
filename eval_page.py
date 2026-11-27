@@ -114,14 +114,16 @@ def _tab_performance(D, M, mode):
     bal = sum(r["rec"] for r in rows) / len(rows)
     g = D["grid"]
     cur = _rates(_counts(M["grid"][g.index(D["current"]["U"])][g.index(D["current"]["R"])][1]))
-    _kpis([(_pc(acc), L("Doğruluk", "Accuracy")), (_num(_macro_f1(cm, classes), 3), "Macro F1"),
-           (_pc(bal), L("Dengeli doğruluk", "Balanced accuracy")),
+    _kpis([(_num(_macro_f1(cm, classes), 3), "Macro F1"), (_pc(bal), L("Dengeli doğruluk", "Balanced accuracy")),
+           (_pc(acc), L("Doğruluk (sık türler ağır basar)", "Accuracy (common types dominate)")),
            (_pc(cur["mal_caught"]), L("Kötü huylu yakalama", "Malignant caught"))])
-    _note(L(f"{n} lezyonluk doğrulama kümesi (modeller bu lezyonları eğitimde görmedi). Tek bölünme olduğu için "
-            f"5 katlı çapraz doğrulama sonucundan (Model hakkında sayfası) biraz farklıdır. \"Kötü huylu yakalama\": "
+    _note(L(f"{n} lezyonluk doğrulama kümesi (modeller bu lezyonları eğitimde görmedi). Bu sayfadaki sayılar "
+            f"v3 modellerinindir ve destekleyicidir; ana başarı ölçütü ISIC gizli testindeki Macro F1 0,483'tür. Düz doğruluk "
+            f"en sık tür (BCC) yüzünden yüksek görünür; dengeli doğruluğa ve tür bazında duyarlılığa bakın. \"Kötü huylu yakalama\": "
             f"kötü huylu lezyonların şu anki eşiklerle en az \"dermatolog değerlendirmesi\" alan payı.",
-            f"Validation set of {n} lesions (not seen in training). A single split, so it differs slightly from the "
-            f"5-fold cross-validation result on the About page. \"Malignant caught\": share of malignant lesions that "
+            f"Validation set of {n} lesions (not seen in training). These are v3 figures and are supporting "
+            f"evidence; the main measure is Macro F1 0.483 on ISIC's hidden test. Plain accuracy looks high because the "
+            f"most common type (BCC) dominates; look at balanced accuracy and per-type sensitivity. \"Malignant caught\": share of malignant lesions that "
             f"get at least \"dermatologist review\" with the current thresholds."))
 
     _label(L("Karışıklık matrisi", "Confusion matrix"))

@@ -36,6 +36,11 @@ PHOTO_TIPS = [
     ("Dik açı, gölgesiz", "Straight on, no shadow",
      "Telefonu cilde paralel tutun; elinizin ya da telefonun gölgesi düşmesin.",
      "Hold the phone parallel to the skin; avoid shadows from your hand or the phone."),
+    ("Sade arka plan", "Plain background",
+     "Leke karenin ortasında ve büyükçe görünsün; kumaş, desenli giysi, takı ya da başka nesneler kareye girmesin. "
+     "Uzaktan çekilen fotoğrafta model arka plana bakabiliyor.",
+     "Keep the spot centred and reasonably large in the frame; no fabric, patterned clothing, jewellery or other objects. "
+     "In photos taken from far away the model may look at the background."),
     ("Temiz cilt", "Clean skin",
      "Krem, makyaj, kıl ya da bant lezyonu örtmesin. Yakınlaştırma (zoom) yerine yaklaşın.",
      "No cream, make-up, hair or plaster over the lesion. Move closer instead of zooming."),
@@ -113,11 +118,11 @@ def render_skin_health():
 
     _h(L("Güneşten korunma", "Sun protection"))
     st.markdown(L(
-        "- 11:00–16:00 arası doğrudan güneşten kaçının, gölge arayın\n"
+        "- Güneşin en güçlü olduğu öğle saatlerinde (yaklaşık 10:00–14:00; gölgeniz boyunuzdan kısaysa) gölge arayın\n"
         "- En az **SPF 30**, geniş spektrumlu güneş kremi; 2 saatte bir ve yüzme sonrası yenileyin\n"
         "- Şapka, güneş gözlüğü ve uzun kollu giysi\n"
         "- Solaryum kullanmayın",
-        "- Avoid direct sun between 11:00 and 16:00, seek shade\n"
+        "- Seek shade around midday, when the sun is strongest (about 10 a.m.–2 p.m.; if your shadow is shorter than you)\n"
         "- Broad-spectrum sunscreen of at least **SPF 30**; reapply every 2 hours and after swimming\n"
         "- Hat, sunglasses and long sleeves\n"
         "- Do not use tanning beds"))
@@ -130,6 +135,23 @@ def render_skin_health():
              "suspicious change. The analysis tool on this site is for moles and spots; it is not suitable for eczema, "
              "psoriasis, fungal infections or rashes.")
     st.markdown(f'<div class="banner" style="margin-top:1rem">{note}</div>', unsafe_allow_html=True)
+
+    _h(L("Kaynaklar", "Sources"))
+    st.markdown("\n".join(f"- [{L(a, b)}]({u})" for a, b, u in HEALTH_SOURCES))
+    st.caption(L("Bilgiler bu kaynaklardan sadeleştirilerek alınmıştır (erişim: Kasım 2026).",
+                 "Information on this page is simplified from these sources (accessed November 2026)."))
+
+
+HEALTH_SOURCES = [
+    ("AAD – Melanomun ABCDE işaretleri", "AAD – What to look for: ABCDEs of melanoma",
+     "https://www.aad.org/public/diseases/skin-cancer/find/at-risk/abcdes"),
+    ("AAD – Cildinizi kendiniz nasıl kontrol edersiniz", "AAD – How to perform a skin self-exam",
+     "https://www.aad.org/public/diseases/skin-cancer/find/check-skin"),
+    ("AAD – Cilt kanserinden korunma", "AAD – How to prevent skin cancer",
+     "https://www.aad.org/public/diseases/skin-cancer/prevent/how"),
+    ("WHO – Ultraviyole radyasyon (bilgi notu)", "WHO – Ultraviolet radiation (fact sheet)",
+     "https://www.who.int/news-room/fact-sheets/detail/ultraviolet-radiation"),
+]
 
 
 # ---------------------------------------------------------------- model sürüm geçmişi

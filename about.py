@@ -34,8 +34,8 @@ MODEL_STATUS = [
               "Scored by ISIC · labels not available to us · first version (MILK10k only) 0.485")},
     {"name": ("Kullanılan sistem — hekim modu (4 model)", "Deployed system — physician mode (4 models)"),
      "arch": ("B3 + V2-S, derm (+ISIC 2019) + klinik (+PAD) ortalaması", "B3 + V2-S, mean of derm (+ISIC 2019) + clinical (+PAD)"), "status": "used", "f1": 0.594,
-     "note": ("1.048 lezyonluk kontrol · doğruluk %80,1 · kaçırılan kötü huylu 14/691 · yalnızca MILK10k ile eğitilen ilk sürüm 0,546 / %76,8, 5 katlı CV 0,542",
-              "1,048-lesion validation · accuracy 80.1% · missed malignant 14/691 · first MILK10k-only version 0.546 / 76.8%, 5-fold CV 0.542")},
+     "note": ("1.048 lezyonluk kontrol · dengeli doğruluk %58 (düz doğruluk %80,1) · kaçırılan kötü huylu 14/691 · yalnızca MILK10k ile eğitilen ilk sürüm 0,546 / %76,8, 5 katlı CV 0,542",
+              "1,048-lesion validation · balanced accuracy 58% (plain accuracy 80.1%) · missed malignant 14/691 · first MILK10k-only version 0.546 / 76.8%, 5-fold CV 0.542")},
     {"name": ("Kullanılan sistem — hasta modu (yalnızca klinik fotoğraf)", "Deployed system — patient mode (clinical photo only)"),
      "arch": ("B3 + V2-S, klinik, MILK10k + PAD-UFES-20", "B3 + V2-S, clinical, MILK10k + PAD-UFES-20"), "status": "used", "f1": 0.496,
      "note": ("1.048 lezyonluk kontrol · doğruluk %72,4 (önceki 0,484 / %70,3) · telefon fotoğraflarında (PAD testi, 433) 0,668, önceki 0,399",
@@ -129,7 +129,50 @@ TXT = {
         "433 patient-grouped PAD-UFES-20 photos never used in training (6 types). 33 ISIC 2019 images identical or near-identical to MILK10k images were removed from training. The fusion model "
         "was measured on a single split only. Results may be ~0.01–0.02 optimistic (best epoch chosen on the validation set).",
     ),
-    "h_data": ("Eğitim verisi: MILK10k", "Training data: MILK10k"),
+    "h_data": ("Ana veri seti: MILK10k", "Main dataset: MILK10k"),
+    "h_extra": ("Ek veri: tasarım kararı değişikliği", "Extra data: a change of design decision"),
+    "extra": (
+        "Teklif raporunda yalnızca MILK10k kullanılacağı yazıyordu. Bu karar **bilerek değiştirildi**: (1) hasta modu telefon "
+        "fotoğraflarıyla çalışıyor ama MILK10k'in klinik fotoğrafları profesyonel çekim; telefon testinde eski modelin doğruluğu "
+        "%46'da kaldı. (2) Dermoskopik modellerde nadir türler için örnek azdı. Danışman onayıyla (Kasım 2026) iki açık veri seti "
+        "eklendi. Doğrulama kümesi değişmedi: bütün modeller aynı 1.048 MILK10k lezyonunda ölçülür, yalnız MILK10k ile eğitilen "
+        "v1 sonuçları ayrıca saklanır (Sürüm geçmişi).",
+        "The proposal said only MILK10k would be used. This decision was **deliberately changed**: (1) patient mode works with "
+        "phone photos, but MILK10k clinical photos are professional captures; on a phone test the old model reached only 46% "
+        "accuracy. (2) The dermoscopic models had few examples of rare types. With the advisor's approval (November 2026) two "
+        "open datasets were added. The validation set did not change: every model is measured on the same 1,048 MILK10k "
+        "lesions, and the MILK10k-only v1 results are kept separately (Version history).",
+    ),
+    "extra_table": (
+        "| Kullanılan model | Görüntü | Eğitim verisi |\n|---|---|---|\n"
+        "| EfficientNet-B3 | Dermoskopik | MILK10k (4.192 lezyon) + ISIC 2019 (16.423 görüntü) |\n"
+        "| EfficientNetV2-S | Dermoskopik | MILK10k (4.192 lezyon) + ISIC 2019 (16.423 görüntü) |\n"
+        "| EfficientNet-B3 | Klinik | MILK10k (4.192 lezyon) + PAD-UFES-20 (hastaların %80'i) |\n"
+        "| EfficientNetV2-S | Klinik | MILK10k (4.192 lezyon) + PAD-UFES-20 (hastaların %80'i) |\n",
+        "| Deployed model | Image | Training data |\n|---|---|---|\n"
+        "| EfficientNet-B3 | Dermoscopic | MILK10k (4,192 lesions) + ISIC 2019 (16,423 images) |\n"
+        "| EfficientNetV2-S | Dermoscopic | MILK10k (4,192 lesions) + ISIC 2019 (16,423 images) |\n"
+        "| EfficientNet-B3 | Clinical | MILK10k (4,192 lesions) + PAD-UFES-20 (80% of patients) |\n"
+        "| EfficientNetV2-S | Clinical | MILK10k (4,192 lesions) + PAD-UFES-20 (80% of patients) |\n",
+    ),
+    "extra_checks": (
+        "- **Kopya kontrolü:** ISIC 2019 görüntüleri, doğrulama kümesi dahil **bütün** MILK10k görüntüleriyle karşılaştırıldı. "
+        "Aynı ISIC numarası: 0. Görsel olarak aynı ya da çok benzer (256 bit dHash farkı ≤ 22): 33 görüntü, eğitimden çıkarıldı. "
+        "Böylece doğrulama lezyonları eğitime sızmadı.\n"
+        "- **PAD-UFES-20 testi:** hastaların %20'si (433 fotoğraf, 277 hasta) hasta bazında ayrıldı ve eğitimde hiç kullanılmadı.\n"
+        "- **Tür eşlemesi:** PAD-UFES-20 ve ISIC 2019 türleri MILK10k'in 11 türüne eşlendi (ör. aktinik keratoz → AKIEC, "
+        "SCC → SCCKA); ISIC 2019'daki \"bilinmeyen\" sınıfı kullanılmadı.\n"
+        "- **Lisanslar:** MILK10k ve ISIC 2019 **CC BY-NC 4.0** (ticari olmayan kullanım, atıf), PAD-UFES-20 **CC BY 4.0** (atıf). "
+        "Görüntüler bu sitede gösterilmez ve paylaşılmaz; atıflar raporun kaynakçasındadır.",
+        "- **Duplicate check:** ISIC 2019 images were compared with **all** MILK10k images, including the validation set. "
+        "Same ISIC ID: 0. Visually identical or near-identical (256-bit dHash distance ≤ 22): 33 images, removed from training. "
+        "Validation lesions therefore did not leak into training.\n"
+        "- **PAD-UFES-20 test:** 20% of patients (433 photos, 277 patients) were held out per patient and never used in training.\n"
+        "- **Class mapping:** PAD-UFES-20 and ISIC 2019 classes were mapped onto the 11 MILK10k types (e.g. actinic keratosis → "
+        "AKIEC, SCC → SCCKA); the ISIC 2019 \"unknown\" class was not used.\n"
+        "- **Licences:** MILK10k and ISIC 2019 are **CC BY-NC 4.0** (non-commercial, attribution), PAD-UFES-20 is **CC BY 4.0** "
+        "(attribution). Images are not shown or shared on this site; citations are in the report's references.",
+    ),
     "c_type": ("Tür", "Type"), "c_med": ("Tıbbi adı", "Medical name"), "c_group": ("Grup", "Group"),
     "c_n": ("Lezyon", "Lesions"), "c_share": ("Pay", "Share"),
     "imbalance": (
@@ -151,8 +194,9 @@ TXT = {
         "- **Ten rengi temsili:** Eğitim verisinin büyük kısmı orta ve açık tenlidir; koyu tenlerde performans ayrıca ölçülmelidir.\n"
         "- **Bölünme:** Veri setinde hasta kimliği bulunmadığı için ayırma lezyon bazında yapılmıştır; aynı hastanın farklı "
         "lezyonları hem eğitim hem doğrulama kümesine düşmüş olabilir.\n"
-        "- **Tek veri seti:** Sonuçlar yalnızca MILK10k üzerinde ölçülmüştür; farklı kamera, dermatoskop veya hasta "
-        "gruplarında performans farklı olabilir.\n"
+        "- **Dış doğrulama:** Kontrol kümesi MILK10k'ten gelir ve en iyi epoch bu kümeye bakılarak seçildi (sonuçlar biraz iyimser). "
+        "Bu yüzden ana başarı iddiası ISIC'in bağımsız gizli testidir (Macro F1 0,483); başka bir hastanede ya da kamerada ayrı "
+        "bir dış doğrulama yapılmadı.\n"
         "- **Yaş aralığı:** Veri setinde yaş 5–85 arasındadır; bu aralığın dışındaki hastalarda sonuç daha belirsizdir.\n"
         "- **Çekim koşulları:** Klinik modeller MILK10k'e ek olarak PAD-UFES-20 telefon fotoğraflarıyla eğitildi; telefon testinde "
         "doğruluk %46'dan %78'e çıktı. Yine de bu fotoğraflar tek bir ülkeden (Brezilya), çoğunlukla açık tenli hastalardandır. Dermoskopik modeller ISIC 2019 ile de eğitildi; bu veri de çoğunlukla açık tenlidir.\n"
@@ -167,8 +211,9 @@ TXT = {
         "measured separately.\n"
         "- **Split:** the dataset has no patient ID, so the split was made per lesion; different lesions of the same "
         "patient may appear in both training and validation sets.\n"
-        "- **Single dataset:** results were measured only on MILK10k; performance may differ with other cameras, "
-        "dermatoscopes or patient groups.\n"
+        "- **External validation:** the validation set comes from MILK10k and the best epoch was chosen on it (results are "
+        "slightly optimistic). The main performance claim is therefore ISIC's independent hidden test (Macro F1 0.483); no "
+        "separate external validation at another hospital or with another camera was done.\n"
         "- **Age range:** ages in the dataset range from 5 to 85; results are less certain outside this range.\n"
         "- **Capture conditions:** the clinical models were trained on PAD-UFES-20 phone photos in addition to MILK10k; on the "
         "phone test accuracy rose from 46% to 78%. These photos still come from one country (Brazil), mostly light-skinned patients. The dermoscopic models were also trained on ISIC 2019, likewise mostly light skin.\n"
@@ -270,12 +315,14 @@ def render_about(part: str = "overview"):
     st.markdown(f'<p class="lead">{_L(TXT["lead"])}</p>', unsafe_allow_html=True)
     # Hedef ile ulaşılan tek satırda (teklifteki hedef Macro F1 ≥ 0,45)
     st.markdown('<div class="summary-line">' + _L((
-        "Teklifteki hedef <b>Macro F1 ≥ 0,45</b>. Kullanılan sistem kontrol kümesinde <b>0,594</b> "
-        "(yalnız MILK10k ile 0,546), ISIC'in bağımsız gizli testinde <b>0,483</b>. Eğitim verisi "
-        f"{_int(N_LESIONS)} lezyon, her birinde iki görüntü; 11 tür.",
-        "Proposal target <b>Macro F1 ≥ 0.45</b>. The deployed system reaches <b>0.594</b> on the validation set "
-        "(0.546 with MILK10k only) and <b>0.483</b> on ISIC's independent hidden test. Training data: "
-        f"{_int(N_LESIONS)} lesions with two images each; 11 types.")) + "</div>", unsafe_allow_html=True)
+        "<b>v3 itibarıyla.</b> Ana ölçüt ISIC'in bağımsız gizli testi: <b>Macro F1 0,483</b> (teklifteki hedef ≥ 0,45). "
+        "Kontrol kümesinde (1.048 lezyon) Macro F1 0,594, <b>dengeli doğruluk %58</b>; düz doğruluk (%80,1) en sık türün "
+        "(BCC) ağırlığıyla yüksek görünür. Nadir türler zayıf: MAL_OTH (2 örnek) hiç bulunamadı, BEN_OTH %22, INF %30. "
+        f"Eğitim: MILK10k ({_int(N_LESIONS)} lezyon, iki görüntü) + PAD-UFES-20 + ISIC 2019.",
+        "<b>As of v3.</b> The main measure is ISIC's independent hidden test: <b>Macro F1 0.483</b> (proposal target ≥ 0.45). "
+        "On the validation set (1,048 lesions) Macro F1 is 0.594 and <b>balanced accuracy 58%</b>; plain accuracy (80.1%) "
+        "looks high because the most common type (BCC) dominates. Rare types are weak: MAL_OTH (2 cases) was never found, "
+        f"BEN_OTH 22%, INF 30%. Training: MILK10k ({_int(N_LESIONS)} lesions, two images) + PAD-UFES-20 + ISIC 2019.")) + "</div>", unsafe_allow_html=True)
 
     a, b = st.columns(2, gap="large")
     with a:
@@ -316,6 +363,11 @@ def _render_details():
                              _L(TXT["c_n"]): list(SKIN_TONE_COUNTS.values())})
         st.bar_chart(tone, x=_L(TXT["c_tone"]), y=_L(TXT["c_n"]), color="#0F766E", height=190)
         st.caption(_L(TXT["tone_note"]))
+
+    _h(_L(TXT["h_extra"]))
+    st.markdown(_L(TXT["extra"]))
+    st.markdown(_L(TXT["extra_table"]))
+    st.markdown(_L(TXT["extra_checks"]))
 
     _h(_L(TXT["h_limits"]))
     st.markdown(_L(TXT["limits"]))
