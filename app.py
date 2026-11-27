@@ -238,6 +238,8 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .kpi-v {{ font-weight:600; font-size:1.45rem; color:{INK}; font-variant-numeric:tabular-nums; }}
 .kpi-l {{ font-size:.8rem; color:{MUTED}; }}
 .guide {{ background:#fff; border:1px solid {LINE}; border-radius:10px; padding:.95rem; height:100%; }}
+[class*="st-key-peek_"] button {{ padding-left:.5rem; padding-right:.5rem; }}
+[class*="st-key-peek_"] button p {{ white-space:nowrap; }}
 .peek-line {{ border-top:1px dashed {LINE}; margin:.2rem 0 .3rem; }}
 .peek-h {{ font-size:.82rem; color:{MUTED}; margin-bottom:.2rem; }}
 .peek-kv {{ display:flex; justify-content:space-between; gap:.8rem; font-size:.9rem; padding:.12rem 0; }}
@@ -2117,7 +2119,7 @@ def page_track():
                       f'{t("fu_label")}: {fmt_date(fu)}</span>')
         urgent = a["level"] == "urgent" and r["status"] != "closed"
         with st.container(border=True):
-            k1, k2, k3, k4 = st.columns([1.5, 2.3, 1.2, .7], vertical_alignment="center")
+            k1, k2, k3, k4 = st.columns([1.45, 2.25, 1.1, .95], vertical_alignment="center")
             k1.markdown(f'<div class="{"row-urgent" if urgent else ""}"><div class="row-no">{r["case"]}</div>'
                         f'<div class="row-sub">{r["created"]}</div></div>', unsafe_allow_html=True)
             k2.markdown(f'<div>{mini_ruler(a["level"])}<b style="font-weight:'
