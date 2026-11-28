@@ -491,6 +491,16 @@ Do not use filtered, cropped or colour-corrected images.
     "ev_restored": ("Silinen vaka geri alındı", "Deleted case restored"),
     "toast_deleted": ("Vaka silindi.", "Case deleted."),
     "toast_restored": ("Vaka geri alındı.", "Case restored."),
+    "sample_title": ("Fotoğrafınız yok mu? Örnek fotoğrafla deneyin", "No photo? Try a sample photo"),
+    "sample_use": ("Örnek {n}", "Sample {n}"),
+    "sample_credit": ("Örnekler: PAD-UFES-20 veri seti (Pacheco ve ark., 2020, CC BY 4.0; yeniden boyutlandırıldı). Modelin "
+                      "eğitiminde kullanılmayan test fotoğraflarıdır. Sonuç yanlış olabilir.",
+                      "Samples: PAD-UFES-20 dataset (Pacheco et al., 2020, CC BY 4.0; resized). Test photos not used to train "
+                      "the model. The result can be wrong."),
+    "sample_note": ("<b>Örnek fotoğraf.</b> Bu sizin fotoğrafınız değil; sistemi denemek içindir.",
+                    "<b>Sample photo.</b> This is not your photo; it is for trying out the system."),
+    "sample_nosave": ("Örnek fotoğrafla yapılan denemeler veritabanına kaydedilmez.",
+                      "Analyses of sample photos are not stored in the database."),
     "del_btn": ("Vakayı sil", "Delete case"),
     "del_title": ("Vakayı sil", "Delete case"),
     "del_info": ("Vaka sitede (vaka listesi, arama, istatistikler, dışa aktarma) artık görünmez. Veritabanında ve denetim kaydında "

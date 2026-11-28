@@ -12,8 +12,8 @@ import numpy as np
 import pandas as pd
 
 sys.path.insert(0, ".")
-from predictor import (CLASSES, GROUPS, MALIGN, PREMALIGN, REFER_MALIGN_OR_PRE,  # noqa: E402
-                       REFER_URGENT_MALIGN, UNCERTAIN_GAP, UNCERTAIN_TOP)
+from predictor import (CLASSES, GROUPS, MALIGN, MEL_SAFETY, PREMALIGN, PRIORITY_TYPE_T, PRIORITY_TYPES,  # noqa: E402
+                       REFER_MALIGN_OR_PRE, REFER_URGENT_MALIGN, UNCERTAIN_GAP, UNCERTAIN_TOP)
 
 GRID = [round(x, 2) for x in np.arange(0.05, 0.951, 0.05)]
 LEVELS = ["urgent", "refer", "benign"]
@@ -33,6 +33,16 @@ def levels(P, U, R, use_unc=True):
     unc = (s[:, -1] < UNCERTAIN_TOP) | ((s[:, -1] - s[:, -2]) < UNCERTAIN_GAP)
     lv = np.where(mal >= U, 0, np.where((risk >= R) | (unc & use_unc), 1, 2))
     return lv, unc
+
+
+def type_levels(P, T, R, mel_t, use_unc=True):
+    """Sitedeki türe göre kural (melanom güvenlik kuralı dahil): 0 öncelikli, 1 sevk, 2 iyi huylu görünüm."""
+    risk = P[:, RISK_IDX].sum(1)
+    s = np.sort(P, 1)
+    unc = ((s[:, -1] < UNCERTAIN_TOP) | ((s[:, -1] - s[:, -2]) < UNCERTAIN_GAP)) & use_unc
+    refer = (risk >= R) | unc | (P[:, CLASSES.index("MEL")] >= mel_t)
+    fast = P[:, [CLASSES.index(c) for c in PRIORITY_TYPES]].sum(1)
+    return np.where(refer & (fast >= T), 0, np.where(refer, 1, 2))
 
 
 def level_counts(lv, mask=None):
@@ -61,7 +71,7 @@ SUB_ORDER = {"tone": ["0-2", "3", "4", "5"], "sex": ["female", "male"], "age": [
 
 out = {"dca_thresholds": [round(x, 2) for x in np.arange(0.01, 0.801, 0.01)], "n": int(len(df)), "classes": CLASSES, "grid": GRID, "levels": LEVELS, "true_groups": TRUE_GROUPS,
        "true_group_n": {g: int((tg == g).sum()) for g in TRUE_GROUPS},
-       "current": {"U": REFER_URGENT_MALIGN, "R": REFER_MALIGN_OR_PRE, "top": UNCERTAIN_TOP, "gap": UNCERTAIN_GAP},
+       "current": {"U": REFER_URGENT_MALIGN, "T": PRIORITY_TYPE_T, "R": REFER_MALIGN_OR_PRE, "top": UNCERTAIN_TOP, "gap": UNCERTAIN_GAP},
        "modes": {}}
 for mode in ("h", "p"):
     P = df[[f"{mode}_{c}" for c in CLASSES]].values
@@ -105,7 +115,10 @@ for mode in ("h", "p"):
         "risk": {"npos": int(is_risk.sum()), "nneg": int((~is_risk).sum()),
                  "tp": [int(((risk_score >= t) & is_risk).sum()) for t in pts], "fp": [int(((risk_score >= t) & ~is_risk).sum()) for t in pts]},
     }
+    mel_t = MEL_SAFETY["hekim" if mode == "h" else "hasta"]
+    type_grid = [[[level_counts(type_levels(P, T, R, mel_t, bool(u))) for u in (0, 1)] for R in GRID] for T in GRID]
     out["modes"][mode] = {
+        "type_grid": type_grid, "mel_t": mel_t,
         "calibration": {"bins": cal, "ece": ece, "mal_bins": cal_mal}, "dca": dca,
         "cm": cm(pred, allm), "grid": grid, "subgroups": subs,
         "uncertain": {"n": int(unc.sum()), "acc_unc": float(correct[unc].mean()), "acc_rest": float(correct[~unc].mean())},

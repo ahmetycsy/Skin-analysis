@@ -184,19 +184,39 @@ def _tab_performance(D, M, mode):
 
 
 # ------------------------------------------------------------------ 2. simülatör
+def _is_type() -> bool:
+    """Simülatörde seçili öncelik kuralı: türe göre (sitedeki) ya da toplam kötü huylu (eski)."""
+    return st.session_state.get("ev_rule", "type") == "type"
+
+
+def _grid(M):
+    return M["type_grid"] if _is_type() else M["grid"]
+
+
 def _thr_inputs(D, mode):
     g, cur = D["grid"], D["current"]
     ss = st.session_state
+    rules = {"type": L("Türe göre (sitedeki kural)", "By type (the site's rule)"),
+             "total": L("Toplam kötü huylu (eski kural)", "Total malignant (former rule)")}
+    rk = st.segmented_control(L("Öncelik kuralı", "Priority rule"), list(rules), format_func=rules.get,
+                              key=_wk("ev_rule", "type", mode)) or "type"
+    ss.ev_rule = rk
     c1, c2, c3 = st.columns([1, 1, 0.8], vertical_alignment="bottom")
     with c1:
-        U = st.select_slider(L("Öncelikli eşiği (kötü huylu toplam ≥)", "Priority threshold (malignant total ≥)"),
-                             options=g, format_func=_pc0, key=_wk("ev_U", cur["U"], mode))
+        if rk == "type":
+            U = st.select_slider(L("Öncelik eşiği (melanom + SCC + diğer kötü huylu ≥)", "Priority threshold (melanoma + SCC + other ≥)"),
+                                 options=g, format_func=_pc0, key=_wk("ev_T", cur["T"], mode))
+            ss.ev_T = U
+        else:
+            U = st.select_slider(L("Öncelikli eşiği (kötü huylu toplam ≥)", "Priority threshold (malignant total ≥)"),
+                                 options=g, format_func=_pc0, key=_wk("ev_U", cur["U"], mode))
+            ss.ev_U = U
     with c2:
         R = st.select_slider(L("Sevk eşiği (kötü huylu + kansere dönüşebilir ≥)", "Referral threshold (malignant + premalignant ≥)"),
                              options=g, format_func=_pc0, key=_wk("ev_R", cur["R"], mode))
     with c3:
         unc = st.toggle(L("Kararsız vakaları da sevk et", "Also refer uncertain cases"), key=_wk("ev_unc", True, mode))
-    ss.ev_U, ss.ev_R, ss.ev_unc = U, R, unc
+    ss.ev_R, ss.ev_unc = R, unc
     return U, R, unc
 
 
@@ -216,22 +236,21 @@ def _pc0(x):
 
 def _tab_simulator(D, M, mode):
     g, cur = D["grid"], D["current"]
-    _note(L("Eşikleri değiştirip doğrulama kümesinde sonucun nasıl değiştiğini görün. Kural sitedeki ile aynıdır: "
-            "kötü huylu toplam olasılık öncelikli eşiğini geçerse <b>öncelikli değerlendirme</b>, kötü huylu + kansere "
-            "dönüşebilir toplamı sevk eşiğini geçerse (ya da model kararsızsa) <b>dermatolog değerlendirmesi</b>, "
-            "aksi hâlde <b>iyi huylu görünüm</b>. Burada seçilen eşikler yalnızca bu sayfadaki hesaplarda kullanılır, "
-            "analiz ekranını değiştirmez. Not: sitede öncelik artık türe göre verilir (melanom + SCC + diğer kötü huylu ≥ %15; "
-            "BCC rutin sevke düşer); bu simülatör toplam kötü huylu eşiğini gösterir. Sevk ve kaçırılan kanser sayıları aynıdır.",
-            "Change the thresholds and see how the validation results change. The rule is the same as the app's: malignant "
-            "total above the priority threshold → <b>priority review</b>; malignant + premalignant total above the referral "
-            "threshold (or model uncertain) → <b>dermatologist review</b>; otherwise <b>benign appearance</b>. Thresholds "
-            "chosen here only affect this page, not the analysis screen. Note: the site now assigns priority by type (melanoma + "
-            "SCC + other malignant ≥ 15%; BCC goes to routine referral); this simulator shows the total-malignant threshold. "
-            "Referral and missed-cancer counts are the same."))
+    _note(L("Eşikleri değiştirip doğrulama kümesinde sonucun nasıl değiştiğini görün. <b>Türe göre</b> kural sitedekiyle aynıdır "
+            "(melanom güvenlik kuralı dahil): sevk edilen lezyonlarda melanom + SCC + diğer kötü huylu olasılığı öncelik eşiğini "
+            "geçerse <b>öncelikli</b>, yalnızca sevk ölçütü sağlanırsa <b>dermatolog değerlendirmesi</b>, aksi hâlde <b>iyi huylu "
+            "görünüm</b>. <b>Toplam</b> kural eski yöntemdir ve melanom güvenlik kuralını içermez. Burada seçilen eşikler yalnızca bu "
+            "sayfayı etkiler.",
+            "Change the thresholds and see how the validation results change. The <b>by type</b> rule is the same as the site's "
+            "(including the melanoma safety rule): a referred lesion is <b>priority</b> if the melanoma + SCC + other malignant "
+            "probability exceeds the priority threshold, <b>dermatologist review</b> if only the referral condition holds, otherwise "
+            "<b>benign appearance</b>. The <b>total</b> rule is the former method and excludes the melanoma safety rule. "
+            "Thresholds chosen here only affect this page."))
     U, R, unc = _thr_inputs(D, mode)
-    c = _counts(M["grid"][g.index(U)][g.index(R)][int(unc)])
+    c = _counts(_grid(M)[g.index(U)][g.index(R)][int(unc)])
     r = _rates(c)
-    r0 = _rates(_counts(M["grid"][g.index(cur["U"])][g.index(cur["R"])][1]))
+    cur_u = cur["T"] if _is_type() else cur["U"]
+    r0 = _rates(_counts(_grid(M)[g.index(cur_u)][g.index(cur["R"])][1]))
     nm, nb = D["true_group_n"]["mal"], D["true_group_n"]["ben"]
 
     def delta(a, b, pct=True, good_up=True):
@@ -275,7 +294,7 @@ def _tab_simulator(D, M, mode):
     _label(L("Denge eğrisi: kaçırılan kanser ↔ gereksiz sevk", "Trade-off: missed cancer ↔ unnecessary referral"))
     pts = []
     for Rv in g:
-        rr = _rates(_counts(M["grid"][g.index(U)][g.index(Rv)][int(unc)]))
+        rr = _rates(_counts(_grid(M)[g.index(U)][g.index(Rv)][int(unc)]))
         pts.append({"R": Rv, "Rl": _pc0(Rv), "missed": rr["mal_missed"], "benref": rr["ben_ref"], "sel": Rv == R})
     dp = pd.DataFrame(pts)
     line = alt.Chart(dp).mark_line(color=TEAL, point=alt.OverlayMarkDef(color=TEAL, size=40)).encode(
@@ -315,7 +334,7 @@ def _tab_simulator(D, M, mode):
     best = None
     for Ui, Uv in enumerate(g):
         for Ri, Rv in enumerate(g):
-            cc = _counts(M["grid"][Ui][Ri][int(unc)])
+            cc = _counts(_grid(M)[Ui][Ri][int(unc)])
             # kaçırılan kötü huylu: c; kaçırılan kansere dönüşebilir: c/4; öncelikli yerine rutin kötü huylu: c/20;
             # iyi huyluya gereksiz öncelikli sevk: 2 (öncelikli randevu daha pahalı); gereksiz rutin sevk: 1
             score = (w["mal"] * (cost * cc["mal"]["benign"] + cost / 20 * cc["mal"]["refer"]) + w["pre"] * cost / 4 * cc["pre"]["benign"]
@@ -416,12 +435,13 @@ def _tab_fairness(D, M, mode):
 def _tab_clinic(D, M, mode):
     ss = st.session_state
     g, cur = D["grid"], D["current"]
-    U, R, unc = ss.get("ev_U", cur["U"]), ss.get("ev_R", cur["R"]), ss.get("ev_unc", True)
+    U = ss.get("ev_T", cur["T"]) if _is_type() else ss.get("ev_U", cur["U"])
+    R, unc = ss.get("ev_R", cur["R"]), ss.get("ev_unc", True)
     _note(L(f"Bir aile hekimliği / dermatoloji polikliniğinde sistemin iş yüküne etkisini tahmin eder. Gerçek oranlar "
-            f"doğrulama kümesinden, hasta karışımı ise sizin varsayımınızdan gelir. Eşikler: öncelikli {_pc0(U)}, sevk "
-            f"{_pc0(R)} (Eşik simülatörü sekmesinden değiştirilebilir).",
+            f"doğrulama kümesinden, hasta karışımı ise sizin varsayımınızdan gelir. Eşikler: öncelik {_pc0(U)}, sevk "
+            f"{_pc0(R)}; kural: {'türe göre' if _is_type() else 'toplam kötü huylu'} (Eşik simülatörü sekmesinden değiştirilebilir).",
             f"Estimates the system's effect on workload in a primary-care / dermatology clinic. Per-group rates come from "
-            f"the validation set; the patient mix is your assumption. Thresholds: priority {_pc0(U)}, referral {_pc0(R)} "
+            f"the validation set; the patient mix is your assumption. Thresholds: priority {_pc0(U)}, referral {_pc0(R)}; rule: {'by type' if _is_type() else 'total malignant'} "
             f"(change them in the threshold simulator tab)."))
     lg = i18n.get_lang()
     c1, c2, c3 = st.columns(3)
@@ -438,7 +458,7 @@ def _tab_clinic(D, M, mode):
         st.warning(L("Kötü huylu + kansere dönüşebilir oranı %100'den küçük olmalı.", "Malignant + premalignant must be below 100%."))
         return
     mix = {"mal": pm / 100, "pre": pp / 100, "ben": 1 - (pm + pp) / 100}
-    c = _counts(M["grid"][g.index(U)][g.index(R)][int(unc)])
+    c = _counts(_grid(M)[g.index(U)][g.index(R)][int(unc)])
     rate = {tg: {k: c[tg][k] / max(1, sum(c[tg].values())) for k in ("urgent", "refer", "benign")} for tg in c}
     per_day = {k: daily * sum(mix[tg] * rate[tg][k] for tg in mix) for k in ("urgent", "refer", "benign")}
     missed_day = daily * mix["mal"] * rate["mal"]["benign"]

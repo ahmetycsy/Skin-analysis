@@ -238,6 +238,10 @@ RELEASE_NOTES = [
         ("site", "PDF raporda uzun satırların görüntülerin altına taşması düzeltildi; rapora randevu satırı eklendi.",
                  "PDF report: long lines no longer run under the images; an appointment line was added."),
         ("site", "Model sayfasına Sürüm notları sekmesi eklendi.", "A Release notes tab was added to the Model page."),
+        ("site", "Hasta modunda \"Örnek fotoğrafla dene\" (PAD-UFES-20, CC BY 4.0; veritabanına kaydedilmez) ve ankete doğrudan bağlantı.",
+                 "\"Try a sample photo\" in patient mode (PAD-UFES-20, CC BY 4.0; not stored) and a direct link to the survey."),
+        ("eval", "Eşik simülatöründe türe göre öncelik kuralı (sitedeki kural) seçilebiliyor; poliklinik senaryosu da bu kurala göre hesaplanıyor.",
+                 "The threshold simulator offers the by-type priority rule used by the site; the clinic scenario uses it too."),
         ("site", "Yan menüdeki simge yerine BAU mührü.", "The BAU seal replaces the icon in the side menu."),
         ("safety", "Hekim girişinde vaka silme: vaka sitede gizlenir, nedeni ve silen hekim denetim kaydında saklanır; Silinen vakalar "
                    "bölümünden geri alınabilir.",

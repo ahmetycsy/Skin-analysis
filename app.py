@@ -1229,6 +1229,10 @@ predictor = get_predictor(os.environ.get("MODEL_REPO", ""))
 DB = get_db()
 flush_db()  # önceki çalıştırmadan kalan (ör. st.rerun ile yarıda kalan) yazmalar
 
+if st.query_params.get("page") in ("survey", "anket"):  # doğrudan anket bağlantısı: APP_URL/?page=anket
+    st.query_params.clear()
+    ss.page, ss["sub_help"] = "help", "survey"
+
 qp_case = st.query_params.get("case")
 if qp_case:  # PDF'teki QR kod bu bağlantıyla gelir
     qp_case = qp_case.strip().upper()
@@ -1801,6 +1805,29 @@ def page_new():
         render_case(ss.current, "new")
 
 
+SAMPLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "examples")
+SAMPLES = ("sample_1.jpg", "sample_2.jpg", "sample_3.jpg")  # PAD-UFES-20 test fotoğrafları (CC BY 4.0), eğitimde kullanılmadı
+
+
+def use_sample(name: str):
+    with open(os.path.join(SAMPLE_DIR, name), "rb") as fh:
+        data = fh.read()
+    ss.imgs["clin"] = {"bytes": data, "id": hashlib.md5(data).hexdigest(), "name": name, "sample": True}
+    ss.boxes["clin"] = None
+    ss.v_kind = "spot"
+
+
+def sample_picker():
+    """Fotoğrafı olmayan ya da demo yapan kullanıcı için hazır örnekler (tek telefon fotoğrafı, yalnız hasta modu)."""
+    if not all(os.path.exists(os.path.join(SAMPLE_DIR, n)) for n in SAMPLES):
+        return
+    with st.expander(t("sample_title"), icon=":material/image:"):
+        for col, (i, n) in zip(st.columns(len(SAMPLES)), enumerate(SAMPLES, 1)):
+            col.image(os.path.join(SAMPLE_DIR, n), width="stretch")
+            col.button(t("sample_use", n=i), key=f"sample_{i}", width="stretch", on_click=use_sample, args=(n,))
+        st.caption(t("sample_credit"))
+
+
 def step_images():
     pm = patient_mode()
     ss.v_patient = pm
@@ -1845,8 +1872,12 @@ def step_images():
                     else:
                         ss.imgs[which] = {"bytes": data, "id": hashlib.md5(data).hexdigest(), "name": f.name}
                         st.rerun()
+                if pm:
+                    sample_picker()
             else:
                 img = open_bytes(rec["bytes"])
+                if rec.get("sample"):
+                    st.markdown(f'<div class="border-note">{t("sample_note")}</div>', unsafe_allow_html=True)
                 crop_tool(img, which, required=pm)
                 if not ss.get(f"v_crop_{which}"):
                     st.image(img if which == "clin" else lens_preview(img), width=300,
@@ -1970,7 +2001,10 @@ def step_patient():
     missing = [t(k) for k, v in [("m_age", age), ("m_sex", sex), ("m_skin", skin_tone), ("m_site", site)] if v is None]
     if prev_txt and not prev_ok:
         missing.append(t("m_prev"))
-    if DB is not None and not predictor.is_mock:  # sahte (demo) sonuçlar araştırma verisine karışmasın
+    is_sample = any((ss.imgs.get(w) or {}).get("sample") for w in ("clin", "derm"))
+    if is_sample:  # örnek fotoğrafla yapılan denemeler araştırma verisine karışmaz
+        st.caption(t("sample_nosave"))
+    elif DB is not None and not predictor.is_mock:  # sahte (demo) sonuçlar araştırma verisine karışmasın
         save = st.checkbox(t("save_consent"), value=ss.get("v_save", False), key=wkey("save"), help=t("save_help"))
         ss.v_save = save
     elif DB is not None:
@@ -2032,7 +2066,8 @@ def step_patient():
             "final": None,
             "ts": time.time(),
             "created_iso": now_tr().isoformat(),
-            "saved": DB is not None and not predictor.is_mock and bool(ss.get("v_save")),  # izin + gerçek model şart
+            "saved": DB is not None and not predictor.is_mock and bool(ss.get("v_save"))
+                     and not any((ss.imgs.get(w) or {}).get("sample") for w in ("clin", "derm")),  # izin + gerçek model; örnek değil
             "status": "new",
             "events": [],
             "prev": prev_ok,
