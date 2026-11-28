@@ -499,6 +499,17 @@ Do not use filtered, cropped or colour-corrected images.
                       "the model. The result can be wrong."),
     "sample_note": ("<b>Örnek fotoğraf.</b> Bu sizin fotoğrafınız değil; sistemi denemek içindir.",
                     "<b>Sample photo.</b> This is not your photo; it is for trying out the system."),
+    "dsample_title": ("Görüntünüz yok mu? Örnek vakayla deneyin", "No images? Try a sample case"),
+    "dsample_credit": ("Örnekler: MILK10k Benchmark test görüntüleri (MILK study team, doi:10.34970/262082, CC BY-NC 4.0; "
+                       "yeniden boyutlandırıldı). Modelin eğitiminde kullanılmadı; kesin tanıları açıklanmamıştır.",
+                       "Samples: MILK10k Benchmark test images (MILK study team, doi:10.34970/262082, CC BY-NC 4.0; resized). "
+                       "Not used to train the model; their confirmed diagnoses are not published."),
+    "sample_filled_pm": ("Örnek fotoğraf için bilgiler <b>deneme amacıyla</b> otomatik dolduruldu; fotoğraftaki kişiye ait "
+                         "değildir. Model bu bilgileri kullanmaz.",
+                         "The details were filled in automatically <b>for the trial</b>; they do not belong to the person in the "
+                         "photo. The model does not use them."),
+    "sample_filled_dr": ("Bilgiler örnek vakanın veri setindeki kaydından otomatik dolduruldu.",
+                         "The details were filled in automatically from the sample case's record in the dataset."),
     "sample_nosave": ("Örnek fotoğrafla yapılan denemeler veritabanına kaydedilmez.",
                       "Analyses of sample photos are not stored in the database."),
     "del_btn": ("Vakayı sil", "Delete case"),

@@ -2,6 +2,7 @@ import hashlib
 import hmac
 import html
 import io
+import json
 import os
 import time
 import zipfile
@@ -38,6 +39,7 @@ from predictor import (
     Meta,
     age_band_label,
     load_predictor,
+    model_repo,
 )
 from stats_page import render_stats
 from eval_page import render_eval
@@ -578,7 +580,7 @@ def crop_tool(img: Image.Image, which: str, required: bool = False):
     disp = img.copy()
     disp.thumbnail((360, 360))
     scale = img.width / disp.width
-    side = int(min(disp.width, disp.height) * 0.6)  # başlangıç: ortada, kısa kenarın %60'ı kadar kare
+    side = int(min(disp.width, disp.height) * ss.imgs[which].get("frac", 0.6))  # başlangıç: ortada kare (kısa kenarın %60'ı)
     l0, t0 = (disp.width - side) // 2, (disp.height - side) // 2
     box = st_cropper(disp, realtime_update=True, box_color=TEAL, aspect_ratio=(1, 1), return_type="box",
                      default_coords=(l0, l0 + side, t0, t0 + side),
@@ -1809,16 +1811,55 @@ SAMPLE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", 
 SAMPLES = ("sample_1.jpg", "sample_2.jpg", "sample_3.jpg")  # PAD-UFES-20 test fotoğrafları (CC BY 4.0), eğitimde kullanılmadı
 
 
+# Hasta örnekleri: form bilgileri DENEME için seçilmiş örnek değerlerdir (fotoğraftaki kişiye ait değil; model bu bilgileri
+# kullanmaz). frac: kırpma kutusunun başlangıç boyu (3. fotoğrafta lezyon kareyi doldurduğu için tüm kare).
+SAMPLE_INFO = {"sample_1.jpg": {"age": 30, "sex": "female", "skin": 3, "site": "lower extremity", "frac": 0.6},
+               "sample_2.jpg": {"age": 55, "sex": "male", "skin": 3, "site": "upper extremity", "frac": 0.6},
+               "sample_3.jpg": {"age": 65, "sex": "male", "skin": 3, "site": "head/neck", "frac": 1.0}}
+SAMPLE_FIELDS = ("age", "sex", "skin", "site")
+
+
+def reset_form():
+    for k in SAMPLE_FIELDS + ("kind", "prev"):
+        ss.pop(wkey(k), None)
+        ss.pop(f"v_{k}", None)
+    ss.pop("v_symp", None)
+
+
+def fill_form(info: dict):
+    reset_form()
+    for k in SAMPLE_FIELDS:
+        ss[f"v_{k}"] = info[k]
+
+
+def sample_record(data: bytes, name: str, **extra) -> dict:
+    return {"bytes": data, "id": hashlib.md5(data).hexdigest(), "name": name, "sample": True, **extra}
+
+
+def clear_samples():
+    """Örnek fotoğraf kaldırılınca onunla birlikte doldurulan bilgiler de silinir (gerçek bir fotoğrafa yapışmasın)."""
+    if not any((ss.imgs.get(w) or {}).get("sample") for w in ("clin", "derm")):
+        return
+    for w in ("clin", "derm"):
+        if (ss.imgs.get(w) or {}).get("sample"):
+            ss.imgs[w] = None
+            ss.boxes[w] = None
+            ss.pop(f"v_crop_{w}", None)
+    reset_form()
+
+
 def use_sample(name: str):
     with open(os.path.join(SAMPLE_DIR, name), "rb") as fh:
         data = fh.read()
-    ss.imgs["clin"] = {"bytes": data, "id": hashlib.md5(data).hexdigest(), "name": name, "sample": True}
+    fill_form(SAMPLE_INFO[name])
+    ss.imgs["clin"] = sample_record(data, name, frac=SAMPLE_INFO[name]["frac"])
     ss.boxes["clin"] = None
+    ss[f"v_cropok_{ss.imgs['clin']['id']}"] = True  # örnekte kutu hazır ayarlı
     ss.v_kind = "spot"
 
 
 def sample_picker():
-    """Fotoğrafı olmayan ya da demo yapan kullanıcı için hazır örnekler (tek telefon fotoğrafı, yalnız hasta modu)."""
+    """Fotoğrafı olmayan ya da demo yapan kullanıcı için hazır örnekler (hasta modu: tek telefon fotoğrafı)."""
     if not all(os.path.exists(os.path.join(SAMPLE_DIR, n)) for n in SAMPLES):
         return
     with st.expander(t("sample_title"), icon=":material/image:"):
@@ -1828,13 +1869,62 @@ def sample_picker():
         st.caption(t("sample_credit"))
 
 
+@st.cache_data(ttl=600, show_spinner=False)
+def doctor_samples() -> list:
+    """Hekim modu örnekleri (klinik + dermoskopik çift). MILK10k görüntüleri herkese açık koda konmaz: models/ klasöründen,
+    yoksa gizli Hugging Face model reposundan okunur. Bulunamazsa örnek seçici gösterilmez."""
+    model_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "models")
+
+    def path(name):
+        local = os.path.join(model_dir, name)
+        if os.path.exists(local):
+            return local
+        from huggingface_hub import hf_hub_download
+        return hf_hub_download(repo_id=model_repo(), filename=name, local_dir=model_dir)
+
+    try:
+        if not os.path.exists(os.path.join(model_dir, "doktor_ornekler.json")) and not model_repo():
+            return []
+        with open(path("doktor_ornekler.json"), encoding="utf-8") as fh:
+            items = json.load(fh)
+        for it in items:
+            for w in ("clin", "derm"):
+                with open(path(it[w]), "rb") as fh:
+                    it[f"{w}_bytes"] = fh.read()
+        return items
+    except Exception:
+        return []
+
+
+def use_doctor_sample(item: dict):
+    fill_form(item)
+    for w in ("clin", "derm"):
+        ss.imgs[w] = sample_record(item[f"{w}_bytes"], item[w])
+        ss.boxes[w] = None
+        ss[f"v_crop_{w}"] = False
+
+
+def doctor_sample_picker():
+    items = doctor_samples()
+    if not items:
+        return
+    with st.expander(t("dsample_title"), icon=":material/image:"):
+        for col, it in zip(st.columns(len(items)), items):
+            a, b = col.columns(2)
+            a.image(it["clin_bytes"], width="stretch")
+            b.image(it["derm_bytes"], width="stretch")
+            col.button(t("sample_use", n=it["n"]), key=f"dsample_{it['n']}", width="stretch", on_click=use_doctor_sample,
+                       args=(it,))
+        st.caption(t("dsample_credit"))
+
+
 def step_images():
     pm = patient_mode()
     ss.v_patient = pm
     ml, mb = st.columns([3.2, 1], vertical_alignment="center")
     ml.markdown(f'<div class="mode-line">{t("mode_line_pm" if pm else "mode_line_dr")}</div>', unsafe_allow_html=True)
     mb.button(t("mode_switch_dr" if pm else "mode_switch_pm"), key=wkey("pm_switch"), icon=":material/swap_horiz:",
-              width="stretch", help=t("pm_help"), on_click=lambda: ss.update(v_patient=not patient_mode()))
+              width="stretch", help=t("pm_help"), on_click=lambda: (clear_samples(), ss.update(v_patient=not patient_mode())))
     kind_block = False
     if pm:  # kapsam sorusu: araç benler/lekeler için; yaygın döküntü ve egzama için uygun değil
         kinds = ["spot", "rash", "unsure"]
@@ -1850,6 +1940,8 @@ def step_images():
         with st.expander(t("photo_tips"), icon=":material/photo_camera:"):
             render_photo_tips(compact=True)
     used = ("clin",) if pm else ("clin", "derm")
+    if not pm and all(ss.imgs[w] is None for w in used):
+        doctor_sample_picker()
     cards = {"clin": ("clin_pill", "clin_title", "clin_text"), "derm": ("derm_pill", "derm_title", "derm_text")}
     cols = st.columns([1.15, 1] if pm else [1, 1], gap="medium")
     if pm:  # hasta modunda dermoskopi kartı yok; yerinde fotoğraf ipuçları
@@ -1891,6 +1983,7 @@ def step_images():
                 st.caption(html.escape(rec["name"]))
 
                 def _clear(w=which):
+                    clear_samples()  # örnek çifti birlikte kaldırılır
                     ss.imgs[w] = None
                     ss.boxes[w] = None
                     ss.pop(f"v_crop_{w}", None)
@@ -1953,6 +2046,8 @@ def step_patient():
         ss.step = 1
         st.rerun()
 
+    if any((ss.imgs.get(w) or {}).get("sample") for w in ("clin", "derm")):
+        st.markdown(f'<div class="border-note">{t("sample_filled_pm" if pm else "sample_filled_dr")}</div>', unsafe_allow_html=True)
     left, right = st.columns([1.5, 1], gap="large")
     with left, st.container(border=True):
         age_opts, sex_opts, skin_opts, site_opts = [lo for lo, _ in AGE_BANDS], ["female", "male"], list(SKIN_SWATCH), list(SITES)

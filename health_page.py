@@ -226,6 +226,8 @@ def render_share(url: str):
 # En yeni en üstte. Etiket: model / site / safety / eval. Yeni değişiklikte en üste bir giriş ekleyin.
 RELEASE_NOTES = [
     ("29.11.2026", [
+        ("site", "Hekim modunda da örnek vaka (klinik + dermoskopik); örnek seçilince hasta bilgileri otomatik doluyor.",
+                 "Sample cases in physician mode too (clinical + dermoscopic); choosing a sample fills in the patient details."),
         ("model", "Isı haritası (Grad-CAM) artık modelin son katman grubundan çiziliyor: harita lezyon üzerinde daha iyi toplanıyor, "
                   "arka plana ve kenara kayma azaldı (40 görüntülük karşılaştırma). Tahminler ve yönlendirme değişmedi.",
                   "The heat map (Grad-CAM) is now drawn from the model's last layer group: it concentrates better on the lesion and drifts "
