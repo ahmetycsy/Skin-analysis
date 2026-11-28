@@ -709,10 +709,20 @@ def export_csv(cases: dict) -> bytes:
     return df.to_csv(index=False).encode("utf-8-sig")
 
 
+def model_label(name: str) -> str:
+    """Kayıttaki model adı Türkçe saklanır (DB ile uyum için değiştirilmez); İngilizce arayüzde çevrilerek gösterilir."""
+    if ss.get("lang") != "en" or not name:
+        return name
+    for a, b in (("Gerçek model", "Real model"), ("Sahte model (demo)", "Mock model (demo)"), ("– hasta modu", "– patient mode"),
+                 ("klinik:", "clinical:"), ("dermoskopik:", "dermoscopic:"), ("4 model,", "4 models,")):
+        name = name.replace(a, b)
+    return name
+
+
 def make_pdf(rec: dict) -> bytes:
     a = assess(rec["probs"], rec_mode(rec))
     a["pos"] = ruler_pos(a)  # PDF'te de aynı yönlendirme cetveli
-    return build_pdf(rec, a, predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS,
+    return build_pdf({**rec, "model_name": model_label(rec["model_name"])}, a, predictor.is_mock, version=APP_VERSION, group_colors=GROUP_COLORS,
                      groups_of=GROUPS, group_order=GROUP_ORDER, meta_lines=meta_lines(rec["meta"]) + pdf_extra_lines(rec),
                      physician=physician_lines(rec), qr=qr_png(rec["case"]))
 
@@ -1289,7 +1299,7 @@ with st.sidebar:
     if DB is not None and DB.last_error:
         st.warning(t("db_error_detail", e=DB.last_error[:300]))
     status = (f'<span class="chip demo">● {t("chip_demo")}</span>' if predictor.is_mock
-              else f'<span class="chip live" title="{html.escape(predictor.name)}">● {t("chip_real")}</span>')
+              else f'<span class="chip live" title="{html.escape(model_label(predictor.name))}">● {t("chip_real")}</span>')
     if DB is not None:
         status += (f'<span class="chip live">● {t("db_on")}</span>' if DB.last_error is None
                    else f'<span class="chip demo" title="{html.escape(DB.last_error)}">● {t("db_err")}</span>')
@@ -1351,7 +1361,7 @@ def render_case(cid: str, where: str):
         tl = "".join(f'<div><b>{ev["time"]}</b><span>{event_text(ev)} <span style="color:{MUTED}">· {actor_label(ev)}</span></span></div>'
                      for ev in rec["events"])
         st.markdown(f'<div class="tl">{tl}</div>', unsafe_allow_html=True)
-        st.caption(t("model_used", m=html.escape(rec["model_name"])))
+        st.caption(t("model_used", m=html.escape(model_label(rec["model_name"]))))
 
     with main:
         if simple:  # hasta modu: belirti notları ve sonucun anlamı; yüzdeler ayrıntılarda (sağlık kaygısı)
@@ -1513,7 +1523,7 @@ def _result_body(rec, a, simple, cid, where):
                 st.altair_chart(chart, use_container_width=True)
                 st.dataframe(df.assign(**{pc: df[pc].map(i18n.pct)}), hide_index=True, width="stretch")
             with (st.container() if simple else st.expander(t("tech"))):
-                st.caption(t("tech_line", m=rec["model_name"], s=rec["elapsed"], c=rec["created"],
+                st.caption(t("tech_line", m=model_label(rec["model_name"]), s=rec["elapsed"], c=rec["created"],
                              ok=t("tech_ok") if rec["elapsed"] < 10 else t("tech_slow")))
                 st.caption(t("tech_thr", u=f"{REFER_URGENT_MALIGN * 100:.0f}", r=f"{REFER_MALIGN_OR_PRE * 100:.0f}",
                              t=f"{UNCERTAIN_TOP * 100:.0f}", g=f"{UNCERTAIN_GAP * 100:.0f}"))
