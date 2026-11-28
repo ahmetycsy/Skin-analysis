@@ -876,6 +876,8 @@ Do not use filtered, cropped or colour-corrected images.
     ),
     "cam_orig": ("Dermoskopik görüntü", "Dermoscopic image"),
     "cam_heat": ("Isı haritası: {c}", "Heat map: {c}"),
+    "cam_heat_derm": ("Isı haritası (dermoskopik)", "Heat map (dermoscopic)"),
+    "cam_heat_clin": ("Isı haritası (klinik)", "Heat map (clinical)"),
     "cam_note": (
         "Renkli alanlar modelin bu karar için en çok dikkat ettiği yerlerdir; beyaz çizgi en yoğun bölgeyi çevreler. Bu harita "
         "lezyonun sınırını veya tanı kanıtını göstermez; yalnızca modelin kararını anlamaya yardımcı olur (Grad-CAM yöntemi).",

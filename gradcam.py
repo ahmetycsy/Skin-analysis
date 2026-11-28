@@ -88,6 +88,17 @@ def gradcam(model, x: torch.Tensor, class_idx: int | None = None, targets=None) 
     return cam, probs
 
 
+def gradcam_flip(model, x: torch.Tensor, targets=None) -> tuple[np.ndarray, np.ndarray]:
+    """Aynalı ortalama: görüntü ve yatay aynası için haritalar hesaplanır, ayna geri çevrilip ortalanır.
+    Rastgele lekeleri ve kenar etkilerini azaltır (modeller eğitimde ve tahminde de aynalı görüntüyle çalışıyor)."""
+    cam1, probs = gradcam(model, x, targets=targets)
+    cam2, _ = gradcam(model, torch.flip(x, dims=[3]), targets=targets if targets else [int(probs.argmax())])
+    cam = (cam1 + cam2[:, ::-1]) / 2
+    if cam.max() > 0:
+        cam = cam / cam.max()
+    return cam, probs
+
+
 def central_share(cam: np.ndarray, frac: float = 0.5) -> float:
     """Isının ne kadarı görüntünün ortasındaki kare bölgede (kenarın frac'ı kadar)? Düzgün dağılımda ≈ frac².
     Hasta modunda kırpma zorunlu olduğu için lezyon ortadadır; bu oran düşükse model arka plana bakıyor olabilir."""

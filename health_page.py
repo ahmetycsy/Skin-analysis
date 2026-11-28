@@ -242,6 +242,10 @@ RELEASE_NOTES = [
                   "renkler, en yoğun bölgenin beyaz çizgiyle gösterilmesi ve renk göstergesi eklendi.",
                   "The heat map (Grad-CAM) now explains the decision: it is drawn for the types that triggered the referral (e.g. "
                   "melanoma and SCC). Calmer colours, a white outline of the strongest region and a colour legend were added."),
+        ("model", "Hekim modunda iki görüntünün de ısı haritası (dermoskopik ve klinik) gösteriliyor; haritalar görüntünün aynalı "
+                  "hâliyle ortalanarak daha kararlı hâle getirildi.",
+                  "In physician mode both images now have a heat map (dermoscopic and clinical); maps are averaged with the "
+                  "mirrored image for stability."),
     ]),
     ("28.11.2026", [
         ("safety", "Hasta modunda kare kırpma zorunlu: lekeyi ortalayıp kutunun yaklaşık üçte birini doldurması isteniyor (kumaş ve "

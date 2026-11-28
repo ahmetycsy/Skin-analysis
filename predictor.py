@@ -264,18 +264,29 @@ class RealPredictor:
         return [c for c, p in ranked if p >= thr] or [ranked[0][0]]
 
     def explain(self, clinical: Image.Image, dermoscopic: Image.Image | None, meta: Meta | None = None, targets=None):
-        """Grad-CAM: hekim modunda dermoskopik B3 modelinden, hasta modunda klinik B3 modelinden.
-        targets (sınıf kodları) verilirse harita bu türlerin birlikte olasılığı için çizilir (sevki tetikleyen türler);
-        verilmezse modelin en olası bulduğu sınıf için. Dönüş: (görüntü, en olası sınıf, {"central": ortadaki ısı payı})."""
-        from gradcam import central_share, gradcam, overlay, preprocess
+        """Grad-CAM (aynalı ortalama), B3 modelleriyle. Hekim modunda dermoskopik ve klinik görüntünün ikisi için, hasta
+        modunda klinik görüntü için. targets (sınıf kodları) verilirse harita bu türlerin birlikte olasılığı için çizilir
+        (sevki tetikleyen türler); verilmezse modelin en olası bulduğu sınıf için.
+        Dönüş: (ana görüntünün haritası, en olası sınıf, {"clin": (klinik harita, sınıf) | None}).
+        Ana görüntü: hekim modunda dermoskopik, hasta modunda klinik."""
+        from gradcam import gradcam_flip, overlay, preprocess
 
-        kind = "derm" if dermoscopic is not None else "clin"
-        name = self.cfg["gradcam"][kind]
-        m = self.cfg["models"][name]
-        x, crop = preprocess(dermoscopic if kind == "derm" else clinical, m["img_size"], m["mean"], m["std"])
         idx = [CLASSES.index(c) for c in targets] if targets else None
-        cam, probs = gradcam(self.models[name], x, targets=idx)
-        return overlay(crop, cam), CLASSES[int(np.argmax(probs))], {"central": central_share(cam)}
+
+        def one(kind, img):
+            name = self.cfg["gradcam"][kind]
+            m = self.cfg["models"][name]
+            x, crop = preprocess(img, m["img_size"], m["mean"], m["std"])
+            cam, probs = gradcam_flip(self.models[name], x, targets=idx)
+            return overlay(crop, cam), CLASSES[int(np.argmax(probs))]
+
+        if dermoscopic is not None:
+            main_img, main_cls = one("derm", dermoscopic)
+            extra = {"clin": one("clin", clinical) if "clin" in self.cfg["gradcam"] else None}
+        else:
+            main_img, main_cls = one("clin", clinical)
+            extra = {"clin": None}
+        return main_img, main_cls, extra
 
 
 def model_repo():

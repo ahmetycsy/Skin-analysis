@@ -1538,12 +1538,17 @@ def _result_body(rec, a, simple, cid, where):
 
             st.markdown(f'<div class="sec-label">{t("cam_title")}</div>', unsafe_allow_html=True)
             if rec.get("cam_img") is not None and (rec.get("derm_jpg") or rec.get("clin_jpg")):
-                g1, g2 = st.columns(2)
+                two = rec.get("cam_clin_img") is not None and rec.get("derm_jpg") and rec.get("clin_jpg")
+                cols = st.columns(4 if two else 2)
                 if rec.get("derm_jpg"):
-                    g1.image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("cam_orig"), width="stretch")
+                    cols[0].image(lens_preview(Image.open(io.BytesIO(rec["derm_jpg"]))), caption=t("cam_orig"), width="stretch")
+                    cols[1].image(lens_preview(rec["cam_img"]), caption=t("cam_heat_derm"), width="stretch")
                 else:
-                    g1.image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
-                g2.image(lens_preview(rec["cam_img"]), caption=t("cam_heat", c=i18n.plain(rec["cam_class"])), width="stretch")
+                    cols[0].image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
+                    cols[1].image(rec["cam_img"], caption=t("cam_heat_clin"), width="stretch")
+                if two:
+                    cols[2].image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
+                    cols[3].image(rec["cam_clin_img"], caption=t("cam_heat_clin"), width="stretch")
                 tk = rec.get("cam_target") or "top"
                 what = t("cam_t_top", c=i18n.plain(rec["cam_class"])) if tk == "top" else t("cam_t_" + tk)
                 st.markdown(f'<div class="cam-for">{t("cam_for", c=what)}</div>'
@@ -1946,6 +1951,9 @@ def step_patient():
             "cam_class": cam[1] if cam else None,
             "cam_jpg": jpeg_thumb(cam[0]) if cam else None,
             "cam_target": cam_key if cam else None,
+            # hekim modunda klinik görüntünün haritası da (Capstone I hedefi: her iki görüntü için ısı haritası)
+            "cam_clin_img": ((cam[2] or {}).get("clin") or (None, None))[0] if cam and len(cam) > 2 else None,
+            "cam_clin_class": ((cam[2] or {}).get("clin") or (None, None))[1] if cam and len(cam) > 2 else None,
             "feedback": None,
             "final": None,
             "ts": time.time(),
