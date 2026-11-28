@@ -220,3 +220,91 @@ def render_share(url: str):
                       "PNG olarak indirebilirsiniz.",
                       "Scan the code with your phone camera to open the site. Download it as PNG to put it on a slide."))
         st.code(url, language=None)
+
+
+# ---------------------------------------------------------------- sürüm notları (Model → Sürüm notları)
+# En yeni en üstte. Etiket: model / site / safety / eval. Yeni değişiklikte en üste bir giriş ekleyin.
+RELEASE_NOTES = [
+    ("29.11.2026", [
+        ("model", "Öncelikli sevk artık kanser türüne göre: melanom, SCC veya diğer kötü huylu şüphesi (toplam ≥ %15) öncelikli; "
+                  "yavaş seyirli BCC tek başına rutin sevke düşer. Doğrulamada kaçırılan kanser değişmedi, öncelikli yük yaklaşık %25 azaldı.",
+                  "Priority referral now depends on the cancer type: suspected melanoma, SCC or other malignant growth (total ≥ 15%) is "
+                  "priority; slow-growing BCC alone gets a routine referral. On validation, missed cancers did not change and the priority "
+                  "load fell by about 25%."),
+        ("safety", "Sonuçlarda süre: öncelikli 1–2 hafta, rutin 4 hafta. Hasta modunda randevu yönlendirmesi (MHRS, e-Nabız, 182, aile "
+                   "hekimi, PDF'i götürme, kötüleşmede beklememe).",
+                   "Timeframes in results: priority 1–2 weeks, routine 4 weeks. Appointment guidance in patient mode (MHRS, e-Nabız, 182, "
+                   "family doctor, bring the PDF, do not wait if it gets worse)."),
+        ("site", "PDF raporda uzun satırların görüntülerin altına taşması düzeltildi; rapora randevu satırı eklendi.",
+                 "PDF report: long lines no longer run under the images; an appointment line was added."),
+        ("site", "Model sayfasına Sürüm notları sekmesi eklendi.", "A Release notes tab was added to the Model page."),
+    ]),
+    ("28.11.2026", [
+        ("safety", "Hasta modunda kare kırpma zorunlu: lekeyi ortalayıp kutunun yaklaşık üçte birini doldurması isteniyor (kumaş ve "
+                   "arka plan modeli yanıltabiliyordu).",
+                   "Square cropping is mandatory in patient mode: the spot must be centred and fill about a third of the box (fabric "
+                   "and background could mislead the model)."),
+        ("safety", "Eşiğe çok yakın sonuçlarda \"sınırda sonuç\" uyarısı.", "\"Borderline result\" note for results very close to a threshold."),
+        ("eval", "Danışman geri bildirimi işlendi: tüm sayılar v3'e göre; ana ölçüt gizli test Macro F1 0,483, dengeli doğruluk öne alındı; "
+                 "ek veri kararı, model × veri tablosu, kopya kontrolü ve lisanslar Veri ve sınırlılıklar sayfasında.",
+                 "Advisor feedback applied: all figures as of v3; the hidden-test Macro F1 0.483 is the main measure and balanced "
+                 "accuracy comes first; the extra-data decision, model × data table, duplicate check and licences are on the Data "
+                 "and limitations page."),
+        ("site", "Cilt sağlığı sayfasına WHO ve AAD kaynakları; İngilizce çeviri bütün sayfalarda kontrol edildi.",
+                 "WHO and AAD sources on the Skin health page; the English version was checked on every page."),
+        ("site", "PDF raporda BAU logosu ve yeni düzen; vaka listesinde \"Ayrıntı\" önizlemesi; fotoğraf ipuçları ve model tablosu düzeni.",
+                 "BAU logo and new layout in the PDF report; \"Details\" preview in the case list; layout of photo tips and the model table."),
+    ]),
+    ("24.11.2026", [
+        ("safety", "Melanom güvenlik kuralı: melanom olasılığı hekim modunda %10, hasta modunda %15'in üstündeyse lezyon yine sevk edilir.",
+                   "Melanoma safety rule: a lesion is referred when the melanoma probability exceeds 10% (physician) or 15% (patient)."),
+        ("safety", "Kapsam uyarısı: döküntü ve egzama için araç uygun değil; anket için bilgilendirilmiş onam metni.",
+                   "Scope warning: the tool is not suitable for rashes or eczema; informed-consent statement for the survey."),
+        ("site", "Tasarım yenilemesi: yönlendirme cetveli, yeni sonuç ekranı düzeni, yeni renkler ve logo.",
+                 "Visual redesign: referral ruler, new result layout, new colours and logo."),
+    ]),
+    ("22.11.2026", [
+        ("model", "v2: klinik modeller PAD-UFES-20 telefon fotoğraflarıyla yeniden eğitildi (telefon testi Macro F1 0,399 → 0,668). "
+                  "v3: dermoskopik modeller ISIC 2019 ile yeniden eğitildi (doğrulama Macro F1 0,594).",
+                  "v2: clinical models retrained with PAD-UFES-20 phone photos (phone test Macro F1 0.399 → 0.668). v3: dermoscopic "
+                  "models retrained with ISIC 2019 (validation Macro F1 0.594)."),
+        ("eval", "ISIC MILK10k gizli test gönderimi (v3): Macro F1 0,483.", "ISIC MILK10k hidden-test submission (v3): Macro F1 0.483."),
+        ("site", "Hasta modunda sakin, eylem odaklı sonuç; belirti soruları; \"Doktoruma göster\"; Cilt sağlığı sayfası; sadeleştirilmiş menü.",
+                 "Calm, action-first result in patient mode; symptom questions; \"Show my doctor\"; Skin health page; simpler menu."),
+    ]),
+    ("21.11.2026", [
+        ("eval", "İlk ISIC MILK10k gizli test gönderimi (v1, yalnız MILK10k): Macro F1 0,485.",
+                 "First ISIC MILK10k hidden-test submission (v1, MILK10k only): Macro F1 0.485."),
+        ("model", "Hasta modu (tek telefon fotoğrafı), olası tanılar (%90 güven kümesi), maliyete göre sevk eşikleri.",
+                  "Patient mode (single phone photo), possible diagnoses (90% conformal set), cost-based referral thresholds."),
+        ("site", "Anonim veritabanı (izinle); Model analizi sayfası (eşik simülatörü, kalibrasyon, eşitlik, karar eğrisi, poliklinik "
+                 "senaryosu); koyu tema; kullanılabilirlik anketi; görüntü döndürme; toplu PDF.",
+                 "Anonymous database (with consent); Model analysis page (threshold simulator, calibration, equity, decision curve, "
+                 "clinic scenario); dark theme; usability survey; image rotation; bulk PDF."),
+    ]),
+    ("20.11.2026", [
+        ("model", "Gerçek modeller bağlandı: klinik ve dermoskopik görüntü için EfficientNet-B3 ve EfficientNetV2-S (4 model, kalibre ortalama).",
+                  "Real models connected: EfficientNet-B3 and EfficientNetV2-S for clinical and dermoscopic images (4 models, calibrated average)."),
+        ("site", "Türkçe/İngilizce; vaka takibi; PDF rapor ve QR kod; hekim modu ve değerlendirme formu; denetim kaydı; Grad-CAM ısı haritası.",
+                 "Turkish/English; case tracking; PDF report and QR code; physician mode and review form; audit log; Grad-CAM heat map."),
+    ]),
+    ("18.11.2026", [
+        ("site", "İlk çevrim içi prototip (demo modelle) ve ortak Kaggle eğitim notebook'u.",
+                 "First online prototype (demo model) and shared Kaggle training notebook."),
+    ]),
+]
+
+RN_TAGS = {"model": ("Model", "Model", "#0E5E57"), "site": ("Site", "Site", "#3A6EA5"),
+           "safety": ("Güvenlik", "Safety", "#B0701A"), "eval": ("Değerlendirme", "Evaluation", "#6B4E9B")}
+
+
+def render_release_notes():
+    st.markdown(f'<p class="lead">{L("Sistemde nelerin, ne zaman değiştiği. En yeni en üstte. Model başarı sayıları Sürüm geçmişi sekmesinde.", "What changed in the system and when. Newest first. Model performance figures are on the Version history tab.")}</p>',
+                unsafe_allow_html=True)
+    legend = " ".join(f'<span class="rn-tag" style="--c:{c}">{L(tr, en)}</span>' for tr, en, c in RN_TAGS.values())
+    st.markdown(f'<div class="rn-legend">{legend}</div>', unsafe_allow_html=True)
+    for date, items in RELEASE_NOTES:
+        rows = "".join(f'<li><span class="rn-tag" style="--c:{RN_TAGS[k][2]}">{L(RN_TAGS[k][0], RN_TAGS[k][1])}</span>'
+                       f'<span class="rn-text">{L(tr, en)}</span></li>' for k, tr, en in items)
+        st.markdown(f'<div class="rn-day"><div class="rn-date">{date}</div><ul class="rn-list">{rows}</ul></div>',
+                    unsafe_allow_html=True)

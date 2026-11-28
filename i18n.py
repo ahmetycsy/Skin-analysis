@@ -703,6 +703,7 @@ Do not use filtered, cropped or colour-corrected images.
 "sub_overview": ("Genel bakış", "Overview"),
 "sub_versions": ("Sürüm geçmişi", "Version history"),
 "sub_details": ("Veri ve sınırlılıklar", "Data and limitations"),
+"sub_notes": ("Sürüm notları", "Release notes"),
 "sub_share": ("Siteyi paylaş", "Share the site"),
 "health_sub": ("Erken fark etmek için kendi kendine muayene, uyarı işaretleri ve korunma", "Self-examination, warning signs and protection for early detection"),
 "photo_tips": ("İyi fotoğraf nasıl çekilir?", "How to take a good photo"),

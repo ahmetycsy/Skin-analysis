@@ -44,7 +44,7 @@ from eval_page import render_eval
 from survey_page import render_survey
 from patient_help import (appointment_html, calm_card_html, calm_meaning_html, details_warning, ics_bytes, reliability_html, render_symptom_form,
                           symptom_advice, symptom_lines)
-from health_page import render_photo_tips, render_share, render_skin_health, render_versions
+from health_page import render_photo_tips, render_release_notes, render_share, render_skin_health, render_versions
 from db import get_db
 
 try:  # kırpma eklentisi yoksa uygulama yine çalışsın
@@ -289,6 +289,16 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .ruler-note {{ font-size:.8rem; color:{MUTED}; margin:.25rem 0 0; }}
 .appt {{ margin:.2rem 0 0 1.1rem; padding:0; font-size:.9rem; line-height:1.55; }}
 .appt li {{ margin:.15rem 0; }}
+.rn-legend {{ margin:.2rem 0 1rem; display:flex; flex-wrap:wrap; gap:.4rem; }}
+.rn-tag {{ display:inline-block; font-size:.74rem; font-weight:600; color:var(--c); border:1px solid var(--c); border-radius:999px;
+  padding:.05rem .55rem; white-space:nowrap; }}
+.rn-day {{ display:grid; grid-template-columns:7.5rem 1fr; gap:1rem; padding:.85rem 0; border-top:1px solid {LINE}; }}
+.rn-date {{ font-weight:600; color:{INK}; font-variant-numeric:tabular-nums; }}
+.rn-list {{ list-style:none; margin:0; padding:0; }}
+.rn-list li {{ display:flex; gap:.6rem; align-items:baseline; margin:0 0 .5rem; line-height:1.55; }}
+.rn-list .rn-tag {{ flex:0 0 auto; min-width:5.8rem; text-align:center; }}
+.rn-text {{ font-size:.93rem; color:{INK}; }}
+@media (max-width:640px) {{ .rn-day {{ grid-template-columns:1fr; gap:.4rem; }} .rn-list li {{ flex-direction:column; gap:.2rem; }} }}
 .border-note {{ border-left:3px solid {C_PREMALIGN}; background:{C_PREMALIGN}14; color:{INK}; padding:.55rem .8rem;
   border-radius:6px; font-size:.9rem; line-height:1.5; margin:0 0 .8rem; }}
 .crop-guide {{ font-size:.88rem; color:{INK}; line-height:1.5; margin:.1rem 0 .45rem; }}
@@ -2207,7 +2217,7 @@ elif ss.page == "health":
 elif ss.page == "model":
     page_header(t("nav_model"))
     view = sub_nav("model", {"overview": t("sub_overview"), "versions": t("sub_versions"),
-                             "details_eval": t("nav_eval"), "details": t("sub_details")})
+                             "details_eval": t("nav_eval"), "details": t("sub_details"), "notes": t("sub_notes")})
     if view == "overview":
         render_about()
     elif view == "versions":
@@ -2215,6 +2225,8 @@ elif ss.page == "model":
     elif view == "details_eval":
         st.caption(t("eval_sub"))
         render_eval()
+    elif view == "notes":
+        render_release_notes()
     else:
         render_about("details")
 else:

@@ -117,37 +117,51 @@ def build_pdf(res: dict, a: dict, is_mock: bool, *, version: str, group_colors: 
         pdf.line(15, pdf.get_y(), 15 + W, pdf.get_y())
         pdf.ln(2)
 
-    # Hasta bilgileri (sol) + görüntüler (sağ)
+    # Hasta bilgileri (sol) + görüntüler (sağ). Uzun satırlar kendi sütununda alt satıra geçer; görüntülerin yanında
+    # sol sütun görüntülerin başladığı yere kadar, görüntülerin altında tam genişlik kullanılır (üst üste binmez).
     top = pdf.get_y()
-    heading(t("pdf_patient"))
-    pdf.set_font("DejaVu", "", 9)
-    lab_w = max(pdf.get_string_width(lab) for lab, _ in meta_lines) + 5
-    for lab, val in meta_lines:
-        pdf.set_text_color(*MUTED)
-        pdf.cell(lab_w, 5.6, lab)
-        pdf.set_text_color(*INK)
-        pdf.cell(90 - lab_w, 5.6, val, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    left_end = pdf.get_y()
-
     pairs = [(res.get("clin_jpg"), t("m_clin")), (res.get("derm_jpg"), t("m_derm")), (res.get("cam_jpg"), "Grad-CAM")]
     pairs = [(i, c) for i, c in pairs if i]
-    imgs = [i for i, _ in pairs]
-    if imgs:
-        size = 27 if len(imgs) <= 2 else 23
-        x = 15 + W - len(imgs) * (size + 3) + 3
-        pdf.set_xy(x, top + 1.5)
+    img_left, img_bottom = 15 + W, top
+    if pairs:
+        size = 27 if len(pairs) <= 2 else 23
+        img_left = 15 + W - len(pairs) * (size + 3) + 3
+        img_bottom = top + 8.5 + size + 5
+    heading(t("pdf_patient"))
+    if pairs:  # başlık çizgisi görüntü sütununa girmesin diye görüntüleri başlıktan sonra çiz
+        pdf.set_xy(img_left, top + 1.5)
         pdf.set_font("DejaVu", "B", 10.5)
         pdf.set_text_color(*INK)
         pdf.cell(size, 6, t("pdf_images"))
-        caps = [c for _, c in pairs]
         pdf.set_font("DejaVu", "", 7)
         pdf.set_text_color(*MUTED)
-        for k, data in enumerate(imgs):
-            pdf.image(io.BytesIO(data), x=x + k * (size + 3), y=top + 8.5, w=size, h=size)
-            pdf.set_xy(x + k * (size + 3), top + 8.5 + size + 0.8)
-            pdf.cell(size, 3.5, caps[k].capitalize(), align="C")
-        left_end = max(left_end, top + 8.5 + size + 5)
-    pdf.set_y(left_end + 1)
+        for k, (data, cap) in enumerate(pairs):
+            pdf.image(io.BytesIO(data), x=img_left + k * (size + 3), y=top + 8.5, w=size, h=size)
+            pdf.set_xy(img_left + k * (size + 3), top + 8.5 + size + 0.8)
+            pdf.cell(size, 3.5, cap.capitalize(), align="C")
+    pdf.set_y(top + 9)
+    pdf.set_font("DejaVu", "", 9)
+    lab_w = min(max(pdf.get_string_width(lab) for lab, _ in meta_lines) + 4, 52)
+    lh = 4.6
+    for lab, val in meta_lines:
+        y = pdf.get_y()
+        right = (img_left - 4) if y < img_bottom else (15 + W)
+        val_w = max(right - 15 - lab_w, 30)
+        lab_lines = pdf.multi_cell(lab_w - 1, lh, lab, dry_run=True, output="LINES")
+        val_lines = pdf.multi_cell(val_w, lh, str(val), dry_run=True, output="LINES")
+        h = max(len(lab_lines), len(val_lines)) * lh
+        if y + h > pdf.h - 18:
+            pdf.add_page()
+            y = pdf.get_y()
+            right, val_w = 15 + W, W - lab_w
+        pdf.set_xy(15, y)
+        pdf.set_text_color(*MUTED)
+        pdf.multi_cell(lab_w - 1, lh, lab, align="L")
+        pdf.set_xy(15 + lab_w, y)
+        pdf.set_text_color(*INK)
+        pdf.multi_cell(val_w, lh, str(val), align="L")
+        pdf.set_y(y + h + 1.0)
+    pdf.set_y(max(pdf.get_y(), img_bottom) + 1)
 
     # Genel değerlendirme
     heading(t("pdf_assess"))
