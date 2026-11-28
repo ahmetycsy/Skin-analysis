@@ -95,6 +95,7 @@ GROUP_COLORS = {MALIGN: C_MALIGN, PREMALIGN: C_PREMALIGN, BENIGN: C_BENIGN}
 SKIN_SWATCH = {0: "#4A2C20", 1: "#6F4531", 2: "#94623F", 3: "#B98558", 4: "#D9AE86", 5: "#F0D3B8"}
 STATUSES = {"new": ("stat_new", "#5F747C"), "reviewed": ("stat_reviewed", "#2F7F78"),
             "awaiting": ("stat_awaiting", "#B0701A"), "closed": ("stat_closed", "#56707A" if DARK else "#1F3A44")}
+DEL_REASONS = ("wrong_photo", "test", "duplicate", "request", "other")
 LEVEL_COLORS = {"urgent": C_MALIGN, "refer": C_PREMALIGN, "benign": C_BENIGN}
 LEVEL_RANK = {"urgent": 0, "refer": 1, "benign": 2}
 ABCDE = ["A", "B", "C", "D", "E"]  # asimetri, sınır, renk, çap > 6 mm, değişim (hekim işaretler; modele girmez)
@@ -117,7 +118,8 @@ h1, h2, h3 {{ font-family:'IBM Plex Sans', system-ui, sans-serif; color:{INK}; l
 section[data-testid="stSidebar"] {{ background:#fff; border-right:1px solid {LINE}; }}
 section[data-testid="stSidebar"] .block-container, section[data-testid="stSidebar"] > div {{ padding-top:1.2rem; }}
 .brand {{ display:flex; align-items:center; gap:.65rem; margin-bottom:1.1rem; }}
-.brand-mark {{ width:2.2rem; height:2.2rem; border-radius:9px; background:{TEAL}; display:flex; align-items:center; justify-content:center; flex:none; }}
+.brand-mark {{ width:2.2rem; height:2.2rem; border-radius:50%; background:#fff; display:flex; align-items:center; justify-content:center; flex:none; }}
+.brand-seal {{ width:100%; height:100%; border-radius:50%; display:block; }}
 .brand-name {{ font-weight:600; font-size:.98rem; line-height:1.2; }}
 .brand-sub {{ font-size:.76rem; color:{MUTED}; line-height:1.35; }}
 section[data-testid="stSidebar"] div.stButton > button {{ justify-content:flex-start; border:0; background:transparent; color:{INK};
@@ -388,7 +390,8 @@ ss.setdefault("boxes", {"clin": None, "derm": None})  # kırpma kutuları
 ss.setdefault("cases", {})        # vaka no -> kayıt (yalnızca bellekte; veritabanı sonra)
 ss.setdefault("current", None)    # yeni analizde gösterilen vaka
 ss.setdefault("open_case", None)  # vaka takibinde açık vaka
-ss.setdefault("peek", set())  # vaka listesinde ayrıntısı açılan satırlar
+ss.setdefault("peek", set())
+ss.setdefault("deleted", {})  # hekimin sildiği vakalar: sitede gizli, veritabanında status="deleted" ve denetim kaydında iz  # vaka listesinde ayrıntısı açılan satırlar
 ss.setdefault("consent", False)   # kullanım koşulları onaylandı mı
 ss.setdefault("doctor", None)     # hekim modu: baş harfler (None = giriş yok)
 ss.setdefault("pin_fails", 0)
@@ -918,7 +921,8 @@ def log(kind: str, case=None, **extra) -> dict:
 TOASTS = {"pdf": ("toast_pdf", ":material/picture_as_pdf:"), "reminder": ("toast_reminder", ":material/event:"),
           "feedback": ("toast_fb", ":material/check_circle:"), "feedback_upd": ("toast_fb", ":material/check_circle:"),
           "status": ("toast_status", ":material/sync:"), "closed": ("toast_closed", ":material/lock:"),
-          "reopened": ("toast_reopened", ":material/lock_open:")}
+          "reopened": ("toast_reopened", ":material/lock_open:"), "deleted": ("toast_deleted", ":material/delete:"),
+          "restored": ("toast_restored", ":material/restore:")}
 
 
 def add_event(rec: dict, kind: str, **extra):
@@ -966,13 +970,13 @@ def flush_db():
     if DB is None:
         return
     for cid in list(ss.dirty):
-        rec = ss.cases.get(cid)
+        rec = ss.cases.get(cid) or ss.deleted.get(cid)
         if rec is None or not rec.get("saved") or DB.upsert_case(case_row(rec)):
             ss.dirty.remove(cid)
     keep = []
     for row in ss.pending_audit:
         cid = row["case_no"]
-        if cid is not None and not (ss.cases.get(cid) or {}).get("saved"):
+        if cid is not None and not (ss.cases.get(cid) or ss.deleted.get(cid) or {}).get("saved"):
             continue  # kayıt izni olmayan vakanın işlemleri veritabanına gitmez
         if cid in ss.dirty:  # vaka satırı henüz yazılamadı, sonra tekrar dene
             keep.append(row)
@@ -991,8 +995,43 @@ def sync_from_db(force: bool = False):
     if DB.last_error is None:
         ss.db_synced = time.time()
     for row in rows:
-        if row["case_no"] not in ss.cases:
-            ss.cases[row["case_no"]] = rec_from_row(row)
+        cid = row["case_no"]
+        if row.get("status") == "deleted":  # silinen vaka (bu ya da başka bir cihazda): sitede gösterilmez
+            if cid in ss.cases:
+                ss.deleted[cid] = ss.cases.pop(cid)
+                ss.deleted[cid]["status"] = "deleted"
+            elif cid not in ss.deleted:
+                ss.deleted[cid] = rec_from_row(row)
+        elif cid in ss.deleted and ss.deleted[cid].get("from_db"):  # başka cihazda geri alındıysa
+            ss.cases[cid] = rec_from_row(row)
+            ss.deleted.pop(cid)
+        elif cid not in ss.cases:
+            ss.cases[cid] = rec_from_row(row)
+
+
+def delete_case(cid: str, reason: str):
+    """Kayıtlı silme: vaka sitede gizlenir; veritabanında durumu "deleted" olur, denetim kaydına neden ve kim düşer."""
+    rec = ss.cases.pop(cid, None)
+    if rec is None:
+        return
+    old = rec["status"]
+    rec["status"] = "deleted"
+    ss.deleted[cid] = rec
+    add_event(rec, "deleted", reason=reason, old=old)
+    if ss.open_case == cid:
+        ss.open_case = None
+    ss.del_case = None
+
+
+def restore_case(cid: str):
+    rec = ss.deleted.pop(cid, None)
+    if rec is None:
+        return
+    load_events(rec)
+    old = next((ev.get("old") for ev in reversed(rec["events"]) if ev["kind"] == "deleted" and ev.get("old")), None)
+    rec["status"] = old if old in STATUSES else ("reviewed" if rec.get("feedback") else "new")
+    ss.cases[cid] = rec
+    add_event(rec, "restored")
 
 
 def load_events(rec: dict):
@@ -1032,6 +1071,11 @@ def event_text(ev: dict) -> str:
         return t("ev_closed", dx=dx_label(ev["dx"]))
     if ev["kind"] == "reopened":
         return t("ev_reopened")
+    if ev["kind"] == "deleted":
+        r = ev.get("reason")
+        return t("ev_deleted", r=t("del_r_" + r) if r in DEL_REASONS else (r or "–"))
+    if ev["kind"] == "restored":
+        return t("ev_restored")
     if ev["kind"] == "linked":
         return t("ev_linked", c=ev.get("prev", ""))
     return t({"created": "ev_created", "feedback": "ev_feedback", "feedback_upd": "ev_feedback_upd"}[ev["kind"]])
@@ -1192,7 +1236,7 @@ if qp_case:  # PDF'teki QR kod bu bağlantıyla gelir
     ss.page = "track"
     if qp_case not in ss.cases and DB is not None:
         row = DB.get_case(qp_case)
-        if row:
+        if row and row.get("status") != "deleted":
             ss.cases[qp_case] = rec_from_row(row)
     if qp_case in ss.cases:
         ss.open_case = qp_case
@@ -1257,13 +1301,24 @@ if ss.pop("tour_cookie", False):
     components.html("<script>window.parent.document.cookie = 'cds_tour_off=1; max-age=31536000; path=/; SameSite=Lax';</script>",
                     height=0)
 
+def _brand_mark() -> str:
+    """Yan menüdeki küçük amblem: BAU mührü (assets/bau_seal.png); dosya yoksa önceki mercek simgesi."""
+    import base64
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "bau_seal.png")
+    try:
+        with open(path, "rb") as fh:
+            return f'<img src="data:image/png;base64,{base64.b64encode(fh.read()).decode()}" alt="BAU" class="brand-seal">'
+    except OSError:
+        return ('<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" '
+                'stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/>'
+                '<path d="M6.5 13.5h3M10.5 13.5h3M14.5 13.5h3" stroke-width="2.4"/></svg>')
+
+
+BRAND_MARK = _brand_mark()
+
 with st.sidebar:
     st.markdown(
-        '<div class="brand"><div class="brand-mark">'
-        # dermatoskop merceği + içinde üç bölgeli yönlendirme cetveli (sitenin imza öğesi)
-        '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">'
-        '<circle cx="12" cy="12" r="9"/><path d="M6.5 13.5h3M10.5 13.5h3M14.5 13.5h3" stroke-width="2.4"/>'
-        '<path d="M12 9.2v5.8" stroke-width="1.6"/></svg></div>'
+        f'<div class="brand"><div class="brand-mark">{BRAND_MARK}</div>'
         f'<div><div class="brand-name">{t("app_name")}</div><div class="brand-sub">{t("app_sub")}</div></div></div>',
         unsafe_allow_html=True,
     )
@@ -1426,6 +1481,8 @@ def render_case(cid: str, where: str):
     _case_footer(rec, cid, where)
     if ss.get("show_doc") == cid:
         doctor_card(cid)
+    if ss.get("del_case") == cid and ss.doctor:
+        delete_dialog(cid)
 
 
 def _case_actions(rec, a, cid, where, simple):
@@ -1467,6 +1524,23 @@ def _case_actions(rec, a, cid, where, simple):
         st.download_button(t("remind_dl"), ics_bytes(cid, months, APP_URL), file_name=f"{cid}-kontrol.ics",
                            mime="text/calendar", icon=":material/event:", width="stretch", key=f"ics_{cid}_{where}",
                            on_click=lambda c=cid: add_event(ss.cases[c], "reminder"))
+        if ss.doctor:  # yalnızca hekim girişinden sonra
+            st.markdown('<div class="side-sep"></div>', unsafe_allow_html=True)
+            st.button(t("del_btn"), icon=":material/delete:", width="stretch", key=f"del_{cid}_{where}",
+                      on_click=lambda c=cid: ss.update(del_case=c))
+
+
+@st.dialog(" ", on_dismiss=lambda: ss.update(del_case=None))
+def delete_dialog(cid: str):
+    st.markdown(f'<div class="case-label">{t("del_title")}</div><div class="case-no">{cid}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="banner" style="margin:.6rem 0">{t("del_info")}</div>', unsafe_allow_html=True)
+    reason = st.radio(t("del_reason"), list(DEL_REASONS), format_func=lambda r: t("del_r_" + r), index=None, key=f"del_reason_{cid}")
+    b1, b2 = st.columns(2)
+    b1.button(t("del_cancel"), width="stretch", key=f"del_no_{cid}", on_click=lambda: ss.update(del_case=None))
+    if b2.button(t("del_confirm"), type="primary", icon=":material/delete:", width="stretch", disabled=reason is None,
+                 key=f"del_yes_{cid}"):
+        delete_case(cid, reason)
+        st.rerun()
 
 
 @st.dialog(" ", width="large", on_dismiss=lambda: ss.update(show_doc=None))
@@ -2129,6 +2203,16 @@ def page_track():
         return
 
     followup_panel()
+
+    if ss.doctor and ss.deleted:  # silinen vakalar yalnızca hekime görünür, geri alınabilir
+        with st.expander(t("del_list", n=len(ss.deleted)), icon=":material/delete:"):
+            st.caption(t("del_list_note"))
+            for dcid, drec in sorted(ss.deleted.items(), key=lambda kv: -kv[1]["ts"]):
+                d1, d2 = st.columns([3, 1], vertical_alignment="center")
+                d1.markdown(f'<div class="row-no" style="font-size:.95rem">{dcid}</div><div class="row-sub">{drec["created"]}</div>',
+                            unsafe_allow_html=True)
+                d2.button(t("del_restore"), icon=":material/restore:", key=f"restore_{dcid}", width="stretch",
+                          on_click=restore_case, args=(dcid,))
 
     # karşılaştırma
     ids = list(ss.cases)

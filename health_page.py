@@ -238,6 +238,11 @@ RELEASE_NOTES = [
         ("site", "PDF raporda uzun satırların görüntülerin altına taşması düzeltildi; rapora randevu satırı eklendi.",
                  "PDF report: long lines no longer run under the images; an appointment line was added."),
         ("site", "Model sayfasına Sürüm notları sekmesi eklendi.", "A Release notes tab was added to the Model page."),
+        ("site", "Yan menüdeki simge yerine BAU mührü.", "The BAU seal replaces the icon in the side menu."),
+        ("safety", "Hekim girişinde vaka silme: vaka sitede gizlenir, nedeni ve silen hekim denetim kaydında saklanır; Silinen vakalar "
+                   "bölümünden geri alınabilir.",
+                   "Case deletion for signed-in physicians: the case is hidden on the site, the reason and the physician are kept in "
+                   "the audit log, and it can be restored from Deleted cases."),
         ("model", "Isı haritası (Grad-CAM) artık kararı açıklıyor: sevki tetikleyen türler (örneğin melanom ve SCC) için çiziliyor. Daha sakin "
                   "renkler, en yoğun bölgenin beyaz çizgiyle gösterilmesi ve renk göstergesi eklendi.",
                   "The heat map (Grad-CAM) now explains the decision: it is drawn for the types that triggered the referral (e.g. "
