@@ -26,6 +26,9 @@ from predictor import (
     GROUPS,
     MALIGN,
     MEL_SAFETY,
+    PRIORITY_RULE,
+    PRIORITY_TYPE_T,
+    PRIORITY_TYPES,
     PREMALIGN,
     REFER_MALIGN_OR_PRE,
     REFER_URGENT_MALIGN,
@@ -39,7 +42,7 @@ from predictor import (
 from stats_page import render_stats
 from eval_page import render_eval
 from survey_page import render_survey
-from patient_help import (calm_card_html, calm_meaning_html, details_warning, ics_bytes, reliability_html, render_symptom_form,
+from patient_help import (appointment_html, calm_card_html, calm_meaning_html, details_warning, ics_bytes, reliability_html, render_symptom_form,
                           symptom_advice, symptom_lines)
 from health_page import render_photo_tips, render_share, render_skin_health, render_versions
 from db import get_db
@@ -284,6 +287,8 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .ruler-lb span:nth-child(2) {{ text-align:center; }} .ruler-lb span:nth-child(3) {{ text-align:right; }}
 .ruler-lb span.on {{ color:{INK}; font-weight:600; }}
 .ruler-note {{ font-size:.8rem; color:{MUTED}; margin:.25rem 0 0; }}
+.appt {{ margin:.2rem 0 0 1.1rem; padding:0; font-size:.9rem; line-height:1.55; }}
+.appt li {{ margin:.15rem 0; }}
 .border-note {{ border-left:3px solid {C_PREMALIGN}; background:{C_PREMALIGN}14; color:{INK}; padding:.55rem .8rem;
   border-radius:6px; font-size:.9rem; line-height:1.5; margin:0 0 .8rem; }}
 .crop-guide {{ font-size:.88rem; color:{INK}; line-height:1.5; margin:.1rem 0 .45rem; }}
@@ -596,11 +601,21 @@ def assess(probs: dict, mode: str = "hekim") -> dict:
     top_p, second_p = ranked[0][1], ranked[1][1]
     uncertain = top_p < UNCERTAIN_TOP or (top_p - second_p) < UNCERTAIN_GAP
     mel_rule = False
-    if totals[MALIGN] >= REFER_URGENT_MALIGN:
-        level, title, text = "urgent", t("r_urgent_t"), t("r_urgent", p=pct(totals[MALIGN]))
-    elif totals[MALIGN] + totals[PREMALIGN] >= REFER_MALIGN_OR_PRE:
-        level, title, text = "refer", t("r_refer_t"), t("r_refer", p=pct(totals[MALIGN] + totals[PREMALIGN]))
-    elif probs.get("MEL", 0.0) >= MEL_SAFETY[mode if mode in MEL_SAFETY else "hekim"]:
+    risk = totals[MALIGN] + totals[PREMALIGN]
+    mel_hit = probs.get("MEL", 0.0) >= MEL_SAFETY[mode if mode in MEL_SAFETY else "hekim"]
+    fast = sum(probs.get(c, 0.0) for c in PRIORITY_TYPES)  # hızlı ilerleyebilen türler (melanom, SCC, diğer kötü huylu)
+    if PRIORITY_RULE == "type":
+        urgent = fast >= PRIORITY_TYPE_T and (risk >= REFER_MALIGN_OR_PRE or uncertain or mel_hit)
+    else:
+        urgent = totals[MALIGN] >= REFER_URGENT_MALIGN
+    if urgent:
+        if PRIORITY_RULE == "type":
+            level, title, text = "urgent", t("r_urgent_t"), t("r_urgent_type", p=pct(fast))
+        else:
+            level, title, text = "urgent", t("r_urgent_t"), t("r_urgent", p=pct(totals[MALIGN]))
+    elif risk >= REFER_MALIGN_OR_PRE:
+        level, title, text = "refer", t("r_refer_t"), t("r_refer", p=pct(risk))
+    elif mel_hit:
         # melanom güvenlik kuralı: kaçırılan melanomların çoğu "ben" sanılıyordu (bkz. predictor.MEL_SAFETY)
         level, title, text, mel_rule = "refer", t("r_mel_t"), t("r_mel", p=pct(probs["MEL"])), True
     elif uncertain:
@@ -608,10 +623,10 @@ def assess(probs: dict, mode: str = "hekim") -> dict:
     else:
         level, title, text = "benign", t("r_benign_t"), t("r_benign")
     # sınırda sonuç: belirleyici toplam eşiğe BORDER_MARGIN'den yakın (doğrulamada hekim %7,6, hasta %9,9 vaka; sezgisel)
-    risk = totals[MALIGN] + totals[PREMALIGN]
-    borderline = (abs(risk - REFER_MALIGN_OR_PRE) < BORDER_MARGIN or abs(totals[MALIGN] - REFER_URGENT_MALIGN) < BORDER_MARGIN)
+    near_u = abs(fast - PRIORITY_TYPE_T) if PRIORITY_RULE == "type" else abs(totals[MALIGN] - REFER_URGENT_MALIGN)
+    borderline = abs(risk - REFER_MALIGN_OR_PRE) < BORDER_MARGIN or near_u < BORDER_MARGIN
     return {"totals": totals, "ranked": ranked, "uncertain": uncertain, "level": level, "title": title, "text": text,
-            "mel_rule": mel_rule, "borderline": borderline}
+            "mel_rule": mel_rule, "borderline": borderline, "fast": fast}
 
 
 AGREE = {"yes": "fb_yes", "partial": "fb_partial", "no": "fb_no"}
@@ -754,6 +769,8 @@ def pdf_extra_lines(rec: dict):
         rows.append((t("mel_pdf"), t("mel_pdf_v", p=i18n.pct(rec["probs"]["MEL"]))))
     if _a.get("borderline"):
         rows.append((t("border_pdf"), t("border_pdf_v")))
+    if _a["level"] in ("urgent", "refer"):
+        rows.append((t("appt_pdf"), t("appt_pdf_v", w=t("appt_w_" + _a["level"]))))
     rows += symptom_lines(rec.get("symptoms"))
     return rows
 
@@ -832,12 +849,16 @@ LEVELS = ("benign", "refer", "urgent")
 def ruler_pos(a: dict) -> float:
     """Cetvel üzerindeki işaretin yeri (%). Bölge = yönlendirme seviyesi; bölge içindeki yer olasılıklardan yaklaşık hesaplanır."""
     mal, risk = a["totals"][MALIGN], a["totals"][MALIGN] + a["totals"][PREMALIGN]
+    if PRIORITY_RULE == "type":
+        val, cut = a.get("fast", 0.0), PRIORITY_TYPE_T
+    else:
+        val, cut = mal, REFER_URGENT_MALIGN
     if a["level"] == "benign":
         x = min(risk / REFER_MALIGN_OR_PRE, 1) * 33.3
     elif a["level"] == "refer":
-        x = 33.3 + min(mal / REFER_URGENT_MALIGN, 1) * 33.3
+        x = 33.3 + min(val / cut, 1) * 33.3
     else:
-        x = 66.7 + min((mal - REFER_URGENT_MALIGN) / (1 - REFER_URGENT_MALIGN), 1) * 33.3
+        x = 66.7 + min((val - cut) / (1 - cut), 1) * 33.3
     return max(3.0, min(97.0, x))
 
 
@@ -1367,6 +1388,7 @@ def render_case(cid: str, where: str):
         if simple:  # hasta modu: belirti notları ve sonucun anlamı; yüzdeler ayrıntılarda (sağlık kaygısı)
             for kind, txt in symptom_advice(rec.get("symptoms"), a["level"], a["ranked"][0][0]):
                 st.markdown(f'<div class="sym-{kind}">{txt}</div>', unsafe_allow_html=True)
+            st.markdown(appointment_html(a["level"]), unsafe_allow_html=True)
             st.markdown(calm_meaning_html(a["level"]), unsafe_allow_html=True)
         detail = st.expander(t("details_pm"), icon=":material/tune:") if simple else st.container()
         with detail:
@@ -1525,7 +1547,7 @@ def _result_body(rec, a, simple, cid, where):
             with (st.container() if simple else st.expander(t("tech"))):
                 st.caption(t("tech_line", m=model_label(rec["model_name"]), s=rec["elapsed"], c=rec["created"],
                              ok=t("tech_ok") if rec["elapsed"] < 10 else t("tech_slow")))
-                st.caption(t("tech_thr", u=f"{REFER_URGENT_MALIGN * 100:.0f}", r=f"{REFER_MALIGN_OR_PRE * 100:.0f}",
+                st.caption(t("tech_thr_type" if PRIORITY_RULE == "type" else "tech_thr", ft=f"{PRIORITY_TYPE_T * 100:.0f}", u=f"{REFER_URGENT_MALIGN * 100:.0f}", r=f"{REFER_MALIGN_OR_PRE * 100:.0f}",
                              t=f"{UNCERTAIN_TOP * 100:.0f}", g=f"{UNCERTAIN_GAP * 100:.0f}"))
 
 

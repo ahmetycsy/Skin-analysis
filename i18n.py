@@ -249,6 +249,13 @@ Do not use filtered, cropped or colour-corrected images.
                   "<b>Borderline result:</b> the malignant or at-risk total is within 5 points of a referral "
                   "threshold. The referral is unchanged; clinical judgement and, if needed, a second image are advised."),
     "border_pdf": ("Sınırda sonuç", "Borderline result"),
+    "appt_pdf": ("Randevu", "Appointment"),
+    "appt_pdf_v": ("{w} içinde dermatoloji: MHRS uygulaması, e-Nabız veya 182. Bulamazsanız aile hekimine başvurun. "
+                   "Kanama, hızlı büyüme veya şekil değişikliğinde beklemeden başvurun.",
+                   "Dermatology within {w}: MHRS app, e-Nabız or phone 182 (Türkiye). Otherwise see your family doctor. "
+                   "Do not wait if it bleeds, grows quickly or changes shape."),
+    "appt_w_urgent": ("1–2 hafta", "1–2 weeks"),
+    "appt_w_refer": ("4 hafta", "4 weeks"),
     "border_pdf_v": ("Toplam, yönlendirme eşiğine 5 puandan yakın", "Total within 5 points of a referral threshold"),
     "crop_hint": ("Kutuyu sürükleyip köşelerinden boyutlandırın. Analizde yalnızca kutunun içi kullanılır.",
                   "Drag the box and resize it by its corners. Only the area inside the box is analysed."),
@@ -315,18 +322,24 @@ Do not use filtered, cropped or colour-corrected images.
         "The model sees features resembling malignant growths in these images (combined probability of malignant types {p}). "
         "A dermatologist should examine the lesion soon.",
     ),
+    "r_urgent_type": (
+        "Model bu görüntülerde melanom veya skuamöz hücreli karsinom gibi hızlı ilerleyebilen türlere benzeyen özellikler görüyor "
+        "(bu türlerin toplam olasılığı {p}). Lezyonun 1–2 hafta içinde bir dermatolog tarafından incelenmesi önerilir.",
+        "The model sees features resembling faster-growing types such as melanoma or squamous cell carcinoma in these images "
+        "(combined probability of these types {p}). A dermatologist should examine the lesion within 1–2 weeks.",
+    ),
     "r_refer_t": ("Dermatolog değerlendirmesi önerilir", "Dermatology review recommended"),
     "r_refer": (
         "Model bu görüntülerde kansere dönüşebilen veya kötü huylu oluşumlara benzer özellikler görüyor (toplam olasılık {p}). "
-        "Lezyonun bir dermatolog tarafından incelenmesi önerilir.",
+        "Lezyonun 4 hafta içinde bir dermatolog tarafından incelenmesi önerilir.",
         "The model sees features resembling precancerous or malignant growths (combined probability {p}). "
-        "A dermatologist should examine the lesion.",
+        "A dermatologist should examine the lesion within 4 weeks.",
     ),
     "r_mel_t": ("Dermatolog değerlendirmesi önerilir (melanom dışlanamadı)", "Dermatology review recommended (melanoma not ruled out)"),
     "r_mel": ("Model lezyonu en çok iyi huylu bir türe benzetiyor, ancak melanom olasılığı ({p}) güvenlik eşiğinin üstünde. "
-              "Kaçırılan melanomların çoğu ben ile karıştırıldığı için lezyonun bir dermatolog tarafından incelenmesi önerilir.",
+              "Kaçırılan melanomların çoğu ben ile karıştırıldığı için lezyonun 4 hafta içinde bir dermatolog tarafından incelenmesi önerilir.",
               "The model's closest match is a benign type, but the melanoma probability ({p}) is above the safety threshold. "
-              "Because most missed melanomas were mistaken for moles, review by a dermatologist is recommended."),
+              "Because most missed melanomas were mistaken for moles, review by a dermatologist within 4 weeks is recommended."),
     "r_unsure_t": ("Model kararsız: hekim değerlendirmesi önerilir", "Model uncertain: physician review recommended"),
     "r_unsure": (
         "Model belirgin bir kötü huylu özellik görmüyor, ancak sonuçtan emin değil. Bu nedenle lezyonun bir hekim tarafından "
@@ -362,6 +375,13 @@ Do not use filtered, cropped or colour-corrected images.
                   "Model: {m} · Inference time {s:.2f} s ({ok}) · Analysed at {c}"),
     "tech_ok": ("10 sn hedefinin altında", "below the 10 s target"),
     "tech_slow": ("10 sn hedefinin üzerinde", "above the 10 s target"),
+    "tech_thr_type": (
+        "Yönlendirme kuralı: melanom + SCC + diğer kötü huylu olasılığı ≥ %{ft} → öncelikli (1–2 hafta); kötü huylu + kansere "
+        "dönüşebilir ≥ %{r}, kararsızlık ya da melanom güvenlik kuralı → değerlendirme (4 hafta). Kararsızlık: en yüksek olasılık "
+        "< %{t} veya ilk iki fark < %{g}.",
+        "Referral rule: melanoma + SCC + other malignant ≥ {ft}% → priority (1–2 weeks); malignant + precancerous ≥ {r}%, "
+        "uncertainty or the melanoma safety rule → review (4 weeks). Uncertain: top probability < {t}% or gap < {g}%.",
+    ),
     "tech_thr": (
         "Yönlendirme eşikleri (1.048 lezyonluk doğrulama verisine göre): kötü huylu toplamı ≥ %{u} → öncelikli; kötü huylu + kansere dönüşebilir ≥ %{r} → "
         "değerlendirme. Kararsızlık: en yüksek olasılık < %{t} veya ilk iki fark < %{g}.",
@@ -975,9 +995,13 @@ PM = {
     "r_urgent": ("Fotoğraftaki leke, kötü huylu (kanser) türlere belirgin şekilde benziyor (toplam benzerlik {p}). "
                  "Lekeyi kısa süre içinde bir dermatoloğa gösterin.",
                  "The spot clearly resembles malignant (cancer) types (total {p}). Please show it to a dermatologist soon."),
+    "r_urgent_type": ("Fotoğraftaki leke, melanom gibi hızlı ilerleyebilen türlere benziyor (toplam benzerlik {p}). "
+                      "Lekeyi 1–2 hafta içinde bir dermatoloğa gösterin.",
+                      "The spot resembles faster-growing types such as melanoma (total {p}). Please show it to a "
+                      "dermatologist within 1–2 weeks."),
     "r_refer": ("Fotoğraftaki leke, kanser ya da kansere dönüşebilen türlere bir ölçüde benziyor (toplam benzerlik {p}). "
-                "Lekeyi bir dermatoloğa gösterin.",
-                "The spot somewhat resembles cancer or pre-cancer types (total {p}). Please show it to a dermatologist."),
+                "Lekeyi 4 hafta içinde bir dermatoloğa gösterin.",
+                "The spot somewhat resembles cancer or pre-cancer types (total {p}). Please show it to a dermatologist within 4 weeks."),
     "r_unsure": ("Model belirgin bir kanser bulgusu görmüyor ama sonuçtan emin değil. Lekeyi bir doktora gösterin.",
                  "The model sees no clear sign of cancer but is not sure. Please show the spot to a doctor."),
     "r_benign": ("Model fotoğrafta belirgin bir kanser bulgusu görmüyor. Yine de leke büyürse, rengi ya da şekli değişirse, "

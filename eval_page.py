@@ -220,11 +220,14 @@ def _tab_simulator(D, M, mode):
             "kötü huylu toplam olasılık öncelikli eşiğini geçerse <b>öncelikli değerlendirme</b>, kötü huylu + kansere "
             "dönüşebilir toplamı sevk eşiğini geçerse (ya da model kararsızsa) <b>dermatolog değerlendirmesi</b>, "
             "aksi hâlde <b>iyi huylu görünüm</b>. Burada seçilen eşikler yalnızca bu sayfadaki hesaplarda kullanılır, "
-            "analiz ekranını değiştirmez.",
+            "analiz ekranını değiştirmez. Not: sitede öncelik artık türe göre verilir (melanom + SCC + diğer kötü huylu ≥ %15; "
+            "BCC rutin sevke düşer); bu simülatör toplam kötü huylu eşiğini gösterir. Sevk ve kaçırılan kanser sayıları aynıdır.",
             "Change the thresholds and see how the validation results change. The rule is the same as the app's: malignant "
             "total above the priority threshold → <b>priority review</b>; malignant + premalignant total above the referral "
             "threshold (or model uncertain) → <b>dermatologist review</b>; otherwise <b>benign appearance</b>. Thresholds "
-            "chosen here only affect this page, not the analysis screen."))
+            "chosen here only affect this page, not the analysis screen. Note: the site now assigns priority by type (melanoma + "
+            "SCC + other malignant ≥ 15%; BCC goes to routine referral); this simulator shows the total-malignant threshold. "
+            "Referral and missed-cancer counts are the same."))
     U, R, unc = _thr_inputs(D, mode)
     c = _counts(M["grid"][g.index(U)][g.index(R)][int(unc)])
     r = _rates(c)

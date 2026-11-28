@@ -176,15 +176,16 @@ def ics_bytes(case_no: str, months: int, url: str) -> bytes:
 CALM = {
     "urgent": ("Lekenizi kısa süre içinde (1–2 hafta) bir dermatoloğa gösterin",
                "Show the spot to a dermatologist soon (within 1–2 weeks)",
-               "Model bu fotoğrafta doktorun bakması gereken bazı özellikler gördü. Bu bir tanı değildir; yalnızca lekenin "
+               "Model bu fotoğrafta hızlı ilerleyebilen türlere benzeyen ve doktorun bakması gereken özellikler gördü. Bu bir tanı değildir; yalnızca lekenin "
                "bir uzman tarafından görülmesi gerektiği anlamına gelir.",
-               "The model saw some features in this photo that a doctor should look at. This is not a diagnosis; it only "
+               "The model saw features in this photo that resemble faster-growing types and that a doctor should look at. This is not a diagnosis; it only "
                "means the spot should be seen by a specialist."),
-    "refer": ("Lekenizi bir dermatoloğa gösterin (acil değil)", "Show the spot to a dermatologist (not urgent)",
-              "Model fotoğraftan kesin bir şey söyleyemedi ya da hafif bazı özellikler gördü. İlk uygun randevuda "
-              "bir dermatoloğa göstermeniz yeterli.",
-              "The model could not tell from the photo, or saw some mild features. Showing it to a dermatologist at the "
-              "next convenient appointment is enough."),
+    "refer": ("Lekenizi 4 hafta içinde bir dermatoloğa gösterin (acil değil)",
+              "Show the spot to a dermatologist within 4 weeks (not urgent)",
+              "Model fotoğraftan kesin bir şey söyleyemedi ya da yavaş seyirli türlere benzeyen bazı özellikler gördü. "
+              "Normal bir randevu yeterli, ancak 4 haftayı geçirmeyin.",
+              "The model could not tell from the photo, or saw features resembling slow-growing types. A regular "
+              "appointment is enough, but do not let it go beyond 4 weeks."),
     "benign": ("Belirgin bir endişe işareti görülmedi", "No clear warning sign was seen",
                "Model fotoğrafta belirgin bir uyarı işareti görmedi. Leke büyürse, rengi ya da şekli değişirse, kanar ya da "
                "yara açarsa bir doktora gidin.",
@@ -197,13 +198,31 @@ def calm_card_html(level: str, mel_rule: bool = False) -> str:
     tr_t, en_t, tr_b, en_b = CALM[level]
     if mel_rule:  # melanom güvenlik kuralıyla yönlendirildi
         tr_b = ("Leke büyük ihtimalle zararsız bir bene benziyor; ancak model melanomu (ben kanseri) tamamen dışlayamadı. "
-                "Güvenlik için ilk uygun randevuda bir dermatoloğa gösterin.")
+                "Güvenlik için 4 hafta içinde bir dermatoloğa gösterin.")
         en_b = ("The spot most likely looks like a harmless mole, but the model could not fully rule out melanoma. To be safe, "
-                "show it to a dermatologist at the next convenient appointment.")
+                "show it to a dermatologist within 4 weeks.")
     cls = "benign" if level == "benign" else "refer"  # hasta modunda kırmızı yerine daha sakin renk
     ic = "✓" if level == "benign" else "→"
     return (f'<div class="rec {cls}"><div class="rec-title"><span class="rec-ic">{ic}</span>{L(tr_t, en_t)}</div>'
             f'<div class="rec-text">{L(tr_b, en_b)}</div></div>')
+
+
+def appointment_html(level: str) -> str:
+    """Randevu yönlendirmesi (öncelikli: 1–2 hafta, rutin: 4 hafta). Türkiye için MHRS / 182 / aile hekimi."""
+    if level not in ("urgent", "refer"):
+        return ""
+    when = L("1–2 hafta", "1–2 weeks") if level == "urgent" else L("4 hafta", "4 weeks")
+    title = L("Randevu nasıl alınır?", "How to get an appointment")
+    items = L(
+        f"<li>Dermatoloji randevusu: <b>MHRS</b> uygulaması, <b>e-Nabız</b> veya <b>182</b> numaralı MHRS telefon hattı.</li>"
+        f"<li><b>{when}</b> içinde randevu bulamazsanız <b>aile hekiminize</b> başvurun ya da hastaneyi arayıp öncelikli randevu isteyin.</li>"
+        "<li>Doktora giderken bu sayfadaki <b>PDF raporu</b> indirip yanınızda götürün.</li>"
+        "<li>Bu sürede leke <b>kanarsa, hızla büyürse veya şekli değişirse</b> beklemeden başvurun.</li>",
+        f"<li>Dermatology appointment: the <b>MHRS</b> app, <b>e-Nabız</b> or the MHRS phone line <b>182</b> (Türkiye).</li>"
+        f"<li>If you cannot get an appointment within <b>{when}</b>, see your <b>family doctor</b> or call the hospital and ask for a priority appointment.</li>"
+        "<li>Download the <b>PDF report</b> on this page and take it with you.</li>"
+        "<li>If the spot <b>bleeds, grows quickly or changes shape</b> in the meantime, do not wait.</li>")
+    return f'<div class="rely"><div class="rely-t">{title}</div><ul class="appt">{items}</ul></div>'
 
 
 def calm_meaning_html(level: str) -> str:
@@ -216,12 +235,12 @@ def calm_meaning_html(level: str) -> str:
     else:
         body = L("<b>Doktora yönlendirilmek kanser olduğunuz anlamına gelmez.</b> Bu araç kanseri kaçırmamak için bilerek "
                  "temkinli ayarlandı; bu yüzden testlerde <b>zararsız lekelerin yarısından fazlasını</b> da doktora "
-                 "yönlendirdi. Tipik bir poliklinik hastası grubunda, “kısa süre içinde” sonucu alan her 100 kişiden "
-                 "<b>yaklaşık 85'inin lekesi kanser çıkmaz</b> (tahmini). Doktor çoğu lekeye bakarak birkaç dakikada karar verir; "
+                 "yönlendirdi. Tipik bir poliklinik hastası grubunda, doktora yönlendirilen her 100 kişiden "
+                 "<b>yaklaşık 90'ının lekesi kanser çıkmaz</b> (tahmini). Doktor çoğu lekeye bakarak birkaç dakikada karar verir; "
                  "cilt kanserlerinin büyük çoğunluğu da erken fark edildiğinde tamamen tedavi edilir.",
                  "<b>Being referred does not mean you have cancer.</b> This tool is deliberately cautious so as not to miss "
                  "cancer, so in testing it also referred <b>more than half of harmless spots</b>. In a typical clinic "
-                 "population, of every 100 people who get the “soon” result, <b>about 85 do not have skin cancer</b> "
+                 "population, of every 100 people who are referred, <b>about 90 do not have skin cancer</b> "
                  "(estimate). A doctor can usually decide within minutes by looking, and most skin cancers are fully "
                  "treatable when found early.")
     tail = L("Aynı lekeyi tekrar tekrar analiz etmek sonucu daha doğru yapmaz; en iyi adım bir doktorla konuşmaktır.",

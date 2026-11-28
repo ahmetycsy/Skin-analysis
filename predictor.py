@@ -91,6 +91,15 @@ GROUPS = {
 # Eşikler aynı kümede seçildiği için bu oranlar biraz iyimserdir. Tarama aracı olduğu için kanseri kaçırmamak öncelikli
 # tutuldu; son karar (Tuğalp'in maliyet katsayısı c dahil) ekip ve danışman tarafından verilmelidir.
 REFER_URGENT_MALIGN = 0.30      # kötü huylu toplamı bunun üstündeyse: öncelikli değerlendirme
+# Öncelik kuralı (29 Kasım 2026, ekip kararı; danışmanla kesinleştirilecek). İki seçenek, tek satırla geri dönülebilir:
+#   "type"  : öncelik, hızlı ilerleyebilen türlere göre: MEL + SCCKA + MAL_OTH olasılığı ≥ PRIORITY_TYPE_T (ve lezyon sevk
+#             ediliyorsa). Yavaş seyirli BCC tek başına öncelik almaz, rutin sevke düşer (4 hafta notuyla).
+#   "total" : eski kural: kötü huylu toplamı ≥ REFER_URGENT_MALIGN.
+# Doğrulama (hekim modu, poliklinik karışımı %8/%10): öncelikli melanom 73→75/90, 1.000 hastada öncelikli 381→285,
+# kaçırılan kötü huylu değişmez (9/691). İki eşikli ince ayar 5 katlı ÇD'de ek kazanç vermedi. Analiz: raporda Bölüm 6.4.
+PRIORITY_RULE = "type"
+PRIORITY_TYPE_T = 0.15
+PRIORITY_TYPES = ("MEL", "SCCKA", "MAL_OTH")
 REFER_MALIGN_OR_PRE = 0.20      # kötü huylu + kansere dönüşebilir toplamı bunun üstündeyse: değerlendirme önerilir
 UNCERTAIN_TOP = 0.40            # en yüksek olasılık bunun altındaysa: kararsız
 UNCERTAIN_GAP = 0.10            # ilk iki sonuç arasındaki fark bunun altındaysa: kararsız

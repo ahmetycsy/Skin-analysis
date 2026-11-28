@@ -206,7 +206,11 @@ TXT = {
         "tanımak için eğitilmedi (iltihaplı lezyonlar verinin yalnızca %1'i); hasta modunda kullanıcıya bu sorulur ve uyarılır.\n"
         "- **Melanom güvenlik kuralı:** Kaçırılan melanomların çoğu ben sanıldığından, melanom olasılığı hekim modunda %10, "
         "hasta modunda %15'in üstündeyse lezyon yine de dermatoloğa yönlendirilir. Model analizi sayfasındaki eşik "
-        "simülatörü bu kuralı içermez.",
+        "simülatörü bu kuralı içermez.\n"
+        "- **Türe göre öncelik:** Öncelikli (1–2 hafta) sevk, toplam kötü huylu olasılığına göre değil, hızlı ilerleyebilen "
+        "türlere (melanom, SCC, diğer kötü huylu; toplam ≥ %15) göre verilir. Yavaş seyirli BCC tek başına rutin sevke "
+        "(4 hafta) düşer. Doğrulamada kaçırılan kanser değişmedi, öncelikli melanom 73'ten 75'e çıktı, poliklinikte öncelikli "
+        "yük yaklaşık %25 azaldı. Eşik simülatörü eski 'toplam' kuralını gösterir.",
         "- **Class imbalance:** performance is low for rare types (e.g. other malignant growths, 9 lesions).\n"
         "- **Skin-tone representation:** most training data is medium or light skin; performance on dark skin must be "
         "measured separately.\n"
@@ -224,7 +228,11 @@ TXT = {
         "users are asked about this and warned.\n"
         "- **Melanoma safety rule:** because most missed melanomas were mistaken for moles, a lesion is still referred when "
         "the melanoma probability exceeds 10% (physician mode) or 15% (patient mode). The threshold simulator on the Model "
-        "analysis page does not include this rule.",
+        "analysis page does not include this rule.\n"
+        "- **Priority by type:** priority (1–2 weeks) referral is based on faster-growing types (melanoma, SCC, other "
+        "malignant; total ≥ 15%), not on the total malignant probability. Slow-growing BCC alone gets a routine referral "
+        "(4 weeks). On validation, missed cancers did not change, melanomas in priority rose from 73 to 75 and the priority "
+        "load in a clinic fell by about 25%. The threshold simulator shows the former 'total' rule.",
     ),
     "h_ethics": ("Etik, gizlilik ve güvenlik", "Ethics, privacy and safety"),
     "ethics": (
