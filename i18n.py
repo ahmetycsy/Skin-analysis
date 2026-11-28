@@ -877,11 +877,20 @@ Do not use filtered, cropped or colour-corrected images.
     "cam_orig": ("Dermoskopik görüntü", "Dermoscopic image"),
     "cam_heat": ("Isı haritası: {c}", "Heat map: {c}"),
     "cam_note": (
-        "Kırmızı ve sarı alanlar modelin en çok dikkat ettiği yerlerdir. Bu harita lezyonun sınırını veya tanı kanıtını "
-        "göstermez; yalnızca modelin kararını anlamaya yardımcı olur (Grad-CAM yöntemi).",
-        "Red and yellow areas are where the model focused most. The map does not show the lesion border or diagnostic "
-        "evidence; it only helps to understand the model's decision (Grad-CAM method).",
+        "Renkli alanlar modelin bu karar için en çok dikkat ettiği yerlerdir; beyaz çizgi en yoğun bölgeyi çevreler. Bu harita "
+        "lezyonun sınırını veya tanı kanıtını göstermez; yalnızca modelin kararını anlamaya yardımcı olur (Grad-CAM yöntemi).",
+        "Coloured areas are where the model focused most for this decision; the white line surrounds the strongest region. The "
+        "map does not show the lesion border or diagnostic evidence; it only helps to understand the model's decision (Grad-CAM).",
     ),
+    "cam_for": ("Harita neyi açıklıyor: {c}", "What the map explains: {c}"),
+    "cam_t_fast": ("öncelikli sevki tetikleyen türler (melanom, SCC, diğer kötü huylu)",
+                   "the types that triggered priority referral (melanoma, SCC, other malignant)"),
+    "cam_t_mel": ("sevki tetikleyen melanom olasılığı", "the melanoma probability that triggered the referral"),
+    "cam_t_risk": ("sevki tetikleyen kötü huylu ve kansere dönüşebilir türler",
+                   "the malignant and precancerous types that triggered the referral"),
+    "cam_t_top": ("en olası tür ({c})", "the most likely type ({c})"),
+    "cam_low": ("düşük", "low"), "cam_high": ("yüksek ilgi", "high attention"),
+    "cam_peak": ("en yoğun bölge", "strongest region"),
 
     # alt bilgi
     "foot_left": ('Veri seti: MILK10k (ISIC Archive), CC-BY-NC 4.0.<br>Bu uygulama bir tıbbi cihaz değildir ve klinik kullanım için onaylanmamıştır.<br>Görüntüler kaydedilmez; izin verilirse yalnızca anonim sonuçlar saklanır.',

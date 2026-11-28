@@ -238,6 +238,10 @@ RELEASE_NOTES = [
         ("site", "PDF raporda uzun satırların görüntülerin altına taşması düzeltildi; rapora randevu satırı eklendi.",
                  "PDF report: long lines no longer run under the images; an appointment line was added."),
         ("site", "Model sayfasına Sürüm notları sekmesi eklendi.", "A Release notes tab was added to the Model page."),
+        ("model", "Isı haritası (Grad-CAM) artık kararı açıklıyor: sevki tetikleyen türler (örneğin melanom ve SCC) için çiziliyor. Daha sakin "
+                  "renkler, en yoğun bölgenin beyaz çizgiyle gösterilmesi ve renk göstergesi eklendi.",
+                  "The heat map (Grad-CAM) now explains the decision: it is drawn for the types that triggered the referral (e.g. "
+                  "melanoma and SCC). Calmer colours, a white outline of the strongest region and a colour legend were added."),
     ]),
     ("28.11.2026", [
         ("safety", "Hasta modunda kare kırpma zorunlu: lekeyi ortalayıp kutunun yaklaşık üçte birini doldurması isteniyor (kumaş ve "

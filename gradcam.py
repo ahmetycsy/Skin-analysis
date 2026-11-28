@@ -54,8 +54,10 @@ def _target_layer(model):
     return list(model.children())[-3]
 
 
-def gradcam(model, x: torch.Tensor, class_idx: int | None = None) -> tuple[np.ndarray, np.ndarray]:
-    """(ısı haritası [0-1], softmax olasılıkları) döner. class_idx verilmezse en olası sınıf kullanılır."""
+def gradcam(model, x: torch.Tensor, class_idx: int | None = None, targets=None) -> tuple[np.ndarray, np.ndarray]:
+    """(ısı haritası [0-1], softmax olasılıkları) döner.
+    targets: sınıf indeksleri listesi verilirse harita bu sınıfların birlikte olasılığı (logsumexp) için çizilir —
+    örneğin sevki tetikleyen türler (melanom + SCC). Verilmezse class_idx, o da yoksa en olası sınıf kullanılır."""
     store = {}
     layer = _target_layer(model)
     h1 = layer.register_forward_hook(lambda m, i, o: store.__setitem__("act", o))
@@ -64,9 +66,13 @@ def gradcam(model, x: torch.Tensor, class_idx: int | None = None) -> tuple[np.nd
         model.zero_grad()
         logits = model(x)
         probs = torch.softmax(logits, dim=1)[0].detach().numpy()
-        if class_idx is None:
-            class_idx = int(probs.argmax())
-        logits[0, class_idx].backward()
+        if targets:
+            score = torch.logsumexp(logits[0, list(targets)], dim=0)
+        else:
+            if class_idx is None:
+                class_idx = int(probs.argmax())
+            score = logits[0, class_idx]
+        score.backward()
     finally:
         h1.remove()
         h2.remove()
@@ -82,21 +88,48 @@ def gradcam(model, x: torch.Tensor, class_idx: int | None = None) -> tuple[np.nd
     return cam, probs
 
 
-def _jet(v: np.ndarray) -> np.ndarray:
-    """0-1 aralığındaki değerleri mavi→yeşil→sarı→kırmızı renklere çevirir (matplotlib gerekmez)."""
-    r = np.clip(1.5 - np.abs(4 * v - 3), 0, 1)
-    g = np.clip(1.5 - np.abs(4 * v - 2), 0, 1)
-    b = np.clip(1.5 - np.abs(4 * v - 1), 0, 1)
+def central_share(cam: np.ndarray, frac: float = 0.5) -> float:
+    """Isının ne kadarı görüntünün ortasındaki kare bölgede (kenarın frac'ı kadar)? Düzgün dağılımda ≈ frac².
+    Hasta modunda kırpma zorunlu olduğu için lezyon ortadadır; bu oran düşükse model arka plana bakıyor olabilir."""
+    h, w = cam.shape
+    a, b = int(round(h * (1 - frac) / 2)), int(round(w * (1 - frac) / 2))
+    total = float(cam.sum())
+    return float(cam[a:h - a, b:w - b].sum()) / total if total > 0 else 0.0
+
+
+def _warm(v: np.ndarray) -> np.ndarray:
+    """0-1 → açık sarıdan koyu kırmızıya tek tonlu sıcak renk (gökkuşağından daha sakin, renk körlüğünde de okunur)."""
+    g = np.clip(0.85 - 0.75 * v, 0, 1)
+    b = np.clip(0.35 - 0.35 * v, 0, 1)
+    r = np.clip(1.0 - 0.25 * np.clip(v - 0.6, 0, 1), 0, 1)
     return (np.stack([r, g, b], -1) * 255).astype(np.uint8)
 
 
-def overlay(img: Image.Image, cam: np.ndarray, alpha: float = 0.45) -> Image.Image:
-    """Isı haritasını görüntünün üstüne yarı saydam bindirir. Zayıf bölgeler neredeyse şeffaf kalır."""
+def overlay(img: Image.Image, cam: np.ndarray, alpha: float = 0.55, outline: float = 0.6) -> Image.Image:
+    """Isı haritasını görüntünün üstüne bindirir: zayıf bölgeler tamamen şeffaf (lezyon görünür kalır), güçlü bölgeler
+    sıcak renkli; ısının en yüksek olduğu bölgenin (≥ outline) sınırı beyaz bir çizgiyle çizilir."""
+    from PIL import ImageFilter
+
     size = img.size
-    cam_img = Image.fromarray((cam * 255).astype(np.uint8)).resize(size, Image.BILINEAR)
+    cam_img = Image.fromarray((cam * 255).astype(np.uint8)).resize(size, Image.BICUBIC)
     c = np.asarray(cam_img, dtype=np.float32) / 255.0
-    heat = _jet(c).astype(np.float32)
+    heat = _warm(c).astype(np.float32)
     base = np.asarray(img.convert("RGB"), dtype=np.float32)
-    a = (alpha * np.clip(c * 1.4, 0, 1))[..., None]
+    a = (alpha * np.clip((c - 0.25) / 0.75, 0, 1))[..., None]
     out = base * (1 - a) + heat * a
+    # beyaz çizgi yalnızca en sıcak noktayı içeren ana bölgeyi çevirir (kenardaki küçük adacıklar kalabalık yapmasın)
+    grid = cam >= outline
+    keep = np.zeros_like(grid)
+    if grid.any():
+        stack = [tuple(np.unravel_index(int(np.argmax(cam)), cam.shape))]
+        while stack:
+            i, j = stack.pop()
+            if 0 <= i < grid.shape[0] and 0 <= j < grid.shape[1] and grid[i, j] and not keep[i, j]:
+                keep[i, j] = True
+                stack += [(i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)]
+    main = np.asarray(Image.fromarray((keep * 255).astype(np.uint8)).resize(size, Image.BILINEAR), dtype=np.float32) / 255.0
+    mask = Image.fromarray((((c >= outline) & (main > 0.3)) * 255).astype(np.uint8))
+    edge = np.asarray(mask.filter(ImageFilter.MaxFilter(5)), dtype=np.int16) - np.asarray(mask.filter(ImageFilter.MinFilter(3)), dtype=np.int16)
+    e = edge > 0
+    out[e] = [255, 255, 255]
     return Image.fromarray(out.clip(0, 255).astype(np.uint8))

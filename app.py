@@ -299,6 +299,11 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .rn-list .rn-tag {{ flex:0 0 auto; min-width:5.8rem; text-align:center; }}
 .rn-text {{ font-size:.93rem; color:{INK}; }}
 @media (max-width:640px) {{ .rn-day {{ grid-template-columns:1fr; gap:.4rem; }} .rn-list li {{ flex-direction:column; gap:.2rem; }} }}
+.cam-for {{ font-size:.88rem; color:{INK}; margin:.2rem 0 .3rem; }}
+.cam-legend {{ display:flex; align-items:center; gap:.45rem; font-size:.78rem; color:{MUTED}; margin:0 0 .3rem; }}
+.cam-legend i {{ display:inline-block; width:7rem; height:.55rem; border-radius:3px;
+  background:linear-gradient(90deg, rgba(255,217,89,0), #FFD959 30%, #FF8A2A 65%, #C8301E); }}
+.cam-legend b {{ display:inline-block; width:1.1rem; height:.7rem; border:2px solid #fff; outline:1px solid {MUTED}; border-radius:2px; }}
 .border-note {{ border-left:3px solid {C_PREMALIGN}; background:{C_PREMALIGN}14; color:{INK}; padding:.55rem .8rem;
   border-radius:6px; font-size:.9rem; line-height:1.5; margin:0 0 .8rem; }}
 .crop-guide {{ font-size:.88rem; color:{INK}; line-height:1.5; margin:.1rem 0 .45rem; }}
@@ -597,6 +602,18 @@ def new_case_id(seed: str) -> str:
         cid = f"LZ-{now_tr():%y%m%d}-{code}"
         if cid not in ss.cases:
             return cid
+
+
+def cam_targets(a: dict, probs: dict):
+    """Isı haritası hangi kararı açıklasın? (hedef sınıflar, etiket anahtarı). Sevki tetikleyen türler; yoksa en olası tür."""
+    risk = a["totals"][MALIGN] + a["totals"][PREMALIGN]
+    if a["level"] == "urgent":
+        return (list(PRIORITY_TYPES), "fast") if PRIORITY_RULE == "type" else ([c for c in CLASSES if GROUPS[c] == MALIGN], "risk")
+    if a["level"] == "refer" and a.get("mel_rule"):
+        return ["MEL"], "mel"
+    if a["level"] == "refer" and risk >= REFER_MALIGN_OR_PRE:
+        return [c for c in CLASSES if GROUPS[c] in (MALIGN, PREMALIGN)], "risk"
+    return None, "top"
 
 
 BORDER_MARGIN = 0.05  # Tuğalp'in önerisi: eşiğe bu kadar yakın sonuçta "sınırda" uyarısı (yönlendirmeyi değiştirmez)
@@ -1527,6 +1544,11 @@ def _result_body(rec, a, simple, cid, where):
                 else:
                     g1.image(rec["clin_jpg"], caption=t("clin_title"), width="stretch")
                 g2.image(lens_preview(rec["cam_img"]), caption=t("cam_heat", c=i18n.plain(rec["cam_class"])), width="stretch")
+                tk = rec.get("cam_target") or "top"
+                what = t("cam_t_top", c=i18n.plain(rec["cam_class"])) if tk == "top" else t("cam_t_" + tk)
+                st.markdown(f'<div class="cam-for">{t("cam_for", c=what)}</div>'
+                            f'<div class="cam-legend"><span>{t("cam_low")}</span><i></i><span>{t("cam_high")}</span>'
+                            f'<b></b><span>{t("cam_peak")}</span></div>', unsafe_allow_html=True)
                 st.caption(t("cam_note"))
             else:
                 st.markdown(f'<div class="cam-empty">{t("cam_demo")}</div>', unsafe_allow_html=True)
@@ -1896,7 +1918,10 @@ def step_patient():
                 probs, parts = predictor.predict_detail(clin_img, derm_img, meta)
             else:
                 probs, parts = predictor.predict(clin_img, derm_img, meta), None
-            cam = predictor.explain(clin_img, derm_img, meta) if hasattr(predictor, "explain") else None
+            cam = None
+            if hasattr(predictor, "explain"):
+                _tg, cam_key = cam_targets(assess(probs, "hasta" if pm else "hekim"), probs)
+                cam = predictor.explain(clin_img, derm_img, meta, targets=_tg)
             elapsed = time.perf_counter() - t0
             time.sleep(0.3)
             st.write("③ " + t("prog_3"))
@@ -1920,6 +1945,7 @@ def step_patient():
             "cam_img": cam[0] if cam else None,
             "cam_class": cam[1] if cam else None,
             "cam_jpg": jpeg_thumb(cam[0]) if cam else None,
+            "cam_target": cam_key if cam else None,
             "feedback": None,
             "final": None,
             "ts": time.time(),
