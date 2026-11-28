@@ -912,9 +912,9 @@ Do not use filtered, cropped or colour-corrected images.
     "cam_heat_derm": ("Isı haritası (dermoskopik)", "Heat map (dermoscopic)"),
     "cam_heat_clin": ("Isı haritası (klinik)", "Heat map (clinical)"),
     "cam_note": (
-        "Renkli alanlar modelin bu karar için en çok dikkat ettiği yerlerdir; beyaz çizgi en yoğun bölgeyi çevreler. Bu harita "
+        "Renkli alanlar modelin bu karar için en çok dikkat ettiği yerlerdir; ince beyaz çizgiler ilginin yoğunlaştığı bölgelerin sınırını gösterir (içteki en yoğun). Bu harita "
         "lezyonun sınırını veya tanı kanıtını göstermez; yalnızca modelin kararını anlamaya yardımcı olur (Grad-CAM yöntemi).",
-        "Coloured areas are where the model focused most for this decision; the white line surrounds the strongest region. The "
+        "Coloured areas are where the model focused most for this decision; the thin white lines outline the areas of concentrated attention (the inner one is the strongest). The "
         "map does not show the lesion border or diagnostic evidence; it only helps to understand the model's decision (Grad-CAM).",
     ),
     "cam_for": ("Harita neyi açıklıyor: {c}", "What the map explains: {c}"),
@@ -925,7 +925,7 @@ Do not use filtered, cropped or colour-corrected images.
                    "the malignant and precancerous types that triggered the referral"),
     "cam_t_top": ("en olası tür ({c})", "the most likely type ({c})"),
     "cam_low": ("düşük", "low"), "cam_high": ("yüksek ilgi", "high attention"),
-    "cam_peak": ("en yoğun bölge", "strongest region"),
+    "cam_peak": ("yoğunluk sınırları", "intensity contours"),
 
     # alt bilgi
     "foot_left": ('Veri seti: MILK10k (ISIC Archive), CC-BY-NC 4.0.<br>Bu uygulama bir tıbbi cihaz değildir ve klinik kullanım için onaylanmamıştır.<br>Görüntüler kaydedilmez; izin verilirse yalnızca anonim sonuçlar saklanır.',

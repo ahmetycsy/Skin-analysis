@@ -47,10 +47,11 @@ def preprocess(img: Image.Image, img_size: int = 300, mean=MEAN, std=STD) -> tup
 
 
 def _target_layer(model):
-    # timm EfficientNet: sondan ikinci blok grubu. En son katman (bn2) denendi; 20 doğrulama görüntüsünün
-    # 19'unda en sıcak nokta görüntü köşesine kayıyordu (kenar dolgusu etkisi). blocks[-2]'de bu 6/20'ye düşüyor.
+    # timm EfficientNet: son blok grubu. 20 klinik + 20 dermoskopik görüntüde blocks[-2] ile karşılaştırıldı:
+    # haritanın gösterdiği %20'lik alan kapatılınca olasılık daha çok düşüyor (klinik 0,42 / 0,30; dermoskopik 0,31 / 0,26),
+    # ısı ortada toplanıyor ve en sıcak nokta hiç kenara kaymıyor (blocks[-2]'de %30–45). En son katman (bn2) kenara kayıyor.
     if hasattr(model, "blocks"):
-        return model.blocks[-2]
+        return model.blocks[-1]
     return list(model.children())[-3]
 
 
@@ -80,9 +81,9 @@ def gradcam(model, x: torch.Tensor, class_idx: int | None = None, targets=None) 
     act, grad = store["act"][0].detach(), store["grad"][0].detach()
     weights = grad.mean(dim=(1, 2))
     cam = torch.relu((weights[:, None, None] * act).sum(0)).numpy()
-    # Sol üst hücre sabit bir yapay etkidir: düz gri, boş bir görüntüde bile tek yanan hücre budur
-    # (köşedeki asimetrik kenar dolgusu). Görüntü içeriğiyle ilgisi olmadığı için hesaba katılmaz.
-    cam[0, 0] = 0.0
+    # Köşe hücreleri sabit bir yapay etki üretebiliyor (kenar dolgusu): boş gri görüntüde de yanıyorlar ve lezyon kareyi
+    # doldurduğunda haritayı tek başına bir köşeye çekebiliyorlar. Dört köşe hesaba katılmaz.
+    cam[0, 0] = cam[0, -1] = cam[-1, 0] = cam[-1, -1] = 0.0
     if cam.max() > 0:
         cam = cam / cam.max()
     return cam, probs
@@ -108,39 +109,48 @@ def central_share(cam: np.ndarray, frac: float = 0.5) -> float:
     return float(cam[a:h - a, b:w - b].sum()) / total if total > 0 else 0.0
 
 
-def _warm(v: np.ndarray) -> np.ndarray:
-    """0-1 → açık sarıdan koyu kırmızıya tek tonlu sıcak renk (gökkuşağından daha sakin, renk körlüğünde de okunur)."""
-    g = np.clip(0.85 - 0.75 * v, 0, 1)
-    b = np.clip(0.35 - 0.35 * v, 0, 1)
-    r = np.clip(1.0 - 0.25 * np.clip(v - 0.6, 0, 1), 0, 1)
-    return (np.stack([r, g, b], -1) * 255).astype(np.uint8)
+# koyu mor → kırmızı → turuncu → açık sarı (parlaklık tek yönde arttığı için renk körlüğünde de okunur)
+HEAT_STOPS = ((0.0, (66, 10, 104)), (0.25, (120, 28, 109)), (0.5, (188, 55, 84)), (0.7, (237, 105, 37)),
+              (0.85, (251, 165, 10)), (1.0, (252, 236, 130)))
 
 
-def overlay(img: Image.Image, cam: np.ndarray, alpha: float = 0.55, outline: float = 0.6) -> Image.Image:
-    """Isı haritasını görüntünün üstüne bindirir: zayıf bölgeler tamamen şeffaf (lezyon görünür kalır), güçlü bölgeler
-    sıcak renkli; ısının en yüksek olduğu bölgenin (≥ outline) sınırı beyaz bir çizgiyle çizilir."""
-    from PIL import ImageFilter
+def _ramp(v: np.ndarray) -> np.ndarray:
+    xs = [p for p, _ in HEAT_STOPS]
+    return np.stack([np.interp(v, xs, [c[i] for _, c in HEAT_STOPS]) for i in range(3)], -1).astype(np.float32)
 
-    size = img.size
-    cam_img = Image.fromarray((cam * 255).astype(np.uint8)).resize(size, Image.BICUBIC)
-    c = np.asarray(cam_img, dtype=np.float32) / 255.0
-    heat = _warm(c).astype(np.float32)
-    base = np.asarray(img.convert("RGB"), dtype=np.float32)
-    a = (alpha * np.clip((c - 0.25) / 0.75, 0, 1))[..., None]
-    out = base * (1 - a) + heat * a
-    # beyaz çizgi yalnızca en sıcak noktayı içeren ana bölgeyi çevirir (kenardaki küçük adacıklar kalabalık yapmasın)
-    grid = cam >= outline
-    keep = np.zeros_like(grid)
-    if grid.any():
-        stack = [tuple(np.unravel_index(int(np.argmax(cam)), cam.shape))]
-        while stack:
-            i, j = stack.pop()
-            if 0 <= i < grid.shape[0] and 0 <= j < grid.shape[1] and grid[i, j] and not keep[i, j]:
-                keep[i, j] = True
-                stack += [(i + 1, j), (i - 1, j), (i, j + 1), (i, j - 1)]
-    main = np.asarray(Image.fromarray((keep * 255).astype(np.uint8)).resize(size, Image.BILINEAR), dtype=np.float32) / 255.0
-    mask = Image.fromarray((((c >= outline) & (main > 0.3)) * 255).astype(np.uint8))
-    edge = np.asarray(mask.filter(ImageFilter.MaxFilter(5)), dtype=np.int16) - np.asarray(mask.filter(ImageFilter.MinFilter(3)), dtype=np.int16)
-    e = edge > 0
-    out[e] = [255, 255, 255]
+
+def _smooth_field(cam: np.ndarray, n: int) -> np.ndarray:
+    """Kaba ızgarayı yumuşakça büyütür (bikübik + hafif Gauss), böylece hücre köşeleri görünmez."""
+    up = Image.fromarray(cam.astype(np.float32)).resize((n, n), Image.BICUBIC)
+    a = np.clip(np.asarray(up, dtype=np.float32), 0, 1)
+    sigma = n / 45
+    r = int(3 * sigma)
+    k = np.exp(-0.5 * (np.arange(-r, r + 1) / sigma) ** 2).astype(np.float32)
+    k /= k.sum()
+    for axis in (0, 1):
+        a = np.apply_along_axis(lambda v: np.convolve(np.pad(v, r, mode="edge"), k, mode="valid"), axis, a)
+    return (a / max(float(a.max()), 1e-6)).astype(np.float32)
+
+
+def _contour(field: np.ndarray, level: float, width: float) -> np.ndarray:
+    """Kenarı yumuşatılmış eş düzey çizgisi (0-1 örtü). Her pikselin çizgiye uzaklığı ≈ |değer − düzey| / eğim."""
+    gy, gx = np.gradient(field)
+    dist = np.abs(field - level) / np.maximum(np.hypot(gx, gy), 1e-6)
+    return np.clip(width / 2 + 0.5 - dist, 0, 1)
+
+
+def _blend(base: np.ndarray, color, a: np.ndarray) -> np.ndarray:
+    return base * (1 - a[..., None]) + np.asarray(color, np.float32) * a[..., None]
+
+
+def overlay(img: Image.Image, cam: np.ndarray, size: int = 600) -> Image.Image:
+    """Isı haritasını görüntünün üstüne bindirir: ilgi görmeyen alan hafifçe karartılır, ilgi gören bölge yarı saydam
+    renklendirilir, iki ince eş düzey çizgisi (%50 ve %75) yoğunluğun şeklini gösterir. Lezyon dokusu görünür kalır."""
+    base = np.asarray(img.convert("RGB").resize((size, size), Image.LANCZOS), dtype=np.float32)
+    c = _smooth_field(cam, size)
+    out = base * (0.66 + 0.34 * np.clip((c - 0.20) / 0.40, 0, 1))[..., None]
+    out = _blend(out, _ramp(c), 0.48 * np.clip((c - 0.30) / 0.70, 0, 1) ** 0.9)
+    for level, width, strength in ((0.50, 1.6, 0.60), (0.75, 2.2, 0.95)):
+        out = _blend(out, (0, 0, 0), 0.22 * strength * _contour(c, level, width + 3))   # çizginin altında ince koyu gölge
+        out = _blend(out, (255, 255, 255), _contour(c, level, width) * strength)
     return Image.fromarray(out.clip(0, 255).astype(np.uint8))

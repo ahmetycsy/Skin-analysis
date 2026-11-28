@@ -304,8 +304,8 @@ div.stButton > button[kind="primary"]:disabled {{ background:#BCD2CF; color:#fff
 .cam-for {{ font-size:.88rem; color:{INK}; margin:.2rem 0 .3rem; }}
 .cam-legend {{ display:flex; align-items:center; gap:.45rem; font-size:.78rem; color:{MUTED}; margin:0 0 .3rem; }}
 .cam-legend i {{ display:inline-block; width:7rem; height:.55rem; border-radius:3px;
-  background:linear-gradient(90deg, rgba(255,217,89,0), #FFD959 30%, #FF8A2A 65%, #C8301E); }}
-.cam-legend b {{ display:inline-block; width:1.1rem; height:.7rem; border:2px solid #fff; outline:1px solid {MUTED}; border-radius:2px; }}
+  background:linear-gradient(90deg, rgba(120,28,109,0), #781C6D 25%, #BC3754 50%, #ED6925 70%, #FBA50A 85%, #FCEC82); }}
+.cam-legend b {{ display:inline-block; width:1.1rem; height:.7rem; border:1.5px solid #fff; outline:1px solid {MUTED}; border-radius:50%; }}
 .border-note {{ border-left:3px solid {C_PREMALIGN}; background:{C_PREMALIGN}14; color:{INK}; padding:.55rem .8rem;
   border-radius:6px; font-size:.9rem; line-height:1.5; margin:0 0 .8rem; }}
 .crop-guide {{ font-size:.88rem; color:{INK}; line-height:1.5; margin:.1rem 0 .45rem; }}

@@ -226,6 +226,12 @@ def render_share(url: str):
 # En yeni en üstte. Etiket: model / site / safety / eval. Yeni değişiklikte en üste bir giriş ekleyin.
 RELEASE_NOTES = [
     ("29.11.2026", [
+        ("model", "Isı haritası (Grad-CAM) artık modelin son katman grubundan çiziliyor: harita lezyon üzerinde daha iyi toplanıyor, "
+                  "arka plana ve kenara kayma azaldı (40 görüntülük karşılaştırma). Tahminler ve yönlendirme değişmedi.",
+                  "The heat map (Grad-CAM) is now drawn from the model's last layer group: it concentrates better on the lesion and drifts "
+                  "less to the background and edges (comparison on 40 images). Predictions and referral did not change."),
+        ("site", "Isı haritasının görünümü yenilendi: yumuşak renk geçişi, ilgi görmeyen alanda hafif karartma ve ince yoğunluk çizgileri.",
+                 "New heat-map look: smooth colour scale, slight dimming outside the attended area and thin intensity contours."),
         ("model", "Öncelikli sevk artık kanser türüne göre: melanom, SCC veya diğer kötü huylu şüphesi (toplam ≥ %15) öncelikli; "
                   "yavaş seyirli BCC tek başına rutin sevke düşer. Doğrulamada kaçırılan kanser değişmedi, öncelikli yük yaklaşık %25 azaldı.",
                   "Priority referral now depends on the cancer type: suspected melanoma, SCC or other malignant growth (total ≥ 15%) is "
